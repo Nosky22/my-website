@@ -1,0 +1,182 @@
+/* ============================================================
+   CSS CUSTOM PROPERTIES (variables)
+   Define the colour palette here once. Change a value here
+   and it updates everywhere on the site automatically.
+   ============================================================ */
+:root {
+  /* Backgrounds */
+  --bg:         #0b2b2b;   /* page background — dark teal */
+  --bg-surface: #0f3535;   /* header / footer / cards */
+
+  /* Text */
+  --text:       #ffffff;   /* main body text */
+  --text-muted: #7fc4c4;   /* secondary / footnote text — teal-white for legibility on dark teal */
+
+  /* Accent colours */
+  --cerulean:   #1a8fb5;   /* cerulean blue — links, highlights */
+  --cerulean-light: #4db8d8; /* lighter tint for hover states */
+  --yellow:     #f5c518;   /* yellow — standout accents */
+
+  /* Spacing & shape */
+  --max-width:  860px;
+  --radius:     4px;
+}
+
+/* ============================================================
+   RESET & BASE
+   Remove browser defaults so we start from a clean slate.
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+
+  /* System font stack — no external font downloads needed */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.6;
+
+  /* Push the footer to the bottom even on short pages */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* All anchor tags share a base style */
+a {
+  color: var(--cerulean);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--cerulean-light);
+}
+
+/* ============================================================
+   HEADER
+   Sits at the top of every page.
+   Flexbox puts the site name on the left, nav on the right.
+   ============================================================ */
+.site-header {
+  background-color: var(--bg-surface);
+
+  /* A thin bottom border in cerulean anchors the header visually */
+  border-bottom: 2px solid var(--cerulean);
+
+  /* Horizontal padding keeps content away from the viewport edges.
+     The inner max-width wrapper below keeps long lines readable. */
+  padding: 0 1.5rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 60px;
+}
+
+/* Site name — flex row so the logo image and text sit side by side */
+.site-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--yellow);   /* yellow makes the name pop against the dark header */
+}
+
+.site-name:hover {
+  color: var(--yellow);   /* keep yellow on hover — don't shift to cerulean */
+  opacity: 0.85;
+}
+
+/* Logo image — height is constrained to fit inside the 60px header.
+   width: auto preserves the image's original proportions. */
+.site-logo {
+  height: 36px;
+  width: auto;
+}
+
+/* Navigation links sit in a horizontal row */
+.site-nav {
+  display: flex;
+  gap: 1.75rem;
+}
+
+.site-nav a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);          /* grey by default */
+  transition: color 0.15s ease;
+}
+
+.site-nav a:hover {
+  color: var(--cerulean-light); /* cerulean on hover */
+}
+
+/* ============================================================
+   MAIN
+   Grows to fill remaining vertical space so the footer
+   stays at the bottom of the page (works with the flex column
+   on <body> set above).
+   ============================================================ */
+main {
+  flex: 1;
+
+  /* Limit line length and centre the content block */
+  max-width: var(--max-width);
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+/* ============================================================
+   HERO SECTION
+   The first thing a visitor sees — title and tagline.
+   ============================================================ */
+.hero {
+  /* Extra vertical breathing room around the hero */
+  padding: 4rem 0 3rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 6vw, 4rem); /* scales between small and large screens */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--yellow);           /* yellow title is the visual centrepiece */
+  margin-bottom: 1rem;
+}
+
+.hero-description {
+  font-size: 1.15rem;
+  color: var(--text-muted);        /* muted grey keeps it secondary to the title */
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   FOOTER
+   Sits at the very bottom. Mirrors the header surface colour.
+   ============================================================ */
+.site-footer {
+  background-color: var(--bg-surface);
+  border-top: 1px solid #2a2d36;   /* subtle dividing line */
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+}
+
+.site-footer p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
