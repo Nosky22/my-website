@@ -1,0 +1,5 @@
+[build]
+  # Where Netlify looks for the static files to serve
+  publish = "."
+  # Where Netlify looks for serverless functions
+  functions = "netlify/functions"

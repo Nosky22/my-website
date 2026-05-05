@@ -5,6 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FPL Tool — My Site</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ---- Player table ---- */
+    .player-table-section {
+      margin-top: 2.5rem;
+    }
+
+    .player-table-section h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--cerulean-light);
+      margin-bottom: 1rem;
+    }
+
+    /* Wrap the table so it scrolls horizontally on narrow screens
+       without breaking the page layout */
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background-color: var(--bg-surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.75rem;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 2px solid var(--cerulean);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #1a3d3d;
+      transition: background-color 0.1s ease;
+    }
+
+    tbody tr:hover {
+      background-color: var(--bg-surface);
+    }
+
+    tbody td {
+      padding: 0.55rem 0.9rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* Highlight the points column so it reads as the key stat */
+    td.pts {
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    /* ---- Loading / error states ---- */
+    .status-message {
+      padding: 3rem 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .status-message.error {
+      color: #e07070;
+    }
+  </style>
 </head>
 <body>
 
@@ -31,21 +104,13 @@
       <p class="hero-description">Data-driven help for Fantasy Premier League — player stats, transfer analysis, and team selection.</p>
     </section>
 
-    <section class="page-intro">
-      <h2>What this tool does</h2>
-      <p>Pulls live data from the FPL API so you can make better decisions each gameweek.</p>
-      <ul class="feature-list">
-        <li>Browse player stats — form, price, ownership, and expected points</li>
-        <li>Compare transfer targets side by side</li>
-        <li>View your current squad with rotation and injury alerts</li>
-        <li>Fixture difficulty ratings to plan ahead</li>
-      </ul>
-    </section>
+    <section class="player-table-section">
+      <h2>All Players</h2>
 
-    <!-- App will be built out here once the data layer and UI components are ready -->
-    <section class="app-placeholder" aria-label="Application coming soon">
-      <h2>App coming soon</h2>
-      <p>The FPL tool will load here. Connect your team ID and start planning.</p>
+      <!-- This div is replaced by either the table or an error message -->
+      <div id="player-output">
+        <p class="status-message" id="loading-msg">Loading player data...</p>
+      </div>
     </section>
 
   </main>
@@ -53,6 +118,92 @@
   <footer class="site-footer">
     <p>&copy; 2026 My Site. All rights reserved.</p>
   </footer>
+
+  <script>
+    // Position IDs from the FPL API: 1=GKP, 2=DEF, 3=MID, 4=FWD
+    const POSITION_LABELS = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
+
+    async function loadPlayers() {
+      const output = document.getElementById("player-output");
+
+      try {
+        const res = await fetch("/.netlify/functions/fpl");
+
+        if (!res.ok) {
+          throw new Error(`Proxy returned ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        // Build a quick-lookup map from team ID → team short name
+        const teamMap = {};
+        for (const team of data.teams) {
+          teamMap[team.id] = team.short_name;
+        }
+
+        // Sort players by total_points descending so the most valuable
+        // players appear at the top without any filter needed
+        const players = [...data.elements].sort(
+          (a, b) => b.total_points - a.total_points
+        );
+
+        output.innerHTML = buildTable(players, teamMap);
+
+      } catch (err) {
+        output.innerHTML = `<p class="status-message error">
+          Could not load player data — ${err.message}
+        </p>`;
+      }
+    }
+
+    function buildTable(players, teamMap) {
+      // Build the rows first as a string array, then join — faster than
+      // repeated innerHTML concatenation inside a loop
+      const rows = players.map((p) => {
+        const name     = `${p.first_name} ${p.second_name}`;
+        const team     = teamMap[p.team] ?? "—";
+        const position = POSITION_LABELS[p.element_type] ?? "—";
+        // FPL stores price as an integer (55 = £5.5m)
+        const price    = `£${(p.now_cost / 10).toFixed(1)}m`;
+        const pts      = p.total_points;
+
+        return `<tr>
+          <td>${escHtml(name)}</td>
+          <td>${escHtml(team)}</td>
+          <td>${escHtml(position)}</td>
+          <td>${escHtml(price)}</td>
+          <td class="pts">${pts}</td>
+        </tr>`;
+      });
+
+      return `<div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Pos</th>
+              <th>Price</th>
+              <th>Total Pts</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // Minimal HTML escaping — FPL names shouldn't contain markup, but
+    // we sanitise anyway so injected characters can't break the table
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    loadPlayers();
+  </script>
 
 </body>
 </html>
