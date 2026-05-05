@@ -166,6 +166,80 @@ main {
 }
 
 /* ============================================================
+   APP PLACEHOLDER
+   Used on pages where the main tool isn't built yet.
+   The dashed border signals "work in progress" without looking broken.
+   ============================================================ */
+.app-placeholder {
+  border: 2px dashed var(--cerulean);
+  border-radius: var(--radius);
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 2rem;
+}
+
+.app-placeholder h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--cerulean-light);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.app-placeholder p {
+  font-size: 0.95rem;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   PAGE INTRO
+   A short description block that sits below the hero on
+   feature pages, before the main app area.
+   ============================================================ */
+.page-intro {
+  margin-bottom: 0.5rem;
+}
+
+.page-intro h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.page-intro p {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.feature-list {
+  list-style: none;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.feature-list li {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  padding-left: 1.2rem;
+  position: relative;
+}
+
+/* Cerulean bullet using a pseudo-element so we don't need extra HTML */
+.feature-list li::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--cerulean);
+  font-weight: 700;
+}
+
+/* ============================================================
    FOOTER
    Sits at the very bottom. Mirrors the header surface colour.
    ============================================================ */
