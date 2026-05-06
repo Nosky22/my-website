@@ -77,6 +77,133 @@
     .status-message.error {
       color: #e07070;
     }
+
+    /* ---- Filter bar ---- */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .pos-filters {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    /* Base style shared by position toggle buttons */
+    .pos-btn {
+      background: transparent;
+      border: 1px solid var(--cerulean);
+      color: var(--cerulean-light);
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background-color 0.12s, color 0.12s;
+    }
+
+    .pos-btn:hover {
+      background: rgba(32, 178, 170, 0.15);
+    }
+
+    /* Applied to individual position buttons when selected, and to
+       the All button when no positions are selected */
+    .pos-btn.active {
+      background: var(--cerulean);
+      color: #fff;
+    }
+
+    /* ---- Team dropdown ---- */
+    .team-dropdown {
+      position: relative;
+    }
+
+    .team-dropdown-btn {
+      background: transparent;
+      border: 1px solid var(--cerulean);
+      color: var(--cerulean-light);
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.12s, color 0.12s;
+      white-space: nowrap;
+    }
+
+    .team-dropdown-btn:hover {
+      background: rgba(32, 178, 170, 0.15);
+    }
+
+    /* Filled when one or more teams are selected */
+    .team-dropdown-btn.has-selection {
+      background: var(--cerulean);
+      color: #fff;
+    }
+
+    .team-dropdown-panel {
+      /* Hidden by default; .open switches it to a 2-column grid */
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: var(--bg-surface);
+      border: 1px solid var(--cerulean);
+      border-radius: 4px;
+      padding: 0.4rem;
+      z-index: 100;
+      min-width: 150px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .team-dropdown-panel.open {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.05rem;
+    }
+
+    .team-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .team-checkbox-label:hover {
+      background: rgba(32, 178, 170, 0.15);
+    }
+
+    .team-checkbox-label input[type="checkbox"] {
+      accent-color: var(--cerulean);
+      cursor: pointer;
+    }
+
+    /* ---- Clear filters ---- */
+    .clear-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0.3rem 0.4rem;
+      text-decoration: underline;
+      margin-left: auto;
+    }
+
+    .clear-btn:hover {
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
@@ -123,6 +250,14 @@
     // Position IDs from the FPL API: 1=GKP, 2=DEF, 3=MID, 4=FWD
     const POSITION_LABELS = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
+    // Kept at module scope so filter functions can read them without re-fetching
+    let allPlayers = [];
+    let teamMap = {};
+
+    // Active filter sets — empty means "show all" for that dimension
+    const activePositions = new Set();
+    const activeTeams = new Set();
+
     async function loadPlayers() {
       const output = document.getElementById("player-output");
 
@@ -135,19 +270,18 @@
 
         const data = await res.json();
 
-        // Build a quick-lookup map from team ID → team short name
-        const teamMap = {};
         for (const team of data.teams) {
           teamMap[team.id] = team.short_name;
         }
 
         // Sort players by total_points descending so the most valuable
         // players appear at the top without any filter needed
-        const players = [...data.elements].sort(
+        allPlayers = [...data.elements].sort(
           (a, b) => b.total_points - a.total_points
         );
 
-        output.innerHTML = buildTable(players, teamMap);
+        output.innerHTML = buildFilterBar(data.teams) + buildTable(allPlayers);
+        wireFilters();
 
       } catch (err) {
         output.innerHTML = `<p class="status-message error">
@@ -156,7 +290,125 @@
       }
     }
 
-    function buildTable(players, teamMap) {
+    function buildFilterBar(teams) {
+      const sortedTeams = [...teams].sort((a, b) =>
+        a.short_name.localeCompare(b.short_name)
+      );
+
+      const teamCheckboxes = sortedTeams.map((t) =>
+        `<label class="team-checkbox-label">
+          <input type="checkbox" value="${escHtml(t.short_name)}" />
+          ${escHtml(t.short_name)}
+        </label>`
+      ).join("");
+
+      return `
+        <div class="filter-bar">
+          <div class="pos-filters">
+            <button class="pos-btn active" data-pos="ALL">All</button>
+            <button class="pos-btn" data-pos="GKP">GK</button>
+            <button class="pos-btn" data-pos="DEF">DEF</button>
+            <button class="pos-btn" data-pos="MID">MID</button>
+            <button class="pos-btn" data-pos="FWD">FWD</button>
+          </div>
+          <div class="team-dropdown">
+            <button class="team-dropdown-btn" id="team-dropdown-btn">Teams ▾</button>
+            <div class="team-dropdown-panel" id="team-dropdown-panel">
+              ${teamCheckboxes}
+            </div>
+          </div>
+          <button class="clear-btn" id="clear-filters">Clear filters</button>
+        </div>`;
+    }
+
+    function wireFilters() {
+      const posButtons = document.querySelectorAll(".pos-btn");
+
+      for (const btn of posButtons) {
+        btn.addEventListener("click", () => {
+          const pos = btn.dataset.pos;
+          if (pos === "ALL") {
+            activePositions.clear();
+          } else {
+            // Toggle this position in/out of the active set
+            if (activePositions.has(pos)) {
+              activePositions.delete(pos);
+            } else {
+              activePositions.add(pos);
+            }
+          }
+          syncPosButtons();
+          applyFilters();
+        });
+      }
+
+      const dropdownBtn   = document.getElementById("team-dropdown-btn");
+      const dropdownPanel = document.getElementById("team-dropdown-panel");
+
+      dropdownBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownPanel.classList.toggle("open");
+      });
+
+      // Clicks inside the panel shouldn't bubble up and close it
+      dropdownPanel.addEventListener("click", (e) => e.stopPropagation());
+
+      document.addEventListener("click", () => {
+        dropdownPanel.classList.remove("open");
+      });
+
+      const checkboxes = dropdownPanel.querySelectorAll("input[type='checkbox']");
+      for (const cb of checkboxes) {
+        cb.addEventListener("change", () => {
+          if (cb.checked) {
+            activeTeams.add(cb.value);
+          } else {
+            activeTeams.delete(cb.value);
+          }
+          syncTeamDropdownBtn();
+          applyFilters();
+        });
+      }
+
+      document.getElementById("clear-filters").addEventListener("click", () => {
+        activePositions.clear();
+        activeTeams.clear();
+        for (const cb of checkboxes) cb.checked = false;
+        syncPosButtons();
+        syncTeamDropdownBtn();
+        applyFilters();
+      });
+    }
+
+    // Keep position button appearance in sync with activePositions
+    function syncPosButtons() {
+      for (const btn of document.querySelectorAll(".pos-btn")) {
+        const pos = btn.dataset.pos;
+        // All button is active when nothing is selected; others when in the set
+        const isActive = pos === "ALL"
+          ? activePositions.size === 0
+          : activePositions.has(pos);
+        btn.classList.toggle("active", isActive);
+      }
+    }
+
+    // Update the dropdown button label and fill to reflect selection count
+    function syncTeamDropdownBtn() {
+      const btn = document.getElementById("team-dropdown-btn");
+      const count = activeTeams.size;
+      btn.textContent = count === 0 ? "Teams ▾" : `Teams (${count}) ▾`;
+      btn.classList.toggle("has-selection", count > 0);
+    }
+
+    function applyFilters() {
+      for (const row of document.querySelectorAll("#player-tbody tr")) {
+        const posMatch  = activePositions.size === 0 || activePositions.has(row.dataset.position);
+        const teamMatch = activeTeams.size === 0     || activeTeams.has(row.dataset.team);
+        row.style.display = posMatch && teamMatch ? "" : "none";
+      }
+    }
+
+    function buildTable(players) {
       // Build the rows first as a string array, then join — faster than
       // repeated innerHTML concatenation inside a loop
       const rows = players.map((p) => {
@@ -167,7 +419,7 @@
         const price    = `£${(p.now_cost / 10).toFixed(1)}m`;
         const pts      = p.total_points;
 
-        return `<tr>
+        return `<tr data-position="${escHtml(position)}" data-team="${escHtml(team)}">
           <td>${escHtml(name)}</td>
           <td>${escHtml(team)}</td>
           <td>${escHtml(position)}</td>
@@ -187,7 +439,7 @@
               <th>Total Pts</th>
             </tr>
           </thead>
-          <tbody>${rows.join("")}</tbody>
+          <tbody id="player-tbody">${rows.join("")}</tbody>
         </table>
       </div>`;
     }
