@@ -1,0 +1,26 @@
+// Click-to-toggle logic for .nav-dropdown elements.
+// Runs on every page that includes this script.
+(function () {
+  document.querySelectorAll(".nav-dropdown").forEach(function (dropdown) {
+    var trigger = dropdown.querySelector(".nav-dropdown-trigger");
+    var panel   = dropdown.querySelector(".nav-dropdown-panel");
+
+    trigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var isOpen = panel.classList.toggle("open");
+      trigger.classList.toggle("open", isOpen);
+      trigger.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    // Clicks inside the panel (e.g. on links) shouldn't close it prematurely
+    panel.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+
+    document.addEventListener("click", function () {
+      panel.classList.remove("open");
+      trigger.classList.remove("open");
+      trigger.setAttribute("aria-expanded", "false");
+    });
+  });
+}());

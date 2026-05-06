@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My FPL Team — My Site</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ---- Team ID form ---- */
+    .team-form {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .team-id-input {
+      background: transparent;
+      border: 1px solid var(--cerulean);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      width: 160px;
+      outline: none;
+      transition: border-color 0.12s;
+      /* Remove browser spinner arrows on number inputs */
+      -moz-appearance: textfield;
+    }
+
+    .team-id-input::-webkit-outer-spin-button,
+    .team-id-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    .team-id-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .team-id-input:focus {
+      border-color: var(--cerulean-light);
+    }
+
+    .load-btn {
+      background: var(--cerulean);
+      border: none;
+      color: #fff;
+      padding: 0.4rem 1rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+
+    .load-btn:hover {
+      opacity: 0.85;
+    }
+
+    .load-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ---- Team summary strip ---- */
+    .team-summary {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-surface);
+      border-radius: 6px;
+      border-left: 3px solid var(--cerulean);
+    }
+
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .summary-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .summary-value.pts {
+      color: var(--yellow);
+    }
+
+    /* ---- Squad tables ---- */
+    .squad-section {
+      margin-bottom: 2rem;
+    }
+
+    .squad-section h3 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background-color: var(--bg-surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.75rem;
+      padding: 0.6rem 0.9rem;
+      text-align: left;
+      border-bottom: 2px solid var(--cerulean);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #1a3d3d;
+      transition: background-color 0.1s ease;
+    }
+
+    tbody tr:hover {
+      background-color: var(--bg-surface);
+    }
+
+    tbody td {
+      padding: 0.55rem 0.9rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    td.pts {
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    .captain-badge {
+      display: inline-block;
+      margin-left: 0.4em;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--yellow);
+    }
+
+    /* ---- Loading / error states ---- */
+    .status-message {
+      padding: 3rem 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .status-message.error {
+      color: #e07070;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <a href="index.html" class="site-name">
+      <img src="cyber%20badger%20logo.png" alt="" class="site-logo" />
+      My Site
+    </a>
+
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
+      <a href="music.html">Music</a>
+      <a href="apps.html">Apps</a>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-trigger" aria-expanded="false" aria-haspopup="true">FPL ▾</button>
+        <div class="nav-dropdown-panel">
+          <a href="fpl.html">Players</a>
+          <a href="fpl-my-team.html">My Team</a>
+        </div>
+      </div>
+      <a href="cyber.html">Cyber</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section class="hero">
+      <h1 class="hero-title">My FPL Team</h1>
+      <p class="hero-description">Enter your FPL team ID to view your current squad. You can find it in the URL when you visit your team on the FPL website — it's the number after <code>/entry/</code>.</p>
+    </section>
+
+    <section>
+      <div class="team-form">
+        <input
+          class="team-id-input"
+          id="team-id-input"
+          type="number"
+          min="1"
+          placeholder="e.g. 1234567"
+          autocomplete="off"
+        />
+        <button class="load-btn" id="load-btn">Load team</button>
+      </div>
+
+      <div id="team-output"></div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 My Site. All rights reserved.</p>
+  </footer>
+
+  <script src="nav.js"></script>
+  <script>
+    document.getElementById("load-btn").addEventListener("click", loadTeam);
+
+    document.getElementById("team-id-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") loadTeam();
+    });
+
+    async function loadTeam() {
+      const input  = document.getElementById("team-id-input");
+      const output = document.getElementById("team-output");
+      const btn    = document.getElementById("load-btn");
+
+      const teamId = input.value.trim();
+
+      if (!teamId || isNaN(teamId) || Number(teamId) < 1) {
+        output.innerHTML = `<p class="status-message error">Please enter a valid team ID.</p>`;
+        return;
+      }
+
+      btn.disabled = true;
+      output.innerHTML = `<p class="status-message">Loading team data…</p>`;
+
+      try {
+        const res  = await fetch(`/.netlify/functions/fpl-team?team_id=${encodeURIComponent(teamId)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error ?? `Server returned ${res.status}`);
+        }
+
+        output.innerHTML = buildTeamOutput(data);
+
+      } catch (err) {
+        output.innerHTML = `<p class="status-message error">${escHtml(err.message)}</p>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function buildTeamOutput({ teamInfo, gameweek, picks }) {
+      const starters = picks.filter(p => p.position <= 11);
+      const bench    = picks.filter(p => p.position > 11);
+
+      return `
+        <div class="team-summary">
+          <div class="summary-item">
+            <span class="summary-label">Team</span>
+            <span class="summary-value">${escHtml(teamInfo.name)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Manager</span>
+            <span class="summary-value">${escHtml(teamInfo.manager)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">GW${gameweek} Points</span>
+            <span class="summary-value pts">${teamInfo.gameweek_points ?? "—"}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">GW${gameweek} Rank</span>
+            <span class="summary-value">${teamInfo.gameweek_rank?.toLocaleString() ?? "—"}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Overall Points</span>
+            <span class="summary-value pts">${teamInfo.overall_points ?? "—"}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Overall Rank</span>
+            <span class="summary-value">${teamInfo.overall_rank?.toLocaleString() ?? "—"}</span>
+          </div>
+        </div>
+
+        <div class="squad-section">
+          <h3>Starting XI</h3>
+          ${buildSquadTable(starters)}
+        </div>
+        <div class="squad-section">
+          <h3>Bench</h3>
+          ${buildSquadTable(bench)}
+        </div>`;
+    }
+
+    function buildSquadTable(picks) {
+      const rows = picks.map(p => {
+        const badge = p.is_captain
+          ? `<span class="captain-badge">(C)</span>`
+          : p.is_vice_captain
+          ? `<span class="captain-badge">(VC)</span>`
+          : "";
+        return `<tr>
+          <td>${escHtml(p.name)}${badge}</td>
+          <td>${escHtml(p.team)}</td>
+          <td>${escHtml(p.pos)}</td>
+          <td>${escHtml(p.price)}</td>
+          <td class="pts">${p.total_points}</td>
+        </tr>`;
+      }).join("");
+
+      return `<div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Pos</th>
+              <th>Price</th>
+              <th>Total Pts</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // Minimal HTML escaping — keeps user-supplied input and API data safe
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+
+</body>
+</html>

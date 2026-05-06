@@ -124,6 +124,66 @@ a:hover {
   color: var(--cerulean-light); /* cerulean on hover */
 }
 
+/* ---- Nav dropdown (used for FPL sub-menu) ---- */
+.nav-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Matches .site-nav a visually but is a <button> for accessibility */
+.nav-dropdown-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.nav-dropdown-trigger:hover,
+.nav-dropdown-trigger.open {
+  color: var(--cerulean-light);
+}
+
+.nav-dropdown-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--cerulean);
+  border-radius: 4px;
+  padding: 0.3rem 0;
+  min-width: 130px;
+  z-index: 200;
+}
+
+.nav-dropdown-panel.open {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-dropdown-panel a {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-dropdown-panel a:hover {
+  color: var(--cerulean-light);
+  background: rgba(32, 178, 170, 0.1);
+}
+
 /* ============================================================
    MAIN
    Grows to fill remaining vertical space so the footer
