@@ -67,6 +67,8 @@ exports.handler = async function (event) {
     const picks = picksData.picks.map((pick) => {
       const p = playerMap[pick.element];
       return {
+        element_id:       pick.element,    // raw FPL player ID, used for squad exclusion
+        element_type:     p ? p.element_type : null, // 1=GKP 2=DEF 3=MID 4=FWD
         position:         pick.position,   // 1–11 = starting XI, 12–15 = bench
         is_captain:       pick.is_captain,
         is_vice_captain:  pick.is_vice_captain,
@@ -74,6 +76,7 @@ exports.handler = async function (event) {
         team:             p ? (teamMap[p.team] ?? "—") : "—",
         pos:              p ? (posMap[p.element_type] ?? "—") : "—",
         price:            p ? `£${(p.now_cost / 10).toFixed(1)}m` : "—",
+        price_raw:        p ? p.now_cost : null, // integer tenths e.g. 55 = £5.5m
         total_points:     p ? p.total_points : 0,
       };
     });

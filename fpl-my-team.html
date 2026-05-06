@@ -64,6 +64,106 @@
       cursor: not-allowed;
     }
 
+    /* ---- Budget input ---- */
+    .form-sep {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding: 0 0.1rem;
+    }
+
+    .budget-input {
+      background: transparent;
+      border: 1px solid var(--cerulean);
+      color: var(--text);
+      padding: 0.4rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      width: 72px;
+      outline: none;
+      transition: border-color 0.12s;
+      -moz-appearance: textfield;
+      text-align: right;
+    }
+
+    .budget-input::-webkit-outer-spin-button,
+    .budget-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    .budget-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .budget-input:focus {
+      border-color: var(--cerulean-light);
+    }
+
+    /* ---- Two-column layout ---- */
+    .fpl-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 820px) {
+      .fpl-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ---- Transfer helper ---- */
+    .transfer-section h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--cerulean-light);
+      margin-bottom: 1rem;
+    }
+
+    /* Upgrade cell content stacks name above pts/price */
+    .upgrade-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .upgrade-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .upgrade-meta {
+      display: flex;
+      gap: 0.5rem;
+      align-items: baseline;
+    }
+
+    .upgrade-pts {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--yellow);
+    }
+
+    .upgrade-price {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .no-upgrade {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .pos-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
     /* ---- Team summary strip ---- */
     .team-summary {
       display: flex;
@@ -219,6 +319,17 @@
           placeholder="e.g. 1234567"
           autocomplete="off"
         />
+        <span class="form-sep">Budget £</span>
+        <input
+          class="budget-input"
+          id="budget-input"
+          type="number"
+          min="0"
+          step="0.1"
+          placeholder="0.0"
+          autocomplete="off"
+        />
+        <span class="form-sep">m</span>
         <button class="load-btn" id="load-btn">Load team</button>
       </div>
 
@@ -251,18 +362,26 @@
         return;
       }
 
+      // Budget in millions → integer tenths for price comparison (e.g. 0.5m → 5)
+      const budgetTenths = Math.round((parseFloat(document.getElementById("budget-input").value) || 0) * 10);
+
       btn.disabled = true;
       output.innerHTML = `<p class="status-message">Loading team data…</p>`;
 
       try {
-        const res  = await fetch(`/.netlify/functions/fpl-team?team_id=${encodeURIComponent(teamId)}`);
-        const data = await res.json();
+        // Fetch team picks and full player list in parallel
+        const [teamRes, bootstrapRes] = await Promise.all([
+          fetch(`/.netlify/functions/fpl-team?team_id=${encodeURIComponent(teamId)}`),
+          fetch("/.netlify/functions/fpl"),
+        ]);
 
-        if (!res.ok) {
-          throw new Error(data.error ?? `Server returned ${res.status}`);
-        }
+        const teamData      = await teamRes.json();
+        const bootstrapData = await bootstrapRes.json();
 
-        output.innerHTML = buildTeamOutput(data);
+        if (!teamRes.ok) throw new Error(teamData.error ?? `Server returned ${teamRes.status}`);
+        if (!bootstrapRes.ok) throw new Error("Could not load player data for transfer helper");
+
+        output.innerHTML = buildOutput(teamData, bootstrapData, budgetTenths);
 
       } catch (err) {
         output.innerHTML = `<p class="status-message error">${escHtml(err.message)}</p>`;
@@ -271,7 +390,21 @@
       }
     }
 
-    function buildTeamOutput({ teamInfo, gameweek, picks }) {
+    function buildOutput({ teamInfo, gameweek, picks }, bootstrap, budgetTenths) {
+      // Index all FPL players by position for fast upgrade lookups
+      const byPosition = {};
+      for (const p of bootstrap.elements) {
+        if (!byPosition[p.element_type]) byPosition[p.element_type] = [];
+        byPosition[p.element_type].push(p);
+      }
+      // Pre-sort each position group by total_points desc once, not per player
+      for (const pos of Object.values(byPosition)) {
+        pos.sort((a, b) => b.total_points - a.total_points);
+      }
+
+      // Squad element IDs used to exclude current players from upgrade suggestions
+      const squadIds = new Set(picks.map(p => p.element_id));
+
       const starters = picks.filter(p => p.position <= 11);
       const bench    = picks.filter(p => p.position > 11);
 
@@ -303,14 +436,91 @@
           </div>
         </div>
 
-        <div class="squad-section">
-          <h3>Starting XI</h3>
-          ${buildSquadTable(starters)}
-        </div>
-        <div class="squad-section">
-          <h3>Bench</h3>
-          ${buildSquadTable(bench)}
+        <div class="fpl-columns">
+          <div>
+            <div class="squad-section">
+              <h3>Starting XI</h3>
+              ${buildSquadTable(starters)}
+            </div>
+            <div class="squad-section">
+              <h3>Bench</h3>
+              ${buildSquadTable(bench)}
+            </div>
+          </div>
+          <div class="transfer-section">
+            <h2>Transfer Helper</h2>
+            ${buildTransferTable(picks, byPosition, squadIds, budgetTenths)}
+          </div>
         </div>`;
+    }
+
+    function buildTransferTable(picks, byPosition, squadIds, budgetTenths) {
+      // Track assigned players per column so the same player doesn't appear
+      // in more than one row. The two sets are independent — a player can
+      // feature in the overall column for one pick and the affordable column
+      // for another, since those represent different transfer scenarios.
+      const usedOverall    = new Set();
+      const usedAffordable = new Set();
+
+      const rows = picks.map(pick => {
+        // All players in the same position who are not already in the squad,
+        // already sorted by total_points desc
+        const candidates = (byPosition[pick.element_type] ?? [])
+          .filter(p => !squadIds.has(p.id));
+
+        const bestOverall = candidates.find(
+          p => p.total_points > pick.total_points && !usedOverall.has(p.id)
+        ) ?? null;
+        if (bestOverall) usedOverall.add(bestOverall.id);
+
+        const maxCost        = pick.price_raw + budgetTenths;
+        const bestAffordable = candidates.find(
+          p => p.total_points > pick.total_points && p.now_cost <= maxCost && !usedAffordable.has(p.id)
+        ) ?? null;
+        if (bestAffordable) usedAffordable.add(bestAffordable.id);
+
+        return `<tr>
+          <td>
+            <div class="upgrade-cell">
+              <span class="upgrade-name">${escHtml(pick.name)}</span>
+              <span class="upgrade-meta">
+                <span class="upgrade-price">${escHtml(pick.price)}</span>
+                <span class="pos-tag">${escHtml(pick.pos)}</span>
+              </span>
+            </div>
+          </td>
+          <td>${upgradeCell(bestOverall)}</td>
+          <td>${upgradeCell(bestAffordable)}</td>
+        </tr>`;
+      }).join("");
+
+      return `<div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Your Player</th>
+              <th>Best Overall</th>
+              <th>Best Affordable</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }
+
+    function upgradeCell(player) {
+      if (!player) return `<span class="no-upgrade">—</span>`;
+
+      const name  = `${player.first_name} ${player.second_name}`;
+      const price = `£${(player.now_cost / 10).toFixed(1)}m`;
+
+      return `<div class="upgrade-cell">
+        <span class="upgrade-name">${escHtml(name)}</span>
+        <span class="upgrade-meta">
+          <span class="upgrade-pts">${player.total_points}pts</span>
+          <span class="upgrade-price">${escHtml(price)}</span>
+        </span>
+      </div>`;
     }
 
     function buildSquadTable(picks) {
