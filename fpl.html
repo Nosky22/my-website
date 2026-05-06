@@ -189,6 +189,34 @@
       cursor: pointer;
     }
 
+    /* ---- Sortable column headers ---- */
+    thead th[data-sort] {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    thead th[data-sort]:hover {
+      color: var(--text);
+    }
+
+    /* Reserve space so header widths don't jump when the arrow appears */
+    thead th[data-sort]::after {
+      content: "";
+      display: inline-block;
+      min-width: 0.7em;
+      margin-left: 0.3em;
+    }
+
+    thead th.sort-asc::after {
+      content: "▲";
+      color: var(--cerulean-light);
+    }
+
+    thead th.sort-desc::after {
+      content: "▼";
+      color: var(--cerulean-light);
+    }
+
     /* ---- Clear filters ---- */
     .clear-btn {
       background: transparent;
@@ -250,13 +278,23 @@
     // Position IDs from the FPL API: 1=GKP, 2=DEF, 3=MID, 4=FWD
     const POSITION_LABELS = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
-    // Kept at module scope so filter functions can read them without re-fetching
+    // Kept at module scope so filter/sort functions can read them without re-fetching
     let allPlayers = [];
     let teamMap = {};
 
     // Active filter sets — empty means "show all" for that dimension
     const activePositions = new Set();
     const activeTeams = new Set();
+
+    // Sort state — pts desc matches the initial order from the API sort
+    let sortColumn = "pts";
+    let sortDir    = "desc";
+
+    // When switching to a new column, default to this direction per column
+    const DEFAULT_SORT_DIR = {
+      name: "asc", team: "asc", pos: "asc",
+      price: "desc", pts: "desc",
+    };
 
     async function loadPlayers() {
       const output = document.getElementById("player-output");
@@ -280,8 +318,11 @@
           (a, b) => b.total_points - a.total_points
         );
 
-        output.innerHTML = buildFilterBar(data.teams) + buildTable(allPlayers);
+        output.innerHTML = buildFilterBar(data.teams) + buildTable();
+        renderRows();
         wireFilters();
+        wireSortHeaders();
+        syncSortHeaders();
 
       } catch (err) {
         output.innerHTML = `<p class="status-message error">
@@ -408,10 +449,29 @@
       }
     }
 
-    function buildTable(players) {
+    // Builds the table shell only — tbody is populated separately by renderRows()
+    // so that both the initial load and subsequent sorts share the same code path
+    function buildTable() {
+      return `<div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="name">Player</th>
+              <th data-sort="team">Team</th>
+              <th data-sort="pos">Pos</th>
+              <th data-sort="price">Price</th>
+              <th data-sort="pts">Total Pts</th>
+            </tr>
+          </thead>
+          <tbody id="player-tbody"></tbody>
+        </table>
+      </div>`;
+    }
+
+    function renderRows() {
       // Build the rows first as a string array, then join — faster than
       // repeated innerHTML concatenation inside a loop
-      const rows = players.map((p) => {
+      const rows = getSortedPlayers().map((p) => {
         const name     = `${p.first_name} ${p.second_name}`;
         const team     = teamMap[p.team] ?? "—";
         const position = POSITION_LABELS[p.element_type] ?? "—";
@@ -428,20 +488,67 @@
         </tr>`;
       });
 
-      return `<div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Team</th>
-              <th>Pos</th>
-              <th>Price</th>
-              <th>Total Pts</th>
-            </tr>
-          </thead>
-          <tbody id="player-tbody">${rows.join("")}</tbody>
-        </table>
-      </div>`;
+      document.getElementById("player-tbody").innerHTML = rows.join("");
+      // Re-apply any active filters so hidden rows stay hidden after a re-sort
+      applyFilters();
+    }
+
+    function getSortedPlayers() {
+      return [...allPlayers].sort((a, b) => {
+        let valA, valB;
+
+        switch (sortColumn) {
+          case "name":
+            valA = `${a.first_name} ${a.second_name}`.toLowerCase();
+            valB = `${b.first_name} ${b.second_name}`.toLowerCase();
+            break;
+          case "team":
+            valA = (teamMap[a.team] ?? "").toLowerCase();
+            valB = (teamMap[b.team] ?? "").toLowerCase();
+            break;
+          case "pos":
+            valA = a.element_type;
+            valB = b.element_type;
+            break;
+          case "price":
+            valA = a.now_cost;
+            valB = b.now_cost;
+            break;
+          case "pts":
+          default:
+            valA = a.total_points;
+            valB = b.total_points;
+        }
+
+        if (valA < valB) return sortDir === "asc" ? -1 : 1;
+        if (valA > valB) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function wireSortHeaders() {
+      for (const th of document.querySelectorAll("thead th[data-sort]")) {
+        th.addEventListener("click", () => {
+          const col = th.dataset.sort;
+          if (col === sortColumn) {
+            sortDir = sortDir === "asc" ? "desc" : "asc";
+          } else {
+            sortColumn = col;
+            sortDir = DEFAULT_SORT_DIR[col] ?? "asc";
+          }
+          syncSortHeaders();
+          renderRows();
+        });
+      }
+    }
+
+    function syncSortHeaders() {
+      for (const th of document.querySelectorAll("thead th[data-sort]")) {
+        th.classList.remove("sort-asc", "sort-desc");
+        if (th.dataset.sort === sortColumn) {
+          th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+        }
+      }
     }
 
     // Minimal HTML escaping — FPL names shouldn't contain markup, but
