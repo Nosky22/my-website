@@ -217,6 +217,27 @@
       color: var(--cerulean-light);
     }
 
+    /* ---- Name search input ---- */
+    .name-search {
+      background: transparent;
+      border: 1px solid var(--cerulean);
+      color: var(--text);
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      width: 180px;
+      outline: none;
+      transition: border-color 0.12s;
+    }
+
+    .name-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    .name-search:focus {
+      border-color: var(--cerulean-light);
+    }
+
     /* ---- Clear filters ---- */
     .clear-btn {
       background: transparent;
@@ -285,6 +306,9 @@
     // Active filter sets — empty means "show all" for that dimension
     const activePositions = new Set();
     const activeTeams = new Set();
+
+    // Empty string means no name filter
+    let nameQuery = "";
 
     // Sort state — pts desc matches the initial order from the API sort
     let sortColumn = "pts";
@@ -358,6 +382,13 @@
               ${teamCheckboxes}
             </div>
           </div>
+          <input
+            class="name-search"
+            id="name-search"
+            type="search"
+            placeholder="Search player…"
+            autocomplete="off"
+          />
           <button class="clear-btn" id="clear-filters">Clear filters</button>
         </div>`;
     }
@@ -411,9 +442,17 @@
         });
       }
 
+      const nameSearch = document.getElementById("name-search");
+      nameSearch.addEventListener("input", () => {
+        nameQuery = nameSearch.value.trim().toLowerCase();
+        applyFilters();
+      });
+
       document.getElementById("clear-filters").addEventListener("click", () => {
         activePositions.clear();
         activeTeams.clear();
+        nameQuery = "";
+        nameSearch.value = "";
         for (const cb of checkboxes) cb.checked = false;
         syncPosButtons();
         syncTeamDropdownBtn();
@@ -445,7 +484,8 @@
       for (const row of document.querySelectorAll("#player-tbody tr")) {
         const posMatch  = activePositions.size === 0 || activePositions.has(row.dataset.position);
         const teamMatch = activeTeams.size === 0     || activeTeams.has(row.dataset.team);
-        row.style.display = posMatch && teamMatch ? "" : "none";
+        const nameMatch = nameQuery === ""            || row.dataset.name.includes(nameQuery);
+        row.style.display = posMatch && teamMatch && nameMatch ? "" : "none";
       }
     }
 
@@ -479,7 +519,8 @@
         const price    = `£${(p.now_cost / 10).toFixed(1)}m`;
         const pts      = p.total_points;
 
-        return `<tr data-position="${escHtml(position)}" data-team="${escHtml(team)}">
+        const nameLower = name.toLowerCase();
+        return `<tr data-position="${escHtml(position)}" data-team="${escHtml(team)}" data-name="${escHtml(nameLower)}">
           <td>${escHtml(name)}</td>
           <td>${escHtml(team)}</td>
           <td>${escHtml(position)}</td>
