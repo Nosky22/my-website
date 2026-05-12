@@ -4,6 +4,9 @@ node_modules/
 # Claude Code internal files
 skills-lock.json
 
+# Supabase CLI temp files
+supabase/.temp/
+
 # Local Netlify folder
 .netlify
 
