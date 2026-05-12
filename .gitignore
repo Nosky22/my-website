@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Claude Code internal files
+skills-lock.json
+
 # Local Netlify folder
 .netlify
 
