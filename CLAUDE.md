@@ -52,6 +52,14 @@ See `SPAL_SPEC_v0.1.md` for the full product specification.
 - All admin overrides must be audited with reason, old value, and new value.
 - Update relevant docs when changing rules, schema, imports, scoring, security, or visual tokens.
 
+### Database non-negotiables
+
+- **Before running any migration:** state clearly what it will do and explicitly identify what is irreversible (dropped columns, deleted data, constraint changes that cannot be rolled back).
+- **After running any migration:** query the database to confirm that every table, column, and RLS policy exists as expected. Do not report success without verification.
+- **Never re-run a migration that has already been applied.** Check what currently exists in the database before executing any DDL.
+- **If a migration fails partway through:** stop immediately and report the exact error. Do not attempt any fix until the failure is understood and communicated.
+- **Keep `docs/development/db-state.md` up to date** with every migration applied: file name, date, and tables affected.
+
 ### Key docs
 
 - Product spec: `docs/product/spal-spec.md`
@@ -66,6 +74,7 @@ See `SPAL_SPEC_v0.1.md` for the full product specification.
 - Security: `docs/architecture/security.md`
 - Visual system: `docs/architecture/visual-system.md`
 - Claude Code workflow: `docs/development/claude-code-workflow.md`
+- Database state: `docs/development/db-state.md`
 
 ### Verification (once app code exists)
 
