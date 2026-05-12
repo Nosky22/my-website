@@ -97,6 +97,23 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `006_rules_admin_audit.sql`
+**Applied:** 2026-05-12  
+**Status:** Applied successfully — all 4 tables and 12 RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `season_rules` | `season_id` (FK → seasons) | No surrogate key; one ruleset per season; public read |
+| `admin_overrides` | `bigint identity` | Insert-only; `entity_id` is `text` to handle both bigint and uuid PKs; authenticated read |
+| `audit_log` | `bigint identity` | Insert-only; `entity_id` is `text`; authenticated read |
+| `league_penalties` | `bigint identity` | Admin-applied point adjustments per manager per round; authenticated read |
+
+**RLS:** `season_rules`: public read, admin write. `admin_overrides` and `audit_log`: authenticated read, admin insert only — no update or delete policies (insert-only by design). `league_penalties`: authenticated read, full admin write.
+
+---
+
 ## Pending migrations
 
 None.
