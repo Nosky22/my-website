@@ -1,5 +1,14 @@
 [build]
-  # Where Netlify looks for the static files to serve
   publish = "."
-  # Where Netlify looks for serverless functions
-  functions = "netlify/functions"
+  command = "cd spal-app && npm ci && npm run build"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  # React Router deep-link support — any /spal/* request that doesn't match
+  # a real file (e.g. /spal/standings, /spal/draft) falls through to the SPA
+  # shell, which React Router then handles client-side.
+  from = "/spal/*"
+  to   = "/spal/index.html"
+  status = 200

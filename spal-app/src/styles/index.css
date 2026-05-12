@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── Inherited from nosky.co.uk ──────────────────────────────────────── */
+  --spal-bg:             #0b2b2b;
+  --spal-surface:        #0f3535;
+  --spal-text:           #ffffff;
+  --spal-text-muted:     #7fc4c4;
+  --spal-cerulean:       #1a8fb5;
+  --spal-cerulean-light: #4db8d8;
+  --spal-yellow:         #f5c518;
+  --spal-radius:         4px;
+
+  /* ── SPAL additions ──────────────────────────────────────────────────── */
+  --spal-gold:           #d4a017;
+  --spal-surface-raised: #153d3d;
+  --spal-error:          #c0392b;
+  --spal-warning:        #e67e22;
+  --spal-success:        #27ae60;
+  --spal-disabled:       #4a6060;
+}
+
+body {
+  background-color: var(--spal-bg);
+  color: var(--spal-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ── Nation badge colours ─────────────────────────────────────────────── */
+/* Text abbreviation (ENG/IRE/etc.) must always accompany the colour —    */
+/* colour alone is not sufficient to convey nation.                        */
+.nation-eng { background-color: #cf081f; color: #ffffff; }
+.nation-ire { background-color: #169b62; color: #ffffff; }
+.nation-sco { background-color: #003893; color: #ffffff; }
+.nation-wal { background-color: #d01012; color: #ffffff; }
+.nation-fra { background-color: #002395; color: #ffffff; }
+.nation-ita { background-color: #009246; color: #ffffff; }
