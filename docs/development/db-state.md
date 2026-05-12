@@ -73,6 +73,30 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `004_standings.sql`
+**Applied:** 2026-05-12  
+**Status:** Applied successfully — table and RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `season_standings` | `bigint identity` | One row per manager per season; unique per (season, profile); covers both total-points and H2H tables; public read |
+
+**RLS:** Public read (`anon` + `authenticated`); admin-only write.
+
+**Design note:** Ranks (H2H rank, total-points rank) are not stored — derived at query time via `RANK() OVER (PARTITION BY season_id ORDER BY h2h_points DESC, total_points DESC)`. W/D/L counts use `group_place` from `fixture_group_members` (1=win, 2=draw, 3=loss), applied consistently to both pairs and triples.
+
+---
+
+### `005_standings_last_updated_round.sql`
+**Applied:** 2026-05-12  
+**Status:** Applied successfully — column verified by query
+
+**Changes:** Added `last_updated_round int` (nullable) to `season_standings`. Null until the first round is finalised; set by the scoring Edge Function so the UI can display "standings after round N" without querying match data.
+
+---
+
 ## Pending migrations
 
 None.
