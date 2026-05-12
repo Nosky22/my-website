@@ -114,6 +114,27 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `007_import_pipeline.sql`
+**Applied:** 2026-05-12  
+**Status:** Applied successfully — all 8 tables and 30 RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `data_sources` | `bigint identity` | Registry of import adapters; unique name; admin-only read |
+| `import_runs` | `bigint identity` | One row per import execution; `round_number` nullable for season-wide imports; admin-only read |
+| `raw_import_payloads` | `bigint identity` | Insert-only; raw source data stored unchanged; admin-only read |
+| `data_quality_issues` | `bigint identity` | Flagged records pending admin review; resolved via UPDATE; blocks round finalisation while unresolved; admin-only read |
+| `legacy_import_files` | `bigint identity` | Uploaded 2026 workbook files; admin-only read |
+| `legacy_import_sheets` | `bigint identity` | Sheets within a workbook; admin-only read |
+| `legacy_import_rows` | `bigint identity` | Staged rows for admin review; status: pending → flagged/approved → promoted/rejected; admin-only read |
+| `legacy_import_issues` | `bigint identity` | Quality issues per legacy row; same issue_code vocabulary as `data_quality_issues`; admin-only read |
+
+**RLS:** All 8 tables admin-only read (`USING (is_admin())`). `raw_import_payloads`: insert-only (2 policies). All others: full admin write (4 policies).
+
+---
+
 ## Pending migrations
 
 None.
