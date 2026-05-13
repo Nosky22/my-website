@@ -2,7 +2,13 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminLayout from './components/admin/AdminLayout'
 import AdminPage from './pages/AdminPage'
+import AdminSeasonsPage from './pages/admin/AdminSeasonsPage'
+import AdminPlayersPage from './pages/admin/AdminPlayersPage'
+import AdminDraftPage from './pages/admin/AdminDraftPage'
+import AdminImportsPage from './pages/admin/AdminImportsPage'
+import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import DashboardPage from './pages/DashboardPage'
 import DraftPage from './pages/DraftPage'
 import HistoryPage from './pages/HistoryPage'
@@ -40,7 +46,14 @@ export default function App() {
 
             {/* Admin-only routes */}
             <Route element={<ProtectedRoute adminOnly />}>
-              <Route path="admin" element={<AdminPage />} />
+              <Route path="admin/*" element={<AdminLayout />}>
+                <Route index element={<AdminPage />} />
+                <Route path="seasons"  element={<AdminSeasonsPage />} />
+                <Route path="players"  element={<AdminPlayersPage />} />
+                <Route path="draft"    element={<AdminDraftPage />} />
+                <Route path="imports"  element={<AdminImportsPage />} />
+                <Route path="settings" element={<AdminSettingsPage />} />
+              </Route>
             </Route>
 
           </Route>

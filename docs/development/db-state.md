@@ -135,6 +135,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `20260513215743_extend_position_group_constraint.sql`
+**Applied:** 2026-05-13  
+**Status:** Applied successfully — constraint verified by query
+
+**Changes:** Extended `players_position_group_check` to include `'Other'` alongside the original three values (`'Front Row'`, `'Back Row'`, `'Outside Back'`). Required for positions with no dedicated draft slot (Second Row, Scrum-half, Fly-half, Centre). Additive only — no data modified.
+
+---
+
 ## Pending migrations
 
 None.

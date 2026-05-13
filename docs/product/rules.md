@@ -27,9 +27,42 @@ Each manager drafts **4 required slots** (a 5th optional slot may be enabled per
 
 ### 1.3 Slot eligibility
 
+#### Eligible positions per slot
+
+| Draft slot | Eligible canonical positions |
+|------------|------------------------------|
+| Front Row | Prop, Hooker |
+| Back Row | Flanker, Number 8 |
+| Outside Back | Wing, Fullback |
+| Weakest nation (Wales by default) | Any position |
+| Bench (optional, slot 5) | Any player not in a GW1 starting XV at draft time |
+
+**Positions with no dedicated draft slot:** Second Row, Scrum-half, Fly-half, Centre. These players are freely available for weekly squad selection by any manager, but may only enter the draft via the weakest-nation slot or the bench slot.
+
+#### position_group values
+
+Each player record carries a `position_group` field used to evaluate draft slot eligibility:
+
+| Canonical position | position_group |
+|--------------------|----------------|
+| Prop | Front Row |
+| Hooker | Front Row |
+| Second Row | Other |
+| Flanker | Back Row |
+| Number 8 | Back Row |
+| Scrum-half | Other |
+| Fly-half | Other |
+| Centre | Other |
+| Wing | Outside Back |
+| Fullback | Outside Back |
+
+`Other` means the player has no dedicated position-based draft slot and may only be drafted via the weakest-nation or bench slot.
+
+#### Overlap and manager choice
+
 A player may be eligible for multiple slots. The manager chooses which slot the pick satisfies.
 
-Example: a Welsh Back Row player is eligible for Back Row, Wales, and (if not in a GW1 starting XV) the optional bench slot.
+Example: a Welsh Flanker is eligible for Back Row, Wales, and (if not in a GW1 starting XV) the optional bench slot.
 
 ### 1.4 Exclusivity
 
