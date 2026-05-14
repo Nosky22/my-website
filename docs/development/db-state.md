@@ -143,6 +143,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `20260514173933_add_anon_read_draft_picks.sql`
+**Applied:** 2026-05-14  
+**Status:** Applied successfully — policy verified by query
+
+**Changes:** Added `draft_picks_anon_read` SELECT policy for the `anon` role on `draft_picks`. Required for public-facing pages (players, draft board, standings) to display draft data without login. The original authenticated-only read policy remains; this is additive.
+
+---
+
 ## Pending migrations
 
 None.
