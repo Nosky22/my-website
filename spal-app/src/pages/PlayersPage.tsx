@@ -12,7 +12,8 @@ interface Player {
 }
 
 const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy']
-const POSITION_GROUPS = ['Front Row', 'Back Row', 'Outside Back', 'Other']
+const DRAFT_POSITION_GROUPS = ['Front Row', 'Back Row', 'Outside Back', 'Other']
+const CANONICAL_POSITIONS = ['Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8', 'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback']
 
 export default function PlayersPage() {
   const [seasons, setSeasons] = useState<Season[]>([])
@@ -21,7 +22,8 @@ export default function PlayersPage() {
   const [draftedBy, setDraftedBy] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(false)
   const [nationFilter, setNationFilter] = useState('')
-  const [posFilter, setPosFilter] = useState('')
+  const [draftPosFilter, setDraftPosFilter] = useState('')
+  const [canonPosFilter, setCanonPosFilter] = useState('')
 
   useEffect(() => {
     supabase
@@ -62,7 +64,8 @@ export default function PlayersPage() {
 
   const visible = players.filter(p =>
     (!nationFilter || p.nation === nationFilter) &&
-    (!posFilter || p.position_group === posFilter)
+    (!draftPosFilter || p.position_group === draftPosFilter) &&
+    (!canonPosFilter || p.canonical_position === canonPosFilter)
   )
 
   return (
@@ -91,17 +94,26 @@ export default function PlayersPage() {
         </select>
 
         <select
-          value={posFilter}
-          onChange={e => setPosFilter(e.target.value)}
+          value={draftPosFilter}
+          onChange={e => setDraftPosFilter(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">All draft positions</option>
+          {DRAFT_POSITION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+
+        <select
+          value={canonPosFilter}
+          onChange={e => setCanonPosFilter(e.target.value)}
           className={selectClass}
         >
           <option value="">All positions</option>
-          {POSITION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+          {CANONICAL_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
 
-        {(nationFilter || posFilter) && (
+        {(nationFilter || draftPosFilter || canonPosFilter) && (
           <button
-            onClick={() => { setNationFilter(''); setPosFilter('') }}
+            onClick={() => { setNationFilter(''); setDraftPosFilter(''); setCanonPosFilter('') }}
             className="text-xs text-spal-muted hover:text-spal-text transition-colors underline"
           >
             Clear
