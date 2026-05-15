@@ -28,20 +28,11 @@ const SLOT_CLASS: Record<string, string> = {
   'Front Row':    'text-orange-300',
   'Back Row':     'text-purple-300',
   'Outside Back': 'text-blue-300',
+  'Wales':        'text-red-400',
   'Bench Sub':    'text-spal-muted',
 }
 
 function SlotBadge({ slot }: { slot: string }) {
-  if (slot === 'Wales') {
-    return (
-      <span
-        className="inline-block text-xs font-bold text-white rounded px-1.5 py-0.5"
-        style={{ backgroundColor: '#C8102E' }}
-      >
-        WAL
-      </span>
-    )
-  }
   return (
     <span className={`text-xs font-semibold ${SLOT_CLASS[slot] ?? 'text-spal-muted'}`}>
       {SLOT_ABBR[slot] ?? slot}
