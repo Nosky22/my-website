@@ -32,7 +32,7 @@ export default function StandingsPage() {
     setLoading(true)
     supabase
       .from('draft_picks')
-      .select('manager_id, pick_number, profiles!manager_id(display_name)')
+      .select('manager_id, pick_number, profiles!profile_id(display_name)')
       .eq('season_id', seasonId)
       .then(({ data }) => {
         type RawPick = { manager_id: string; pick_number: number; profiles: { display_name: string } | null }

@@ -46,7 +46,7 @@ export default function PlayersPage() {
         .order('display_name'),
       supabase
         .from('draft_picks')
-        .select('player_id, profiles!manager_id(display_name)')
+        .select('player_id, profiles!profile_id(display_name)')
         .eq('season_id', seasonId),
     ]).then(([playersRes, picksRes]) => {
       setPlayers(playersRes.data ?? [])

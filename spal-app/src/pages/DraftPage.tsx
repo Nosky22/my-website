@@ -73,7 +73,7 @@ export default function DraftPage() {
     supabase
       .from('draft_picks')
       .select(
-        'id, pick_number, draft_slot, players!player_id(display_name, nation, canonical_position), profiles!manager_id(display_name)'
+        'id, pick_number, draft_slot, players!player_id(display_name, nation, canonical_position), profiles!profile_id(display_name)'
       )
       .eq('season_id', seasonId)
       .order('pick_number')
