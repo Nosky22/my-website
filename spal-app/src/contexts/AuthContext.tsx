@@ -58,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, newSession) => {
+        console.log('[AuthContext] event:', event, '| user:', newSession?.user?.email ?? null)
+
         // TOKEN_REFRESHED: JWT rotated, user identity unchanged — update session silently
         if (event === 'TOKEN_REFRESHED') {
           if (mounted.current) {
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'USER_UPDATED') {
           const updatedUser = newSession?.user ?? null
           const updatedProfile = updatedUser ? await fetchProfile(updatedUser.id) : null
+          console.log('[AuthContext] USER_UPDATED profile result:', updatedProfile?.display_name ?? null, '| is_admin:', updatedProfile?.is_admin ?? null)
           if (mounted.current) {
             setSession(newSession)
             setUser(updatedUser)
@@ -82,15 +85,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // INITIAL_SESSION / SIGNED_IN / SIGNED_OUT: genuine auth state change —
         // hold loading=true until profile is fully resolved to prevent premature redirects
+        console.log('[AuthContext] loading → true')
         if (mounted.current) setLoading(true)
 
         const newUser = newSession?.user ?? null
         const newProfile = newUser ? await fetchProfile(newUser.id) : null
+        console.log('[AuthContext] profile result:', newProfile?.display_name ?? null, '| is_admin:', newProfile?.is_admin ?? null)
 
         if (mounted.current) {
           setSession(newSession)
           setUser(newUser)
           setProfile(newProfile)
+          console.log('[AuthContext] loading → false')
           setLoading(false)
         }
       }
