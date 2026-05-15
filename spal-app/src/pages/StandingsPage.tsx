@@ -32,18 +32,18 @@ export default function StandingsPage() {
     setLoading(true)
     supabase
       .from('draft_picks')
-      .select('manager_id, pick_number, profiles!profile_id(display_name)')
+      .select('profile_id, pick_number, profiles!profile_id(display_name)')
       .eq('season_id', seasonId)
       .then(({ data }) => {
-        type RawPick = { manager_id: string; pick_number: number; profiles: { display_name: string } | null }
+        type RawPick = { profile_id: string; pick_number: number; profiles: { display_name: string } | null }
         const picks = (data ?? []) as unknown as RawPick[]
 
         const byManager = new Map<string, { name: string; count: number; firstPick: number }>()
         for (const pick of picks) {
           const name = pick.profiles?.display_name ?? 'Unknown'
-          const existing = byManager.get(pick.manager_id)
+          const existing = byManager.get(pick.profile_id)
           if (!existing) {
-            byManager.set(pick.manager_id, { name, count: 1, firstPick: pick.pick_number })
+            byManager.set(pick.profile_id, { name, count: 1, firstPick: pick.pick_number })
           } else {
             existing.count++
             existing.firstPick = Math.min(existing.firstPick, pick.pick_number)
