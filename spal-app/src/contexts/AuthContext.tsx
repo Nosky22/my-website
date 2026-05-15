@@ -1,5 +1,5 @@
 import { createContext, useEffect, useRef, useState } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
 export interface Profile {
@@ -57,7 +57,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mounted.current = true
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event: AuthChangeEvent, newSession) => {
+        // TOKEN_REFRESHED: JWT rotated, user identity unchanged — update session silently
+        if (event === 'TOKEN_REFRESHED') {
+          if (mounted.current) {
+            setSession(newSession)
+            setUser(newSession?.user ?? null)
+          }
+          return
+        }
+
+        // USER_UPDATED: re-fetch profile in case display_name/is_admin changed, but
+        // no loading state — the user is already authenticated and the page stays visible
+        if (event === 'USER_UPDATED') {
+          const updatedUser = newSession?.user ?? null
+          const updatedProfile = updatedUser ? await fetchProfile(updatedUser.id) : null
+          if (mounted.current) {
+            setSession(newSession)
+            setUser(updatedUser)
+            setProfile(updatedProfile)
+          }
+          return
+        }
+
+        // INITIAL_SESSION / SIGNED_IN / SIGNED_OUT: genuine auth state change —
+        // hold loading=true until profile is fully resolved to prevent premature redirects
         if (mounted.current) setLoading(true)
 
         const newUser = newSession?.user ?? null
