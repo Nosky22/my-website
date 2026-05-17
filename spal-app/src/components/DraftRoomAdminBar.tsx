@@ -11,27 +11,27 @@ export default function DraftRoomAdminBar({ session, totalPicks, timeRemaining }
   const deadline = () =>
     new Date(Date.now() + session.pick_timer_seconds * 1000).toISOString()
 
-  const handleStart = () =>
-    supabase.from('draft_sessions').update({
+  const handleStart = async () =>
+    await supabase.from('draft_sessions').update({
       status: 'active',
       started_at: new Date().toISOString(),
       current_pick_number: 1,
       pick_deadline: deadline(),
     }).eq('id', session.id)
 
-  const handlePause = () =>
-    supabase.from('draft_sessions').update({ status: 'paused' }).eq('id', session.id)
+  const handlePause = async () =>
+    await supabase.from('draft_sessions').update({ status: 'paused' }).eq('id', session.id)
 
-  const handleResume = () =>
-    supabase.from('draft_sessions').update({
+  const handleResume = async () =>
+    await supabase.from('draft_sessions').update({
       status: 'active',
       pick_deadline: deadline(),
     }).eq('id', session.id)
 
-  const handleAdvance = () => {
+  const handleAdvance = async () => {
     const next = session.current_pick_number + 1
     const isComplete = next > totalPicks
-    return supabase.from('draft_sessions').update({
+    await supabase.from('draft_sessions').update({
       current_pick_number: next,
       status: isComplete ? 'complete' : 'active',
       pick_deadline: isComplete ? null : deadline(),
