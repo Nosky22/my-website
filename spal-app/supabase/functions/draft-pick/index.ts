@@ -172,16 +172,30 @@ Deno.serve(async (req: Request) => {
   // slotsPerManager is 4 for 2026 (Front Row, Back Row, Outside Back, Wales).
   // Make configurable via season_rules in a future migration.
   const slotsPerManager = 4
-  const totalPicks  = managerCount * slotsPerManager
-  const nextPick    = session.current_pick_number + 1
-  const isComplete  = nextPick > totalPicks
+  const totalPicks = managerCount * slotsPerManager
+
+  // Find next unfilled pick number, scanning forward from the one just completed.
+  // Picks can have gaps if the admin skipped turns, so +1 is not always right.
+  const { data: allPickNumbers } = await admin
+    .from('draft_picks')
+    .select('pick_number')
+    .eq('season_id', season_id)
+
+  const filled = new Set((allPickNumbers ?? []).map((p: { pick_number: number }) => p.pick_number))
+
+  let nextPick: number | null = null
+  for (let i = session.current_pick_number + 1; i <= totalPicks; i++) {
+    if (!filled.has(i)) { nextPick = i; break }
+  }
+
+  const isComplete = nextPick === null
 
   await admin
     .from('draft_sessions')
     .update({
-      current_pick_number: nextPick,
-      status:              isComplete ? 'complete' : 'active',
-      pick_deadline:       isComplete
+      ...(nextPick != null ? { current_pick_number: nextPick } : {}),
+      status:        isComplete ? 'complete' : 'active',
+      pick_deadline: isComplete
         ? null
         : new Date(Date.now() + session.pick_timer_seconds * 1000).toISOString(),
       ...(isComplete ? { completed_at: new Date().toISOString() } : {}),
