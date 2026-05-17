@@ -10,8 +10,13 @@ export default function ProtectedRoute({ adminOnly = false }: Props) {
   const location = useLocation()
 
   // Hold until auth state is resolved — avoids a flash redirect to /login
-  // for users who have a valid session.
-  if (loading) return null
+  // for users who have a valid session. Show a spinner rather than null so
+  // the user sees feedback instead of a blank screen.
+  if (loading) return (
+    <div className="flex items-center justify-center py-24">
+      <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
+    </div>
+  )
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />

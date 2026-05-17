@@ -58,6 +58,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, newSession) => {
+        // INITIAL_SESSION is handled below via getSession() — skip here to avoid
+        // double-processing the initial state and the extra loading=true cycle.
+        if (event === 'INITIAL_SESSION') return
+
         // TOKEN_REFRESHED: JWT rotated, user identity unchanged — update session silently
         if (event === 'TOKEN_REFRESHED') {
           if (mounted.current) {
@@ -80,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // INITIAL_SESSION / SIGNED_IN / SIGNED_OUT: genuine auth state change —
+        // SIGNED_IN / SIGNED_OUT: genuine auth state change —
         // hold loading=true until profile is fully resolved to prevent premature redirects
         if (mounted.current) setLoading(true)
 
@@ -95,6 +99,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     )
+
+    // Pre-populate state from the stored session immediately. getSession() reads
+    // from memory/storage without a network round-trip, so this resolves faster
+    // than waiting for the INITIAL_SESSION event dispatch.
+    supabase.auth.getSession().then(async ({ data: { session: storedSession } }) => {
+      if (!mounted.current) return
+      const storedUser = storedSession?.user ?? null
+      const storedProfile = storedUser ? await fetchProfile(storedUser.id) : null
+      if (mounted.current) {
+        setSession(storedSession)
+        setUser(storedUser)
+        setProfile(storedProfile)
+        setLoading(false)
+      }
+    })
 
     return () => {
       mounted.current = false

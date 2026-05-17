@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -12,12 +12,17 @@ export default function LoginPage() {
   const { user, loading } = useAuth()
   const navigate  = useNavigate()
   const location  = useLocation()
-  const from = (location.state as { from?: { pathname: string } } | null)
-    ?.from?.pathname ?? '/dashboard'
 
-  // Already logged in — skip the form
+  // Capture the redirect target once at mount so it survives re-renders triggered
+  // by the auth state changes that happen between submit and navigation.
+  const fromRef = useRef(
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/dashboard'
+  )
+
+  // Navigate only after auth state is fully resolved — avoids the blank-screen
+  // flash that occurred when navigate() fired before loading=false.
   useEffect(() => {
-    if (!loading && user) navigate('/dashboard', { replace: true })
+    if (!loading && user) navigate(fromRef.current, { replace: true })
   }, [user, loading, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,10 +35,8 @@ export default function LoginPage() {
     if (authError) {
       setError(authError.message)
       setSubmitting(false)
-      return
+      // Don't navigate on success — the useEffect above handles it once auth resolves
     }
-
-    navigate(from, { replace: true })
   }
 
   return (

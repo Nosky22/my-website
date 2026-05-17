@@ -36,10 +36,13 @@ export default function SpalNav() {
     navigate('/login', { replace: true })
   }
 
+  // Guard on !loading so the nav doesn't flicker: links are absent during the
+  // loading window, then appear once — no intermediate state where they show
+  // briefly then vanish.
   const visibleLinks = [
     ...publicLinks,
-    ...(user ? managerLinks : []),
-    ...(isAdmin ? adminLinks  : []),
+    ...(!loading && user    ? managerLinks : []),
+    ...(!loading && isAdmin ? adminLinks   : []),
   ]
 
   return (
