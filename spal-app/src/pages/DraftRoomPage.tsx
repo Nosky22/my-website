@@ -51,6 +51,8 @@ export default function DraftRoomPage() {
   const { session, loading: sessionLoading, timeRemaining } = useDraftSession(seasonId)
   const { picks, loading: picksLoading } = useDraftPicks(seasonId)
 
+  const [panelOpen, setPanelOpen] = useState(false)
+
   // Seasons
   useEffect(() => {
     supabase
@@ -94,6 +96,9 @@ export default function DraftRoomPage() {
     const posInRound = ((pickNum - 1) % managerCount) + 1
     return draftOrder.find(o => o.pick_position === posInRound) ?? null
   }, [session, draftOrder, managerCount])
+
+  // Close the pick panel whenever the on-clock manager changes (turn advances)
+  useEffect(() => { setPanelOpen(false) }, [onClockManager?.profile_id])
 
   const loading = sessionLoading || picksLoading
 
@@ -189,11 +194,24 @@ export default function DraftRoomPage() {
             && seasonId != null
             && (user?.id === onClockManager.profile_id || isAdmin)
             && (
-              <PickPanel
-                seasonId={seasonId}
-                onClockProfileId={onClockManager.profile_id}
-                allPicks={picks}
-              />
+              panelOpen
+                ? (
+                  <PickPanel
+                    seasonId={seasonId}
+                    onClockProfileId={onClockManager.profile_id}
+                    allPicks={picks}
+                    onClose={() => setPanelOpen(false)}
+                  />
+                ) : (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setPanelOpen(true)}
+                      className="px-4 py-2 rounded text-sm font-semibold bg-spal-cerulean text-white hover:bg-spal-cerulean-light transition-colors"
+                    >
+                      Make Pick
+                    </button>
+                  </div>
+                )
             )
           }
 

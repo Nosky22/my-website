@@ -16,6 +16,7 @@ interface PickPanelProps {
   seasonId: number
   onClockProfileId: string
   allPicks: DraftPick[]
+  onClose: () => void
 }
 
 const ALL_SLOTS = ['Front Row', 'Back Row', 'Outside Back', 'Wales']
@@ -39,7 +40,7 @@ function isEligibleForSlot(player: Player, slot: string): boolean {
   }
 }
 
-export default function PickPanel({ seasonId, onClockProfileId, allPicks }: PickPanelProps) {
+export default function PickPanel({ seasonId, onClockProfileId, allPicks, onClose }: PickPanelProps) {
   const { user, session: authSession } = useAuth()
   const [players, setPlayers]     = useState<Player[]>([])
   const [loading, setLoading]     = useState(true)
@@ -48,7 +49,6 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks }: Pick
   const [search, setSearch]       = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]         = useState<string | null>(null)
-  const [success, setSuccess]     = useState(false)
 
   const isOnClock = user?.id === onClockProfileId
 
@@ -94,7 +94,6 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks }: Pick
     if (!selectedSlot) return
     setSubmitting(true)
     setError(null)
-    setSuccess(false)
 
     const token = authSession?.access_token
     if (!token) {
@@ -112,10 +111,7 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks }: Pick
       const msg = data?.error ?? fnErr?.message ?? 'Unknown error'
       setError(msg)
     } else {
-      setSuccess(true)
-      setSelectedSlot('')
-      setNationFilter('')
-      setSearch('')
+      onClose()
     }
 
     setSubmitting(false)
@@ -125,13 +121,18 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks }: Pick
 
   return (
     <div className="mt-6 p-4 bg-spal-surface rounded border border-white/10">
-      <h2 className="text-sm font-semibold text-spal-yellow mb-4 uppercase tracking-wider">
-        {isOnClock ? 'Your pick' : 'Make a pick (admin)'}
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-spal-yellow uppercase tracking-wider">
+          {isOnClock ? 'Your pick' : 'Make a pick (admin)'}
+        </h2>
+        <button
+          onClick={onClose}
+          className="text-xs text-spal-muted hover:text-spal-text transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
 
-      {success && (
-        <p className="text-spal-success text-sm mb-3">Pick submitted!</p>
-      )}
       {error && (
         <p className="text-spal-error text-sm mb-3">{error}</p>
       )}

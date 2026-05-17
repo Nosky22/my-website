@@ -39,6 +39,31 @@ export default function DraftRoomAdminBar({ session, totalPicks, timeRemaining }
     }).eq('id', session.id)
   }
 
+  const handleReopen = async () => {
+    const { data: existingPicks } = await supabase
+      .from('draft_picks')
+      .select('pick_number')
+      .eq('season_id', session.season_id)
+
+    const filled = new Set((existingPicks ?? []).map((p: { pick_number: number }) => p.pick_number))
+    let nextPick: number | null = null
+    for (let i = 1; i <= totalPicks; i++) {
+      if (!filled.has(i)) { nextPick = i; break }
+    }
+
+    if (nextPick === null) {
+      alert('All picks are filled — nothing to reopen.')
+      return
+    }
+
+    await supabase.from('draft_sessions').update({
+      status: 'active',
+      current_pick_number: nextPick,
+      pick_deadline: deadline(),
+      completed_at: null,
+    }).eq('id', session.id)
+  }
+
   const isExpired = timeRemaining === 0
 
   return (
@@ -71,7 +96,12 @@ export default function DraftRoomAdminBar({ session, totalPicks, timeRemaining }
       )}
 
       {session.status === 'complete' && (
-        <span className="text-xs text-spal-success">Draft complete — no further actions</span>
+        <>
+          <span className="text-xs text-spal-success">Draft complete</span>
+          <button onClick={handleReopen} className={btn('warning')}>
+            Reopen Draft
+          </button>
+        </>
       )}
     </div>
   )
