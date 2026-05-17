@@ -10,9 +10,10 @@ const publicLinks = [
 ]
 
 const managerLinks = [
-  { to: '/dashboard', label: 'Dashboard', end: false },
-  { to: '/draft',     label: 'Draft',     end: false },
-  { to: '/squad',     label: 'Squad',     end: false },
+  { to: '/dashboard',  label: 'Dashboard',  end: false },
+  { to: '/draft-room', label: 'Draft Room', end: false },
+  { to: '/draft',      label: 'Draft',      end: false },
+  { to: '/squad',      label: 'Squad',      end: false },
 ]
 
 const adminLinks = [

@@ -11,6 +11,7 @@ import AdminImportsPage from './pages/admin/AdminImportsPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import DashboardPage from './pages/DashboardPage'
 import DraftPage from './pages/DraftPage'
+import DraftRoomPage from './pages/DraftRoomPage'
 import HistoryPage from './pages/HistoryPage'
 import HomePage from './pages/HomePage'
 import LawsPage from './pages/LawsPage'
@@ -40,6 +41,7 @@ export default function App() {
             {/* Auth-required routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="draft-room" element={<DraftRoomPage />} />
               <Route path="draft" element={<DraftPage />} />
               <Route path="squad" element={<SquadPage />} />
             </Route>
