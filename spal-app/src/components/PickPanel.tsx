@@ -113,6 +113,8 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks }: Pick
       setError(msg)
     } else {
       setSuccess(true)
+      setSelectedSlot('')
+      setNationFilter('')
       setSearch('')
     }
 

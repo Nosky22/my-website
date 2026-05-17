@@ -159,6 +159,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `011_realtime_publication.sql`
+**Applied:** 2026-05-17
+**Status:** Applied successfully — both tables verified in `pg_publication_tables`
+
+**Changes:** Added `draft_picks` and `draft_sessions` to the `supabase_realtime` publication. Required for Realtime `postgres_changes` subscriptions to receive INSERT/UPDATE events — without this, the draft room board and session state never updated live. No schema changes; no data modified.
+
+---
+
 ## Pending migrations
 
 None.
