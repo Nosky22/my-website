@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useDraftSession } from '../hooks/useDraftSession'
 import { useDraftPicks } from '../hooks/useDraftPicks'
 import DraftRoomAdminBar from '../components/DraftRoomAdminBar'
+import PickPanel from '../components/PickPanel'
 import NationBadge from '../components/NationBadge'
 
 interface Season { id: number; year: number }
@@ -41,7 +42,7 @@ function getPickNumber(round: number, col: number, managerCount: number) {
 }
 
 export default function DraftRoomPage() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   const [seasons, setSeasons]       = useState<Season[]>([])
   const [seasonId, setSeasonId]     = useState<number | null>(null)
@@ -181,6 +182,20 @@ export default function DraftRoomPage() {
               <p className="text-spal-success font-semibold">Draft complete</p>
             )}
           </div>
+
+          {/* Pick panel — shown when session is active and user is on clock or admin */}
+          {session.status === 'active'
+            && onClockManager != null
+            && seasonId != null
+            && (user?.id === onClockManager.profile_id || isAdmin)
+            && (
+              <PickPanel
+                seasonId={seasonId}
+                onClockProfileId={onClockManager.profile_id}
+                allPicks={picks}
+              />
+            )
+          }
 
           {/* Draft grid */}
           <div className="overflow-x-auto">

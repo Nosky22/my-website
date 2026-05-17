@@ -5,13 +5,14 @@ export interface DraftPick {
   id: number
   pick_number: number
   profile_id: string
+  player_id: number
   draft_slot: string
   players: { display_name: string; nation: string; canonical_position: string } | null
   profiles: { display_name: string } | null
 }
 
 const PICK_SELECT =
-  'id, pick_number, profile_id, draft_slot, players!player_id(display_name, nation, canonical_position), profiles!profile_id(display_name)'
+  'id, pick_number, profile_id, player_id, draft_slot, players!player_id(display_name, nation, canonical_position), profiles!profile_id(display_name)'
 
 export function useDraftPicks(seasonId: number | null) {
   const [picks, setPicks] = useState<DraftPick[]>([])
