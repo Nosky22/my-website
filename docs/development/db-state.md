@@ -151,6 +151,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `010_draft_pick_deadline.sql`
+**Applied:** 2026-05-17
+**Status:** Applied successfully — column verified by query
+
+**Changes:** Added `pick_deadline timestamptz` (nullable) to `draft_sessions`. Set by the Edge Function to `now() + pick_timer_seconds` on each pick; drives the countdown timer in all connected clients. Null until the draft goes active. Additive only.
+
+---
+
 ## Pending migrations
 
 None.
