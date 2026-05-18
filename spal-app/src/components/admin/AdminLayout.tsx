@@ -5,6 +5,7 @@ const adminLinks = [
   { to: '/admin/seasons',  label: 'Seasons',   end: false },
   { to: '/admin/players',  label: 'Players',   end: false },
   { to: '/admin/draft',    label: 'Draft',     end: false },
+  { to: '/admin/scores',   label: 'Scores',    end: false },
   { to: '/admin/imports',  label: 'Imports',   end: false },
   { to: '/admin/settings', label: 'Settings',  end: false },
 ]
