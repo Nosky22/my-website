@@ -8,6 +8,7 @@ import AdminSeasonsPage from './pages/admin/AdminSeasonsPage'
 import AdminPlayersPage from './pages/admin/AdminPlayersPage'
 import AdminDraftPage from './pages/admin/AdminDraftPage'
 import AdminImportsPage from './pages/admin/AdminImportsPage'
+import AdminManagersPage from './pages/admin/AdminManagersPage'
 import AdminScoresPage from './pages/admin/AdminScoresPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import DashboardPage from './pages/DashboardPage'
@@ -54,7 +55,8 @@ export default function App() {
                 <Route path="seasons"  element={<AdminSeasonsPage />} />
                 <Route path="players"  element={<AdminPlayersPage />} />
                 <Route path="draft"    element={<AdminDraftPage />} />
-                <Route path="scores"   element={<AdminScoresPage />} />
+                <Route path="scores"    element={<AdminScoresPage />} />
+                <Route path="managers" element={<AdminManagersPage />} />
                 <Route path="imports"  element={<AdminImportsPage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />
               </Route>
