@@ -55,18 +55,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     mounted.current = true
+    console.log('[Auth] AuthProvider mounted')
+
+    // Log whether localStorage is accessible (Safari ITP / Private Browsing diagnosis)
+    try {
+      const lsKey = Object.keys(localStorage).find(k => k.includes('auth-token'))
+      console.log('[Auth] localStorage auth key:', lsKey ?? 'not found')
+    } catch (e) {
+      console.warn('[Auth] localStorage access threw:', e)
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, newSession) => {
+        const email = newSession?.user?.email ?? 'none'
+        console.log(`[Auth] onAuthStateChange → event="${event}" email="${email}" mounted=${mounted.current}`)
+
         // INITIAL_SESSION is handled below via getSession() — skip here to avoid
         // double-processing the initial state and the extra loading=true cycle.
-        if (event === 'INITIAL_SESSION') return
+        if (event === 'INITIAL_SESSION') {
+          console.log('[Auth] INITIAL_SESSION skipped (handled by getSession)')
+          return
+        }
 
         // TOKEN_REFRESHED: JWT rotated, user identity unchanged — update session silently
         if (event === 'TOKEN_REFRESHED') {
+          console.log('[Auth] TOKEN_REFRESHED — updating session silently, loading unchanged')
           if (mounted.current) {
             setSession(newSession)
             setUser(newSession?.user ?? null)
+          } else {
+            console.warn('[Auth] TOKEN_REFRESHED — mounted=false, state update skipped')
           }
           return
         }
@@ -74,28 +92,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // USER_UPDATED: re-fetch profile in case display_name/is_admin changed, but
         // no loading state — the user is already authenticated and the page stays visible
         if (event === 'USER_UPDATED') {
+          console.log('[Auth] USER_UPDATED — re-fetching profile, no loading state change')
           const updatedUser = newSession?.user ?? null
           const updatedProfile = updatedUser ? await fetchProfile(updatedUser.id) : null
           if (mounted.current) {
             setSession(newSession)
             setUser(updatedUser)
             setProfile(updatedProfile)
+          } else {
+            console.warn('[Auth] USER_UPDATED — mounted=false after fetchProfile, state update skipped')
           }
           return
         }
 
         // SIGNED_IN / SIGNED_OUT: genuine auth state change —
         // hold loading=true until profile is fully resolved to prevent premature redirects
+        console.log(`[Auth] ${event} → setting loading=true, fetching profile`)
         if (mounted.current) setLoading(true)
 
         const newUser = newSession?.user ?? null
+        console.log(`[Auth] fetchProfile start for ${newUser?.email ?? 'null user'}`)
         const newProfile = newUser ? await fetchProfile(newUser.id) : null
+        console.log(`[Auth] fetchProfile done — profile=${newProfile ? 'ok' : 'null'} mounted=${mounted.current}`)
 
         if (mounted.current) {
           setSession(newSession)
           setUser(newUser)
           setProfile(newProfile)
           setLoading(false)
+          console.log(`[Auth] state set → user="${newUser?.email ?? 'null'}" loading=false`)
+        } else {
+          console.warn(`[Auth] ${event} — mounted=false after fetchProfile, state update skipped`)
         }
       }
     )
@@ -103,19 +130,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Pre-populate state from the stored session immediately. getSession() reads
     // from memory/storage without a network round-trip, so this resolves faster
     // than waiting for the INITIAL_SESSION event dispatch.
+    console.log('[Auth] getSession() called')
     supabase.auth.getSession().then(async ({ data: { session: storedSession } }) => {
-      if (!mounted.current) return
+      const email = storedSession?.user?.email ?? 'none'
+      console.log(`[Auth] getSession() resolved — email="${email}" mounted=${mounted.current}`)
+      if (!mounted.current) {
+        console.warn('[Auth] getSession() resolved but mounted=false — skipping')
+        return
+      }
       const storedUser = storedSession?.user ?? null
+      console.log(`[Auth] getSession fetchProfile start for ${storedUser?.email ?? 'null user'}`)
       const storedProfile = storedUser ? await fetchProfile(storedUser.id) : null
+      console.log(`[Auth] getSession fetchProfile done — profile=${storedProfile ? 'ok' : 'null'} mounted=${mounted.current}`)
       if (mounted.current) {
         setSession(storedSession)
         setUser(storedUser)
         setProfile(storedProfile)
         setLoading(false)
+        console.log(`[Auth] getSession state set → user="${storedUser?.email ?? 'null'}" loading=false`)
+      } else {
+        console.warn('[Auth] getSession — mounted=false after fetchProfile, state update skipped')
       }
     })
 
     return () => {
+      console.log('[Auth] AuthProvider unmounting — unsubscribing')
       mounted.current = false
       subscription.unsubscribe()
     }

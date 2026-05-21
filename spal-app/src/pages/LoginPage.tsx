@@ -22,21 +22,30 @@ export default function LoginPage() {
   // Navigate only after auth state is fully resolved — avoids the blank-screen
   // flash that occurred when navigate() fired before loading=false.
   useEffect(() => {
-    if (!loading && user) navigate(fromRef.current, { replace: true })
+    console.log(`[Login] nav-effect fired — loading=${loading} user=${user?.email ?? 'null'}`)
+    if (!loading && user) {
+      console.log(`[Login] navigating to ${fromRef.current}`)
+      navigate(fromRef.current, { replace: true })
+    }
   }, [user, loading, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
+    console.log('[Login] signInWithPassword starting')
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+
+    console.log('[Login] signInWithPassword returned — error:', authError?.message ?? 'none', '| user:', signInData?.user?.email ?? 'none')
 
     if (authError) {
       setError(authError.message)
       setSubmitting(false)
       // Don't navigate on success — the useEffect above handles it once auth resolves
     }
+    // NOTE: on success, submitting stays true intentionally — navigation via useEffect above.
+    // If you see "Signing in…" stuck, it means the nav-effect never fired (check Auth logs).
   }
 
   return (
