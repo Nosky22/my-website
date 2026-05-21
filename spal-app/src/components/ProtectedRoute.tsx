@@ -9,8 +9,6 @@ export default function ProtectedRoute({ adminOnly = false }: Props) {
   const { user, isAdmin, loading } = useAuth()
   const location = useLocation()
 
-  console.log(`[Route] ProtectedRoute render — path="${location.pathname}" loading=${loading} user=${user?.email ?? 'null'} adminOnly=${adminOnly} isAdmin=${isAdmin}`)
-
   // Hold until auth state is resolved — avoids a flash redirect to /login
   // for users who have a valid session. Show a spinner rather than null so
   // the user sees feedback instead of a blank screen.
