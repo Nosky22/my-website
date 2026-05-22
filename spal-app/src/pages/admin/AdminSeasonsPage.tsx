@@ -21,7 +21,7 @@ const DEFAULT_RULES = {
   weakest_nation: 'Wales',
 }
 
-const STATUS_OPTIONS = ['setup', 'historical', 'live', 'complete'] as const
+const STATUS_OPTIONS = ['active', 'setup', 'historical', 'live', 'complete'] as const
 
 const STATUS_COLOURS: Record<string, string> = {
   active:     'bg-spal-cerulean/20 text-spal-cerulean',
