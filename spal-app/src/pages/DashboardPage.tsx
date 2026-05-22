@@ -8,6 +8,16 @@ import NationBadge from '../components/NationBadge'
 
 interface Season { id: number; year: number }
 
+interface SquadPlayer {
+  player_id:          number
+  role:               string
+  is_captain:         boolean
+  display_name:       string
+  nation:             string
+  canonical_position: string
+  price:              number
+}
+
 interface DraftPick {
   pick_number: number
   draft_slot:  string
@@ -40,6 +50,18 @@ const DRAFT_SLOT_LABELS: Record<string, string> = {
   bench:          'Bench',
 }
 
+const SQUAD_GROUPS: { label: string; test: (p: SquadPlayer) => boolean }[] = [
+  { label: 'Props',         test: p => p.role === 'starter' && p.canonical_position === 'Prop' },
+  { label: 'Hooker',        test: p => p.role === 'starter' && p.canonical_position === 'Hooker' },
+  { label: 'Second Rows',   test: p => p.role === 'starter' && p.canonical_position === 'Second Row' },
+  { label: 'Back Row',      test: p => p.role === 'starter' && ['Flanker', 'Number 8'].includes(p.canonical_position) },
+  { label: 'Scrum-half',    test: p => p.role === 'starter' && p.canonical_position === 'Scrum-half' },
+  { label: 'Fly-half',      test: p => p.role === 'starter' && p.canonical_position === 'Fly-half' },
+  { label: 'Centres',       test: p => p.role === 'starter' && p.canonical_position === 'Centre' },
+  { label: 'Outside Backs', test: p => p.role === 'starter' && ['Wing', 'Fullback'].includes(p.canonical_position) },
+  { label: 'Supersub',      test: p => p.role === 'supersub' },
+]
+
 function fmtSlot(slot: string): string {
   return DRAFT_SLOT_LABELS[slot] ?? slot.replace(/_/g, ' ')
 }
@@ -65,6 +87,7 @@ export default function DashboardPage() {
   const [budgetUsed, setBudgetUsed]       = useState<number | null>(null)
   const [budgetLimit, setBudgetLimit]     = useState<number | null>(null)
   const [playerCount, setPlayerCount]     = useState(0)
+  const [squadPlayers, setSquadPlayers]   = useState<SquadPlayer[]>([])
   const [draftPicks, setDraftPicks]       = useState<DraftPick[]>([])
   const [standings, setStandings]         = useState<Standing[]>([])
   const [draftComplete, setDraftComplete] = useState(false)
@@ -195,16 +218,16 @@ export default function DashboardPage() {
     setBudgetLimit(Number(rules?.budget_limit ?? 200))
 
     if (myCurrentSquad) {
-      const { data: squadPlayers } = await supabase
+      const { data: rawSquadPlayers } = await supabase
         .from('manager_round_squad_players')
-        .select('player_id')
+        .select('player_id, role, is_captain, players(display_name, nation, canonical_position)')
         .eq('squad_id', myCurrentSquad.id)
 
-      const count = squadPlayers?.length ?? 0
+      const count = rawSquadPlayers?.length ?? 0
       setPlayerCount(count)
 
       if (count > 0) {
-        const playerIds = (squadPlayers ?? []).map(sp => Number(sp.player_id))
+        const playerIds = (rawSquadPlayers ?? []).map(sp => Number(sp.player_id))
         const { data: priceRows } = await supabase
           .from('player_prices')
           .select('player_id, final_price, round_number')
@@ -214,12 +237,28 @@ export default function DashboardPage() {
         const basePrices  = new Map<number, number>()
         const roundPrices = new Map<number, number>()
         for (const p of priceRows ?? []) {
-          if (p.round_number === null)         basePrices.set(Number(p.player_id), Number(p.final_price))
+          if (p.round_number === null)             basePrices.set(Number(p.player_id), Number(p.final_price))
           else if (p.round_number === activeRound) roundPrices.set(Number(p.player_id), Number(p.final_price))
         }
-        const total = playerIds.reduce((sum, id) => sum + (roundPrices.get(id) ?? basePrices.get(id) ?? 0), 0)
-        setBudgetUsed(total)
+
+        type RawPlayer = { display_name: string; nation: string; canonical_position: string }
+        const full: SquadPlayer[] = (rawSquadPlayers ?? []).map(sp => {
+          const pid = Number(sp.player_id)
+          const info = sp.players as unknown as RawPlayer | null
+          return {
+            player_id:          pid,
+            role:               sp.role as string,
+            is_captain:         sp.is_captain as boolean,
+            display_name:       info?.display_name ?? '',
+            nation:             info?.nation ?? '',
+            canonical_position: info?.canonical_position ?? '',
+            price:              roundPrices.get(pid) ?? basePrices.get(pid) ?? 0,
+          }
+        })
+        setSquadPlayers(full)
+        setBudgetUsed(full.reduce((sum, p) => sum + p.price, 0))
       } else {
+        setSquadPlayers([])
         setBudgetUsed(0)
       }
     }
@@ -313,7 +352,7 @@ export default function DashboardPage() {
 
         {/* Squad status card */}
         <div className="flex-1 bg-spal-surface rounded-lg px-5 py-4">
-          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">My Squad — Round {currentRound}</h2>
+          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">Squad Status</h2>
 
           <div className="flex items-center gap-3 mb-4">
             {squadStatusKey === 'none' && (
@@ -377,6 +416,54 @@ export default function DashboardPage() {
           </ol>
         </div>
 
+      </div>
+
+      {/* ── My Squad grid ────────────────────────────────────────────────── */}
+      <div className="bg-spal-surface rounded-lg px-5 py-4">
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">
+          My Squad — Round {currentRound}
+        </h2>
+
+        {squadPlayers.length === 0 ? (
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-spal-muted">No squad submitted yet.</p>
+            <Link to={ctaTo} className="text-sm text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+              Build squad →
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {SQUAD_GROUPS.map(group => {
+              const players = squadPlayers.filter(group.test)
+              if (players.length === 0) return null
+              return (
+                <div key={group.label} className="flex items-start gap-4 py-2.5">
+                  <span className="w-28 shrink-0 text-xs text-spal-muted pt-1.5">{group.label}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {players.map(p => (
+                      <div
+                        key={p.player_id}
+                        className="flex items-center gap-1.5 bg-spal-surface-raised rounded px-2.5 py-1.5"
+                      >
+                        <NationBadge nation={p.nation} />
+                        <span className="text-xs text-spal-text font-medium">{p.display_name}</span>
+                        {p.price > 0 && (
+                          <span className="text-xs text-spal-muted tabular-nums">{p.price}★</span>
+                        )}
+                        {p.is_captain && (
+                          <span className="text-xs font-bold text-spal-yellow ml-0.5">C</span>
+                        )}
+                        {p.role === 'supersub' && (
+                          <span className="text-xs font-bold text-spal-cerulean ml-0.5">S</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── 3 + 4. Draft picks + Standings ───────────────────────────────── */}
