@@ -24,18 +24,20 @@ const DEFAULT_RULES = {
 const STATUS_OPTIONS = ['setup', 'historical', 'live', 'complete'] as const
 
 const STATUS_COLOURS: Record<string, string> = {
-  setup:      'bg-spal-warning/20 text-spal-warning',
-  historical: 'bg-white/10        text-spal-muted',
-  live:       'bg-spal-success/20 text-spal-success',
-  complete:   'bg-white/5         text-spal-muted',
+  active:     'bg-spal-cerulean/20 text-spal-cerulean',
+  setup:      'bg-spal-warning/20  text-spal-warning',
+  historical: 'bg-white/10         text-spal-muted',
+  live:       'bg-spal-success/20  text-spal-success',
+  complete:   'bg-white/5          text-spal-muted',
 }
 
 export default function AdminSeasonsPage() {
-  const [seasons, setSeasons] = useState<Season[]>([])
-  const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ year: new Date().getFullYear(), status: 'setup' })
+  const [seasons, setSeasons]       = useState<Season[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [form, setForm]             = useState({ year: new Date().getFullYear(), status: 'setup' })
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]           = useState<string | null>(null)
+  const [settingActive, setSettingActive] = useState<number | null>(null)
 
   useEffect(() => { fetchSeasons() }, [])
 
@@ -48,6 +50,20 @@ export default function AdminSeasonsPage() {
     if (error) console.error(error)
     setSeasons(data ?? [])
     setLoading(false)
+  }
+
+  async function handleSetActive(id: number) {
+    setSettingActive(id)
+    // Demote any other season currently marked active to 'complete'.
+    await supabase
+      .from('seasons')
+      .update({ status: 'complete' })
+      .eq('status', 'active')
+      .neq('id', id)
+    // Mark the selected season as active.
+    await supabase.from('seasons').update({ status: 'active' }).eq('id', id)
+    await fetchSeasons()
+    setSettingActive(null)
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -132,7 +148,8 @@ export default function AdminSeasonsPage() {
             <tr className="text-left text-spal-muted border-b border-white/10">
               <th className="pb-2 pr-8 font-normal">Year</th>
               <th className="pb-2 pr-8 font-normal">Status</th>
-              <th className="pb-2 font-normal">Created</th>
+              <th className="pb-2 pr-8 font-normal">Created</th>
+              <th className="pb-2 font-normal" />
             </tr>
           </thead>
           <tbody>
@@ -144,8 +161,21 @@ export default function AdminSeasonsPage() {
                     {s.status}
                   </span>
                 </td>
-                <td className="py-2 text-spal-muted">
+                <td className="py-2 pr-8 text-spal-muted">
                   {new Date(s.created_at).toLocaleDateString()}
+                </td>
+                <td className="py-2">
+                  {s.status === 'active' ? (
+                    <span className="text-xs text-spal-muted">Active</span>
+                  ) : (
+                    <button
+                      onClick={() => handleSetActive(s.id)}
+                      disabled={settingActive !== null}
+                      className="text-xs text-spal-cerulean hover:text-spal-cerulean-light disabled:opacity-40 transition-colors"
+                    >
+                      {settingActive === s.id ? 'Setting…' : 'Set as active'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -58,6 +58,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading]             = useState(true)
   const [season, setSeason]               = useState<Season | null>(null)
+  const [isFallbackSeason, setIsFallbackSeason] = useState(false)
   const [currentRound, setCurrentRound]   = useState<number | null>(null)
   const [roundDeadline, setRoundDeadline] = useState<string | null>(null)
   const [mySquad, setMySquad]             = useState<MySquad | null>(null)
@@ -78,20 +79,24 @@ export default function DashboardPage() {
     setLoading(true)
 
     // ── Active season ─────────────────────────────────────────────────────
+    // Prefer a season explicitly marked active; fall back to the most recent.
     const { data: seasonRows } = await supabase
       .from('seasons')
       .select('id, year, status')
-      .eq('status', 'active')
       .order('year', { ascending: false })
-      .limit(1)
+      .limit(10)
 
-    const activeSeason = (seasonRows ?? [])[0] as (Season & { status: string }) | undefined
+    const rows = (seasonRows ?? []) as (Season & { status: string })[]
+    const explicitlyActive = rows.find(s => s.status === 'active')
+    const activeSeason     = explicitlyActive ?? rows[0]
+
     if (!activeSeason) {
       setSeason(null)
       setLoading(false)
       return
     }
     setSeason(activeSeason)
+    setIsFallbackSeason(!explicitlyActive)
 
     // ── Parallel fetches ──────────────────────────────────────────────────
     const [
@@ -291,6 +296,11 @@ export default function DashboardPage() {
             </span>
           )}
         </div>
+        {isFallbackSeason && (
+          <p className="text-spal-muted text-xs mt-1">
+            No active season — showing {season.year}
+          </p>
+        )}
         {roundDeadline && !deadlinePassed && (
           <p className="text-spal-muted text-sm mt-1">
             Squad deadline: {fmtDeadline(roundDeadline)}
