@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
@@ -174,6 +175,13 @@ function validate(slots: SquadSlot[], rules: SeasonRules): string[] {
 
 export default function SquadPage() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+
+  // Read URL params once at mount — used to pre-select season/round when
+  // navigating from the dashboard. Refs so they survive re-renders but are
+  // consumed only on the first load cycle.
+  const initSeasonParam = useRef<number | null>(parseInt(searchParams.get('season') ?? '') || null)
+  const initRoundParam  = useRef<number | null>(parseInt(searchParams.get('round')  ?? '') || null)
 
   const [seasons, setSeasons]                   = useState<Season[]>([])
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
@@ -198,10 +206,13 @@ export default function SquadPage() {
       .then(({ data }) => {
         if (!data) return
         setSeasons(data)
-        const active = data.find(s => s.status === 'active') ?? data[0]
-        if (active) setSelectedSeasonId(active.id)
+        const paramId = initSeasonParam.current
+        const preferred = (paramId ? data.find(s => s.id === paramId) : null)
+          ?? data.find(s => s.status === 'active')
+          ?? data[0]
+        if (preferred) setSelectedSeasonId(preferred.id)
       })
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load data when season changes
   useEffect(() => {
@@ -226,7 +237,12 @@ export default function SquadPage() {
 
       const activeRounds = roundNums.length > 0 ? roundNums : [1, 2, 3, 4, 5]
       setRounds(activeRounds)
-      const round = activeRounds[0]
+
+      // Consume the URL round param on first load only; null it so manual
+      // season changes afterwards always default to the first round.
+      const paramRound = initRoundParam.current
+      initRoundParam.current = null
+      const round = (paramRound && activeRounds.includes(paramRound)) ? paramRound : activeRounds[0]
       setSelectedRound(round)
 
       await loadRoundData(selectedSeasonId!, round, cancelled)
