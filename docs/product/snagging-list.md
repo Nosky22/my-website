@@ -27,4 +27,13 @@ Known gaps, polish items, and planned improvements. Checked items are done.
 - [ ] Round locking — auto-lock squads at deadline, copy previous round squad for managers who haven't submitted. Admin override available.
 - [ ] Score states — provisional vs final scores. Admin marks a round as final after all scores confirmed.
 
+## Historical Data & Records
+
+- [ ] Historical season results — managers can view final standings for each completed season showing total points, position, H2H record
+- [ ] All-time league table — aggregated across all historical seasons: total points, seasons played, average points per season, wins, best finish
+- [ ] Manager profile page — individual manager's history across all seasons: each season's position, points, best/worst round, most valuable player in their squad
+- [ ] Season review page — for each completed season: final standings, top scoring players, round by round results, draft board, notable moments
+- [ ] All-time top players — players who have scored the most points across all seasons they appeared in SPAL squads
+- [ ] Historical draft records — which managers have drafted which players across seasons, who has the best draft record
+
 ## Future Features
