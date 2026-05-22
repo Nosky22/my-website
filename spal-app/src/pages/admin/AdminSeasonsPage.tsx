@@ -53,30 +53,16 @@ export default function AdminSeasonsPage() {
   }
 
   async function handleSetActive(id: number) {
-    console.log('[SetActive] called with id:', id)
     setSettingActive(id)
-
-    const demoteResult = await supabase
+    // Demote any other season currently marked active to 'complete'.
+    await supabase
       .from('seasons')
       .update({ status: 'complete' })
       .eq('status', 'active')
       .neq('id', id)
-    console.log('[SetActive] demote result:', demoteResult.data, demoteResult.error)
-
-    const activateResult = await supabase
-      .from('seasons')
-      .update({ status: 'active' })
-      .eq('id', id)
-    console.log('[SetActive] activate result:', activateResult.data, activateResult.error)
-
-    const { data: refreshed, error: refreshErr } = await supabase
-      .from('seasons')
-      .select('id, year, status, created_at')
-      .order('year', { ascending: false })
-    console.log('[SetActive] fetchSeasons result:', refreshed, refreshErr)
-
-    setSeasons(refreshed ?? [])
-    setLoading(false)
+    // Mark the selected season as active.
+    await supabase.from('seasons').update({ status: 'active' }).eq('id', id)
+    await fetchSeasons()
     setSettingActive(null)
   }
 
