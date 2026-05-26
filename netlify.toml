@@ -5,6 +5,9 @@
 [functions]
   directory = "netlify/functions"
 
+[functions."lock-squads"]
+  schedule = "*/15 * * * *"
+
 [[redirects]]
   # React Router deep-link support — any /spal/* request that doesn't match
   # a real file (e.g. /spal/standings, /spal/draft) falls through to the SPA

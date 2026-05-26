@@ -1,5 +1,0 @@
-[functions]
-  directory = "netlify/functions"
-
-[functions."lock-squads"]
-  schedule = "*/15 * * * *"
