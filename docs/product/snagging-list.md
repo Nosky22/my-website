@@ -2,13 +2,13 @@
 
 ## Tier 1 — Must fix before friends use it
 
-### In progress (current session)
-- [ ] Password reset flow
-- [ ] Fix timer going negative in draft room
-- [ ] Fix raw Supabase error messages
-- [ ] Add 404 page
-- [ ] Fix stub nav pages (laws with real content, history as intentional coming soon)
-- [ ] Add favicon
+### Completed
+- [x] Password reset flow
+- [x] Fix timer going negative in draft room (already floored at 0 in useDraftSession — no change needed)
+- [x] Fix raw Supabase error messages
+- [x] Add 404 page
+- [x] Fix stub nav pages (laws with real content, history as intentional coming soon)
+- [x] Add favicon
 
 ### Still to do
 - [ ] Squad auto-locking at deadline

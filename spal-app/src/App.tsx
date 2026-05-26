@@ -14,11 +14,14 @@ import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import DashboardPage from './pages/DashboardPage'
 import DraftPage from './pages/DraftPage'
 import DraftRoomPage from './pages/DraftRoomPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HistoryPage from './pages/HistoryPage'
 import HomePage from './pages/HomePage'
 import LawsPage from './pages/LawsPage'
 import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
 import PlayersPage from './pages/PlayersPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import SignUpPage from './pages/SignUpPage'
 import SquadPage from './pages/SquadPage'
 import StandingsPage from './pages/StandingsPage'
@@ -39,6 +42,8 @@ export default function App() {
             <Route path="history" element={<HistoryPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignUpPage />} />
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="reset-password" element={<ResetPasswordPage />} />
 
             {/* Auth-required routes */}
             <Route element={<ProtectedRoute />}>
@@ -61,6 +66,9 @@ export default function App() {
                 <Route path="settings" element={<AdminSettingsPage />} />
               </Route>
             </Route>
+
+            {/* Catch-all */}
+            <Route path="*" element={<NotFoundPage />} />
 
           </Route>
         </Routes>

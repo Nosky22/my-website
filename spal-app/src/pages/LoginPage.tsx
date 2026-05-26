@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { friendlyAuthError } from '../lib/authErrors'
 
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
@@ -33,7 +34,7 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
-      setError(authError.message)
+      setError(friendlyAuthError(authError.message))
       setSubmitting(false)
       // Don't navigate on success — the useEffect above handles it once auth resolves
     }
@@ -87,7 +88,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-sm text-spal-muted mt-6 text-center">
+        <p className="text-sm text-spal-muted mt-4 text-center">
+          <Link to="/forgot-password" className="text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+            Forgot password?
+          </Link>
+        </p>
+        <p className="text-sm text-spal-muted mt-2 text-center">
           New manager?{' '}
           <Link to="/signup" className="text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
             Create account
