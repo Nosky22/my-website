@@ -192,7 +192,7 @@ export default function AdminManagersPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex gap-6 items-start">
+    <div className="flex flex-col md:flex-row gap-6 items-start">
       {/* Main list */}
       <div className="flex-1 min-w-0">
         <h1 className="text-xl font-bold text-spal-yellow mb-4">Managers</h1>
@@ -206,6 +206,7 @@ export default function AdminManagersPage() {
             <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left text-spal-muted border-b border-spal-surface-raised">
@@ -265,12 +266,13 @@ export default function AdminManagersPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {/* Link Account side panel */}
       {activePlaceholder && (
-        <div className="w-80 shrink-0 bg-spal-surface rounded p-4 sticky top-4">
+        <div className="w-full md:w-80 md:shrink-0 bg-spal-surface rounded p-4 md:sticky md:top-4">
           <div className="flex items-start justify-between mb-3">
             <div>
               <h2 className="font-semibold text-spal-text">Link account</h2>

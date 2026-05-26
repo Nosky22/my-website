@@ -348,7 +348,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 2 + 5. Squad status card + Workflow indicator ────────────────── */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
 
         {/* Squad status card */}
         <div className="flex-1 bg-spal-surface rounded-lg px-5 py-4">
@@ -387,7 +387,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Workflow indicator */}
-        <div className="w-52 shrink-0 bg-spal-surface rounded-lg px-5 py-4">
+        <div className="md:w-52 md:shrink-0 bg-spal-surface rounded-lg px-5 py-4">
           <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-4">Round progress</h2>
           <ol className="space-y-3">
             {workflowSteps.map((step, i) => {
@@ -437,8 +437,8 @@ export default function DashboardPage() {
               const players = squadPlayers.filter(group.test)
               if (players.length === 0) return null
               return (
-                <div key={group.label} className="flex items-start gap-4 py-2.5">
-                  <span className="w-28 shrink-0 text-xs text-spal-muted pt-1.5">{group.label}</span>
+                <div key={group.label} className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4 py-2.5">
+                  <span className="md:w-28 md:shrink-0 text-xs text-spal-muted md:pt-1.5">{group.label}</span>
                   <div className="flex flex-wrap gap-2">
                     {players.map(p => (
                       <div
@@ -467,7 +467,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 3 + 4. Draft picks + Standings ───────────────────────────────── */}
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
 
         {/* Draft picks */}
         <div className="flex-1 bg-spal-surface rounded-lg px-5 py-4">
@@ -516,7 +516,7 @@ export default function DashboardPage() {
                 <tr className="text-left border-b border-white/5">
                   <th className="pb-2 pr-2 text-spal-muted font-medium w-6">#</th>
                   <th className="pb-2 pr-2 text-spal-muted font-medium">Manager</th>
-                  <th className="pb-2 pr-2 text-spal-muted font-medium text-right">H2H</th>
+                  <th className="pb-2 pr-2 text-spal-muted font-medium text-right hidden md:table-cell">H2H</th>
                   <th className="pb-2 text-spal-muted font-medium text-right">Pts</th>
                 </tr>
               </thead>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
                         <div className={isMe ? 'font-semibold' : 'text-spal-text'}>{s.display_name}</div>
                         <div className="text-xs text-spal-muted">{s.team_name}</div>
                       </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{s.h2h_points}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums hidden md:table-cell">{s.h2h_points}</td>
                       <td className="py-2 text-right tabular-nums font-medium">{s.total_points}</td>
                     </tr>
                   )

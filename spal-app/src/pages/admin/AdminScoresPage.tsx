@@ -370,7 +370,7 @@ export default function AdminScoresPage() {
           No matches found for round {selectedRound}. Add them via the Seasons page.
         </p>
       ) : (
-        <div className="flex gap-8 items-start">
+        <div className="flex flex-col md:flex-row gap-8 items-start">
 
           {/* Left: match panels + calculate */}
           <div className="flex-1 min-w-0 space-y-4">
@@ -553,8 +553,8 @@ export default function AdminScoresPage() {
           </div>
 
           {/* Right: score entry form */}
-          <aside className="w-72 shrink-0">
-            <section className="bg-spal-surface rounded p-5 sticky top-6">
+          <aside className="w-full md:w-72 md:shrink-0">
+            <section className="bg-spal-surface rounded p-5 md:sticky md:top-6">
               <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-4">
                 Score entry
               </h2>
