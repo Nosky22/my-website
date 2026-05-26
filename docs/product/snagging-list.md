@@ -1,39 +1,60 @@
 # SPAL Snagging List
 
-Known gaps, polish items, and planned improvements. Checked items are done.
+## Tier 1 — Must fix before friends use it
 
----
+### In progress (current session)
+- [ ] Password reset flow
+- [ ] Fix timer going negative in draft room
+- [ ] Fix raw Supabase error messages
+- [ ] Add 404 page
+- [ ] Fix stub nav pages (laws with real content, history as intentional coming soon)
+- [ ] Add favicon
 
-## UI & Polish
+### Still to do
+- [ ] Squad auto-locking at deadline
+- [ ] Standings showing actual scores not just draft data
+- [ ] Dashboard mobile layout broken
+- [ ] Admin draft setup UI (draft order requires direct DB access currently)
 
-## Manager Experience
+## Tier 2 — Should fix for a good experience
+- [ ] Invite gate on signup
+- [ ] Season rules editable from admin UI
+- [ ] Success toast/notification system
+- [ ] Player search on players and admin players pages
+- [ ] Confirmation on destructive admin actions
+- [ ] Submit squad confirmation
+- [ ] Round marked as final in UI
+- [ ] Admin override points UI
 
-- [ ] Visual workflow indicator for managers — a clear status display showing where each manager is in the process (draft complete, squad submitted, round locked, scores available etc.) and what actions they need to take next. Should be prominent on the manager dashboard.
-- [ ] Display official team sheets to managers before squad deadline — show starting XVs, bench, and reserves for each match in the round once announced.
-- [ ] Keep SPAL in step with official game — squad selection window should open when official game opens (after previous round scores finalise). Consider linking round deadlines to official game deadlines.
-
-## Admin & Commissioner Tools
-
-## Scoring & Data
-
-- [ ] Live score updates during matches — decide whether to support provisional scores during matches or final scores only. Recommended: final scores only for v1.
-- [ ] Official API adapter for 2027 — build the officialFantasyAdapter Edge Function using /v1/flux endpoint, ready for January 2027 when the Men's game goes live. Requires admin to provide their api_key in settings.
-- [ ] Team sheet import — admin UI to import or manually enter official starting XVs when announced (Thursday/Friday pre-round). Populates matchday_squads. Should show starters, bench, and reserves separately.
-- [ ] Late change handling — admin can update a player's matchday status after initial import (e.g. late injury replacement). Re-running score-round recalculates automatically.
-- [ ] Price updates per round — mechanism for admin to update player prices between rounds, either via API import or manual entry.
-
-## Technical & Performance
-
-- [ ] Round locking — auto-lock squads at deadline, copy previous round squad for managers who haven't submitted. Admin override available.
-- [ ] Score states — provisional vs final scores. Admin marks a round as final after all scores confirmed.
+## Tier 3 — Polish
+- [ ] Empty state illustrations
+- [ ] Admin imports/settings stubs replaced with proper content
+- [ ] Score result table formatting
+- [ ] Draft board slot context improvements
 
 ## Historical Data & Records
+- [ ] Historical season results page
+- [ ] All-time league table
+- [ ] Manager profile pages
+- [ ] Season review pages
+- [ ] All-time top players
+- [ ] Historical draft records
 
-- [ ] Historical season results — managers can view final standings for each completed season showing total points, position, H2H record
-- [ ] All-time league table — aggregated across all historical seasons: total points, seasons played, average points per season, wins, best finish
-- [ ] Manager profile page — individual manager's history across all seasons: each season's position, points, best/worst round, most valuable player in their squad
-- [ ] Season review page — for each completed season: final standings, top scoring players, round by round results, draft board, notable moments
-- [ ] All-time top players — players who have scored the most points across all seasons they appeared in SPAL squads
-- [ ] Historical draft records — which managers have drafted which players across seasons, who has the best draft record
+## Scoring & Data
+- [ ] Live score updates during matches — final scores only for v1 recommended
+- [ ] Official API adapter for 2027 — officialFantasyAdapter Edge Function using /v1/flux, ready for January 2027
+- [ ] Team sheet import — admin UI to import official starting XVs when announced Thursday/Friday pre-round
+- [ ] Late change handling — admin can update matchday status after initial import
+- [ ] Price updates per round — mechanism to update player prices between rounds via API or manual entry
 
-## Future Features
+## Manager Experience
+- [ ] Visual workflow indicator — already built on dashboard, continue refining
+- [ ] Display official team sheets to managers before squad deadline
+- [ ] Keep SPAL in step with official game schedule
+
+## Technical & Performance
+- [ ] Round locking — auto-lock at deadline, copy previous squad if none submitted
+- [ ] Score states — provisional vs final, admin marks round as final
+- [ ] Mobile responsive audit and fixes
+- [ ] Loading states and error handling across all pages
+- [ ] Performance — caching, reduce unnecessary fetches
