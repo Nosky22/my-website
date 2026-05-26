@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 
 interface Season { id: number; year: number }
 interface Match  { id: number; home_nation: string; away_nation: string }
@@ -18,6 +19,7 @@ interface PlayerOption { id: number; display_name: string; nation: string; canon
 interface CalcScore    { profile_id: string; round_score: number }
 interface CalcResult   { round_number: number; managers_scored: number; scores: CalcScore[] }
 interface ProfileInfo  { display_name: string; team_name: string }
+interface LockSummary  { alreadyLocked: boolean; locked?: number; copied?: number; empty?: number; error?: string }
 
 const MATCHDAY_STATUSES = ['starting', 'bench', 'not_selected'] as const
 type MatchdayStatus = (typeof MATCHDAY_STATUSES)[number]
@@ -45,6 +47,8 @@ const MATCHDAY_COLOUR: Record<string, string> = {
 }
 
 export default function AdminScoresPage() {
+  const { session } = useAuth()
+
   // ── Selection ────────────────────────────────────────────────────
   const [seasons, setSeasons]             = useState<Season[]>([])
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
@@ -73,6 +77,12 @@ export default function AdminScoresPage() {
   const [calcError, setCalcError]     = useState<string | null>(null)
   const [profiles, setProfiles]       = useState<Map<string, ProfileInfo>>(new Map())
 
+  // ── Squad locking ─────────────────────────────────────────────────
+  const [squadsNeedLock, setSquadsNeedLock] = useState(false)
+  const [locking, setLocking]               = useState(false)
+  const [lockResult, setLockResult]         = useState<LockSummary | null>(null)
+  const [lockError, setLockError]           = useState<string | null>(null)
+
   // ── Load seasons ─────────────────────────────────────────────────
   useEffect(() => {
     supabase.from('seasons').select('id, year').order('year', { ascending: false })
@@ -88,6 +98,7 @@ export default function AdminScoresPage() {
     if (selectedSeasonId == null || selectedRound == null) {
       setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false)
       setCalcResult(null); setCalcError(null)
+      setSquadsNeedLock(false); setLockResult(null); setLockError(null)
       return
     }
     loadRound()
@@ -96,22 +107,31 @@ export default function AdminScoresPage() {
   async function loadRound() {
     setLoadingRound(true)
     setCalcResult(null); setCalcError(null)
+    setLockResult(null); setLockError(null)
 
     const { data: matchData } = await supabase
       .from('matches')
-      .select('id, home_nation, away_nation')
+      .select('id, home_nation, away_nation, kickoff_at')
       .eq('season_id', selectedSeasonId!)
       .eq('round_number', selectedRound!)
       .order('kickoff_at')
 
     if (!matchData?.length) {
       setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false)
+      setSquadsNeedLock(false)
       setLoadingRound(false); return
     }
-    setMatches(matchData)
+
+    // Earliest kickoff is the squad lock deadline for this round.
+    const earliest = matchData.reduce<string | null>((acc, m) => {
+      if (!m.kickoff_at) return acc
+      return acc == null || m.kickoff_at < acc ? m.kickoff_at : acc
+    }, null)
+
+    setMatches(matchData.map(({ kickoff_at: _k, ...m }) => m) as Match[])
 
     const matchIds = matchData.map(m => m.id)
-    const [scoresRes, mdRes, mmsRes] = await Promise.all([
+    const [scoresRes, mdRes, mmsRes, squadsRes] = await Promise.all([
       supabase.from('player_match_scores')
         .select('id, player_id, match_id, source_points, admin_override_points, final_points, status, players(display_name, nation)')
         .in('match_id', matchIds),
@@ -120,11 +140,22 @@ export default function AdminScoresPage() {
         .in('match_id', matchIds),
       supabase.from('manager_match_scores')
         .select('id').in('match_id', matchIds).limit(1),
+      // Check if any submitted/draft squads exist for this round (deadline passed = needs lock).
+      supabase.from('manager_round_squads')
+        .select('id, status')
+        .eq('season_id', selectedSeasonId!)
+        .eq('round_number', selectedRound!)
+        .neq('status', 'locked'),
     ])
 
     setScores((scoresRes.data ?? []) as unknown as ScoreRow[])
     setMatchdays(mdRes.data ?? [])
     setRoundScored((mmsRes.data?.length ?? 0) > 0)
+
+    // Show lock button if deadline has passed and there are non-locked squads.
+    const deadlinePassed = earliest != null && earliest < new Date().toISOString()
+    setSquadsNeedLock(deadlinePassed && (squadsRes.data?.length ?? 0) > 0)
+
     setLoadingRound(false)
   }
 
@@ -230,6 +261,34 @@ export default function AdminScoresPage() {
 
     setSaveSuccess(true); setSaving(false)
     loadRound()
+  }
+
+  // ── Lock squads ──────────────────────────────────────────────────
+  async function handleLock() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    setLocking(true); setLockResult(null); setLockError(null)
+
+    try {
+      const jwt = session?.access_token ?? ''
+      const res = await fetch('/.netlify/functions/lock-squads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ season_id: selectedSeasonId, round_number: selectedRound }),
+      })
+      const data = await res.json() as LockSummary | { error?: string }
+      if (!res.ok) {
+        setLockError(('error' in data && data.error) ? data.error : `HTTP ${res.status}`)
+      } else {
+        setLockResult(data as LockSummary)
+        setSquadsNeedLock(false)
+      }
+    } catch (err) {
+      setLockError(err instanceof Error ? err.message : 'Network error')
+    }
+    setLocking(false)
   }
 
   // ── Calculate scores ─────────────────────────────────────────────
@@ -382,6 +441,57 @@ export default function AdminScoresPage() {
                 </section>
               )
             })}
+
+            {/* Lock squads section — visible when deadline has passed and squads need locking */}
+            {(squadsNeedLock || lockResult != null || lockError != null) && (
+              <section className="bg-spal-surface rounded p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="font-semibold text-spal-text">Lock squads</h2>
+                    <p className="text-xs text-spal-muted mt-0.5">
+                      {squadsNeedLock
+                        ? 'Deadline has passed — submitted squads will be locked; managers without a submission will have their previous round squad rolled over.'
+                        : 'Squads locked for this round.'}
+                    </p>
+                  </div>
+                  {squadsNeedLock && (
+                    <button onClick={handleLock} disabled={locking} className={`${submitClass} px-5`}>
+                      {locking ? 'Locking…' : 'Lock round'}
+                    </button>
+                  )}
+                </div>
+
+                {lockError && (
+                  <div className="bg-spal-error/10 border border-spal-error/30 rounded p-3 text-sm text-spal-error">
+                    {lockError}
+                  </div>
+                )}
+
+                {lockResult && !lockResult.alreadyLocked && (
+                  <div className="text-sm space-y-1">
+                    {lockResult.error ? (
+                      <p className="text-spal-error">{lockResult.error}</p>
+                    ) : (
+                      <>
+                        {(lockResult.locked ?? 0) > 0 && (
+                          <p className="text-spal-text">{lockResult.locked} squad{lockResult.locked !== 1 ? 's' : ''} locked in place</p>
+                        )}
+                        {(lockResult.copied ?? 0) > 0 && (
+                          <p className="text-spal-muted">{lockResult.copied} squad{lockResult.copied !== 1 ? 's' : ''} copied from previous round</p>
+                        )}
+                        {(lockResult.empty ?? 0) > 0 && (
+                          <p className="text-spal-warning">{lockResult.empty} empty placeholder squad{lockResult.empty !== 1 ? 's' : ''} created (no previous round found)</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {lockResult?.alreadyLocked && (
+                  <p className="text-spal-muted text-sm">All squads for this round are already locked.</p>
+                )}
+              </section>
+            )}
 
             {/* Calculate section */}
             <section className="bg-spal-surface rounded p-5">

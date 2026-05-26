@@ -1,0 +1,2 @@
+[functions."lock-squads"]
+  schedule = "*/15 * * * *"
