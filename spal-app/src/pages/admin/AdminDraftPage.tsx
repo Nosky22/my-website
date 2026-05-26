@@ -98,7 +98,7 @@ export default function AdminDraftPage() {
     setSessionError(null); setSlotsSaved(false)
 
     const [profilesRes, orderRes, sessionRes, rulesRes] = await Promise.all([
-      supabase.from('profiles').select('id, display_name').eq('is_admin', false).order('display_name'),
+      supabase.from('profiles').select('id, display_name').order('display_name'),
       supabase.from('draft_order').select('profile_id, pick_position').eq('season_id', seasonId!),
       supabase.from('draft_sessions')
         .select('id, status, current_pick_number, pick_timer_seconds, started_at, completed_at')
