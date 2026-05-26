@@ -12,9 +12,10 @@
 - [x] Squad auto-locking at deadline (Netlify scheduled function + admin manual lock)
 - [x] Standings showing actual scores not just draft data
 - [x] Admin draft setup UI (draft order, session config, slots, quick link to draft room)
+- [x] Dashboard mobile layout broken (dashboard, admin scores, admin managers pages)
 
 ### Still to do
-- [ ] Dashboard mobile layout broken
+*(none)*
 
 ## Tier 2 — Should fix for a good experience
 - [ ] Invite gate on signup
