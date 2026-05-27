@@ -9,10 +9,6 @@ interface StandingRow {
   display_name: string
   rounds_played: number
   total_points: number
-  h2h_points: number
-  h2h_wins: number
-  h2h_draws: number
-  h2h_losses: number
   last_updated_round: number | null
 }
 
@@ -51,9 +47,8 @@ export default function StandingsPage() {
     Promise.all([
       supabase
         .from('season_standings')
-        .select('profile_id, rounds_played, total_points, h2h_points, h2h_wins, h2h_draws, h2h_losses, last_updated_round, profiles!profile_id(display_name)')
+        .select('profile_id, rounds_played, total_points, last_updated_round, profiles!profile_id(display_name)')
         .eq('season_id', seasonId)
-        .order('h2h_points', { ascending: false })
         .order('total_points', { ascending: false }),
 
       supabase
@@ -65,10 +60,6 @@ export default function StandingsPage() {
         profile_id: string
         rounds_played: number
         total_points: number
-        h2h_points: number
-        h2h_wins: number
-        h2h_draws: number
-        h2h_losses: number
         last_updated_round: number | null
         profiles: { display_name: string } | null
       }
@@ -78,10 +69,6 @@ export default function StandingsPage() {
         display_name:       s.profiles?.display_name ?? 'Unknown',
         rounds_played:      s.rounds_played,
         total_points:       s.total_points,
-        h2h_points:         s.h2h_points,
-        h2h_wins:           s.h2h_wins,
-        h2h_draws:          s.h2h_draws,
-        h2h_losses:         s.h2h_losses,
         last_updated_round: s.last_updated_round,
       })))
 
@@ -141,8 +128,6 @@ export default function StandingsPage() {
                     <th className="pb-2 pr-4 font-normal w-8">#</th>
                     <th className="pb-2 pr-6 font-normal">Manager</th>
                     <th className="pb-2 pr-4 font-normal text-right tabular-nums">Pts</th>
-                    <th className="pb-2 pr-4 font-normal text-right tabular-nums">H2H</th>
-                    <th className="pb-2 pr-4 font-normal text-right">W/D/L</th>
                     <th className="pb-2 font-normal text-right tabular-nums">Rounds</th>
                   </tr>
                 </thead>
@@ -160,12 +145,6 @@ export default function StandingsPage() {
                         </td>
                         <td className="py-3 pr-4 text-right tabular-nums text-spal-text">
                           {Number(row.total_points).toFixed(1)}
-                        </td>
-                        <td className="py-3 pr-4 text-right tabular-nums text-spal-text font-medium">
-                          {row.h2h_points}
-                        </td>
-                        <td className="py-3 pr-4 text-right text-spal-muted tabular-nums">
-                          {row.h2h_wins}W&nbsp;{row.h2h_draws}D&nbsp;{row.h2h_losses}L
                         </td>
                         <td className="py-3 text-right tabular-nums text-spal-muted">
                           {row.rounds_played}

@@ -29,7 +29,6 @@ interface Standing {
   display_name:       string
   team_name:          string
   total_points:       number
-  h2h_points:         number
   rounds_played:      number
   last_updated_round: number | null
 }
@@ -144,9 +143,8 @@ export default function DashboardPage() {
         .order('pick_number'),
       supabase
         .from('season_standings')
-        .select('profile_id, total_points, h2h_points, rounds_played, last_updated_round, profiles(display_name, team_name)')
+        .select('profile_id, total_points, rounds_played, last_updated_round, profiles(display_name, team_name)')
         .eq('season_id', activeSeason.id)
-        .order('h2h_points', { ascending: false })
         .order('total_points', { ascending: false }),
       supabase
         .from('manager_round_squads')
@@ -202,7 +200,6 @@ export default function DashboardPage() {
       display_name:       (s.profiles as unknown as { display_name: string } | null)?.display_name ?? 'Unknown',
       team_name:          (s.profiles as unknown as { team_name: string } | null)?.team_name ?? '',
       total_points:       Number(s.total_points ?? 0),
-      h2h_points:         Number(s.h2h_points ?? 0),
       rounds_played:      Number(s.rounds_played ?? 0),
       last_updated_round: s.last_updated_round as number | null,
     }))
@@ -516,7 +513,6 @@ export default function DashboardPage() {
                 <tr className="text-left border-b border-white/5">
                   <th className="pb-2 pr-2 text-spal-muted font-medium w-6">#</th>
                   <th className="pb-2 pr-2 text-spal-muted font-medium">Manager</th>
-                  <th className="pb-2 pr-2 text-spal-muted font-medium text-right hidden md:table-cell">H2H</th>
                   <th className="pb-2 text-spal-muted font-medium text-right">Pts</th>
                 </tr>
               </thead>
@@ -533,7 +529,6 @@ export default function DashboardPage() {
                         <div className={isMe ? 'font-semibold' : 'text-spal-text'}>{s.display_name}</div>
                         <div className="text-xs text-spal-muted">{s.team_name}</div>
                       </td>
-                      <td className="py-2 pr-2 text-right tabular-nums hidden md:table-cell">{s.h2h_points}</td>
                       <td className="py-2 text-right tabular-nums font-medium">{s.total_points}</td>
                     </tr>
                   )

@@ -25,6 +25,7 @@ import PlayersPage from './pages/PlayersPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import SignUpPage from './pages/SignUpPage'
 import SquadPage from './pages/SquadPage'
+import H2HPage from './pages/H2HPage'
 import StandingsPage from './pages/StandingsPage'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
             {/* Public routes */}
             <Route index element={<HomePage />} />
             <Route path="standings" element={<StandingsPage />} />
+            <Route path="h2h" element={<H2HPage />} />
             <Route path="players" element={<PlayersPage />} />
             <Route path="laws" element={<LawsPage />} />
             <Route path="history" element={<HistoryPage />} />
