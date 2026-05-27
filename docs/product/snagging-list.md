@@ -19,7 +19,7 @@
 
 ## Tier 1.5 — Before 2027
 
-- [ ] Canonical player identity — schema change required before more data is added. See migration proposal below.
+- [x] Canonical player identity — migration 014 applied 2026-05-27. canonical_players table, unaccent extension, players.canonical_player_id FK. 127 canonical records, 0 unlinked rows.
 
 ## Tier 2 — Should fix for a good experience
 - [ ] Invite gate on signup
