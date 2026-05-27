@@ -217,6 +217,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `016_seasons_add_test_status.sql`
+**Applied:** 2026-05-27
+**Status:** Applied successfully — constraint verified by query
+
+**Changes:** Extended `seasons_status_check` to include `'test'` alongside the existing five values. New allowed values: `setup`, `test`, `active`, `live`, `complete`, `historical`. Implemented by dropping and recreating the constraint — no data modified, no rows affected.
+
+---
+
 ## Pending migrations
 
 None.

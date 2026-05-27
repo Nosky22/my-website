@@ -22,11 +22,12 @@ const DEFAULT_RULES = {
   weakest_nation: 'Wales',
 }
 
-const STATUS_OPTIONS = ['active', 'setup', 'historical', 'live', 'complete'] as const
+const STATUS_OPTIONS = ['setup', 'test', 'active', 'live', 'complete', 'historical'] as const
 
 const STATUS_COLOURS: Record<string, string> = {
   active:     'bg-spal-cerulean/20 text-spal-cerulean',
   setup:      'bg-spal-warning/20  text-spal-warning',
+  test:       'bg-purple-500/20    text-purple-300',
   historical: 'bg-white/10         text-spal-muted',
   live:       'bg-spal-success/20  text-spal-success',
   complete:   'bg-white/5          text-spal-muted',
@@ -39,7 +40,7 @@ export default function AdminSeasonsPage() {
   const [form, setForm]             = useState({ year: new Date().getFullYear(), status: 'setup' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
-  const [settingActive, setSettingActive] = useState<number | null>(null)
+  const [changingStatus, setChangingStatus] = useState<number | null>(null)
 
   useEffect(() => { fetchSeasons() }, [])
 
@@ -54,18 +55,21 @@ export default function AdminSeasonsPage() {
     setLoading(false)
   }
 
-  async function handleSetActive(id: number) {
-    setSettingActive(id)
+  async function handleSetStatus(id: number, newStatus: string) {
+    setChangingStatus(id)
     const season = seasons.find(s => s.id === id)
-    await supabase
-      .from('seasons')
-      .update({ status: 'complete' })
-      .eq('status', 'active')
-      .neq('id', id)
-    await supabase.from('seasons').update({ status: 'active' }).eq('id', id)
+    if (newStatus === 'active') {
+      // Demote any other active season to 'complete' before promoting this one.
+      await supabase
+        .from('seasons')
+        .update({ status: 'complete' })
+        .eq('status', 'active')
+        .neq('id', id)
+    }
+    await supabase.from('seasons').update({ status: newStatus }).eq('id', id)
     await fetchSeasons()
-    addToast(`${season?.year ?? 'Season'} set as active`, 'success')
-    setSettingActive(null)
+    addToast(`${season?.year ?? 'Season'} set to ${newStatus}`, 'success')
+    setChangingStatus(null)
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -168,17 +172,16 @@ export default function AdminSeasonsPage() {
                   {new Date(s.created_at).toLocaleDateString()}
                 </td>
                 <td className="py-2">
-                  {s.status === 'active' ? (
-                    <span className="text-xs text-spal-muted">Active</span>
-                  ) : (
-                    <button
-                      onClick={() => handleSetActive(s.id)}
-                      disabled={settingActive !== null}
-                      className="text-xs text-spal-cerulean hover:text-spal-cerulean-light disabled:opacity-40 transition-colors"
-                    >
-                      {settingActive === s.id ? 'Setting…' : 'Set as active'}
-                    </button>
-                  )}
+                  <select
+                    value={s.status}
+                    disabled={changingStatus !== null}
+                    onChange={e => handleSetStatus(s.id, e.target.value)}
+                    className="bg-spal-bg border border-white/10 rounded px-2 py-1 text-spal-text text-xs focus:outline-none focus:border-spal-cerulean disabled:opacity-40"
+                  >
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 </td>
               </tr>
             ))}
