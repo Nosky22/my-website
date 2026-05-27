@@ -28,6 +28,7 @@ function isEligible(positionGroup: string, nation: string, slot: string): boolea
     case 'Back Row':     return positionGroup === 'Back Row'
     case 'Outside Back': return positionGroup === 'Outside Back'
     case 'Wales':        return nation === 'Wales'
+    case 'Bench Sub':    return true
     default:             return false
   }
 }
@@ -169,9 +170,21 @@ Deno.serve(async (req: Request) => {
   if (insertErr) return err('INSERT_FAILED', insertErr.message, 500)
 
   // ── Advance session ───────────────────────────────────────────
-  // slotsPerManager is 4 for 2026 (Front Row, Back Row, Outside Back, Wales).
-  // Make configurable via season_rules in a future migration.
-  const slotsPerManager = 4
+  const { data: rulesRow } = await admin
+    .from('season_rules')
+    .select('rules')
+    .eq('season_id', season_id)
+    .maybeSingle()
+
+  const rules = ((rulesRow?.rules ?? {}) as Record<string, unknown>)
+  let slotsPerManager = 0
+  if (rules.slot_front_row_enabled      !== false) slotsPerManager++
+  if (rules.slot_back_row_enabled        !== false) slotsPerManager++
+  if (rules.slot_outside_back_enabled    !== false) slotsPerManager++
+  if (rules.slot_weakest_nation_enabled  !== false) slotsPerManager++
+  if (rules.slot_bench_enabled           === true)  slotsPerManager++
+  if (slotsPerManager === 0) slotsPerManager = 4
+
   const totalPicks = managerCount * slotsPerManager
 
   // Find next unfilled pick number, scanning forward from the one just completed.
