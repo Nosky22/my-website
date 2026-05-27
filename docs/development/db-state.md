@@ -167,6 +167,48 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `012_merge_profiles_fn.sql`
+**Applied:** 2026-05-17 (approx — applied outside CLI tracking; repair recorded 2026-05-27)
+**Status:** Applied successfully
+
+**Changes:** Created `public.merge_profiles(placeholder_id uuid, real_id uuid, admin_id uuid) RETURNS jsonb` — a security definer function (service role only) that atomically reassigns all profile-keyed rows from a placeholder account to a real account, copies display_name and team_name, deletes the placeholder profile, and writes an audit log entry. Callable only by the service role (Edge Functions); REVOKE from PUBLIC and authenticated, GRANT to service_role.
+
+---
+
+### `013_seasons_status_add_active.sql`
+**Applied:** 2026-05-17 (approx — applied outside CLI tracking; repair recorded 2026-05-27)
+**Status:** Applied successfully
+
+**Changes:** Extended `seasons_status_check` constraint to include `'active'` alongside `setup`, `historical`, `live`, `complete`. Required for the dashboard to identify the current season via `status = 'active'`. Additive only — no data modified.
+
+---
+
+### `014_canonical_players.sql`
+**Applied:** 2026-05-27
+**Status:** Applied successfully — all three post-migration checks passed
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `canonical_players` | `bigint identity` | Stable real-world player identity across seasons; unique per (display_name, nation); public read, admin write |
+
+**Columns added:**
+- `players.canonical_player_id` — `bigint nullable FK → canonical_players(id)`. All existing rows linked on apply (0 unlinked after migration). NOT NULL constraint deferred to migration 015.
+
+**Extensions enabled:**
+- `unaccent` (in `extensions` schema) — used to compute `search_name` as `lower(extensions.unaccent(display_name))`
+
+**Data populated:** 127 canonical player records created from existing `players` data. Dedup key: `(display_name, nation)`. Position taken from most recent season per player. All 127 unique players confirmed linked (0 unlinked rows).
+
+**Indexes added:** `canonical_players_search_name_idx`, `canonical_players_nation_idx`, `players_canonical_player_id_idx`
+
+**RLS:** 5 policies on `canonical_players` — SELECT for anon + authenticated; INSERT/UPDATE/DELETE for authenticated with `is_admin()` check.
+
+**Migration history note:** Migrations 011–013 and 20260514173933 were applied to the database prior to CLI tracking being set up. They were registered via `supabase migration repair --status applied` on 2026-05-27 so that future `db push` operations track correctly.
+
+---
+
 ## Pending migrations
 
 None.
