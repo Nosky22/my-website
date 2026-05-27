@@ -17,6 +17,10 @@
 ### Still to do
 *(none)*
 
+## Tier 1.5 — Before 2027
+
+- [ ] Canonical player identity — schema change required before more data is added. See migration proposal below.
+
 ## Tier 2 — Should fix for a good experience
 - [ ] Invite gate on signup
 - [ ] Season rules editable from admin UI
