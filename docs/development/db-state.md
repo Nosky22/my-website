@@ -209,6 +209,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `015_draft_picks_replica_identity.sql`
+**Applied:** 2026-05-27
+**Status:** Applied successfully — `relreplident = 'f'` verified by query
+
+**Changes:** `ALTER TABLE public.draft_picks REPLICA IDENTITY FULL`. Required for Supabase Realtime filtered DELETE subscriptions to work on `draft_picks`. With `REPLICA IDENTITY DEFAULT`, Postgres only writes the primary key to WAL on DELETE; the `season_id=eq.X` filter in `useDraftPicks` couldn't be evaluated and DELETE events were silently dropped. FULL writes all column values on DELETE, enabling the filter to be evaluated server-side and the event delivered to the correct subscriber. No schema changes; no data modified.
+
+---
+
 ## Pending migrations
 
 None.

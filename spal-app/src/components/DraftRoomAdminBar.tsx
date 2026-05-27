@@ -197,6 +197,11 @@ export default function DraftRoomAdminBar({ session, totalPicks, userId, activeS
     }
 
     const pick = pickRes.data
+    const takenIds = new Set(
+      (allPicksRes.data ?? []).map((p: { player_id: number }) => p.player_id)
+    )
+    takenIds.delete(pick.player_id)  // current player must remain selectable
+
     setEditingPick({
       id: pick.id,
       player_id: pick.player_id,
@@ -205,9 +210,7 @@ export default function DraftRoomAdminBar({ session, totalPicks, userId, activeS
     })
     setEditSlot(pick.draft_slot)
     setEditPlayers((playersRes.data ?? []) as Player[])
-    setEditTakenIds(new Set(
-      (allPicksRes.data ?? []).map((p: { player_id: number }) => p.player_id)
-    ))
+    setEditTakenIds(takenIds)
     setEditLoading(false)
   }
 
@@ -275,7 +278,7 @@ export default function DraftRoomAdminBar({ session, totalPicks, userId, activeS
   const canEdit    = session.status !== 'pending'
 
   const editVisiblePlayers = editPlayers.filter(p => {
-    if (p.id !== editingPick?.player_id && editTakenIds.has(p.id)) return false
+    if (editTakenIds.has(p.id)) return false
     if (editSlot && !isEligibleForSlot(p, editSlot)) return false
     if (editSearch && !p.display_name.toLowerCase().includes(editSearch.toLowerCase())) return false
     return true
