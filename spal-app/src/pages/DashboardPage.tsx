@@ -124,7 +124,7 @@ export default function DashboardPage() {
     const [
       { data: matchRows },
       { data: pickRows },
-      { data: standingsRows },
+      standingsResult,
       { data: mySquads },
       { data: draftSessionRow },
       { data: rulesRow },
@@ -162,6 +162,8 @@ export default function DashboardPage() {
         .eq('season_id', activeSeason.id)
         .maybeSingle(),
     ])
+    const standingsRows = standingsResult.data
+    console.log('[Dashboard standings]', { data: standingsRows, error: standingsResult.error, seasonId: activeSeason.id })
 
     // ── Derive current round ──────────────────────────────────────────────
     const now = new Date()
