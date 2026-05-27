@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/Toast'
 
 interface Season { id: number; year: number }
 interface Match  { id: number; home_nation: string; away_nation: string }
@@ -48,6 +49,7 @@ const MATCHDAY_COLOUR: Record<string, string> = {
 
 export default function AdminScoresPage() {
   const { session } = useAuth()
+  const { addToast } = useToast()
 
   // ── Selection ────────────────────────────────────────────────────
   const [seasons, setSeasons]             = useState<Season[]>([])
@@ -74,7 +76,6 @@ export default function AdminScoresPage() {
   // ── Calculate ────────────────────────────────────────────────────
   const [calculating, setCalculating] = useState(false)
   const [calcResult, setCalcResult]   = useState<CalcResult | null>(null)
-  const [calcError, setCalcError]     = useState<string | null>(null)
   const [profiles, setProfiles]       = useState<Map<string, ProfileInfo>>(new Map())
 
   // ── Squad locking ─────────────────────────────────────────────────
@@ -97,7 +98,7 @@ export default function AdminScoresPage() {
   useEffect(() => {
     if (selectedSeasonId == null || selectedRound == null) {
       setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false)
-      setCalcResult(null); setCalcError(null)
+      setCalcResult(null)
       setSquadsNeedLock(false); setLockResult(null); setLockError(null)
       return
     }
@@ -106,7 +107,7 @@ export default function AdminScoresPage() {
 
   async function loadRound() {
     setLoadingRound(true)
-    setCalcResult(null); setCalcError(null)
+    setCalcResult(null)
     setLockResult(null); setLockError(null)
 
     const { data: matchData } = await supabase
@@ -294,7 +295,7 @@ export default function AdminScoresPage() {
   // ── Calculate scores ─────────────────────────────────────────────
   async function handleCalculate() {
     if (selectedSeasonId == null || selectedRound == null) return
-    setCalculating(true); setCalcResult(null); setCalcError(null)
+    setCalculating(true); setCalcResult(null)
 
     const { data, error } = await supabase.functions.invoke('score-round', {
       body: { season_id: selectedSeasonId, round_number: selectedRound },
@@ -306,7 +307,7 @@ export default function AdminScoresPage() {
         const ctx = (error as unknown as { context?: Response }).context
         if (ctx) { const b = await ctx.json(); msg = b.error ?? b.message ?? msg }
       } catch { /* use original message */ }
-      setCalcError(msg); setCalculating(false); return
+      addToast(msg, 'error'); setCalculating(false); return
     }
 
     const result = data as CalcResult
@@ -320,6 +321,7 @@ export default function AdminScoresPage() {
       setProfiles(m)
     }
 
+    addToast(`Round ${result.round_number}: ${result.managers_scored} manager${result.managers_scored !== 1 ? 's' : ''} scored`, 'success')
     setRoundScored(true); setCalculating(false)
   }
 
@@ -506,12 +508,6 @@ export default function AdminScoresPage() {
                   {calculating ? 'Calculating…' : 'Calculate scores'}
                 </button>
               </div>
-
-              {calcError && (
-                <div className="bg-spal-error/10 border border-spal-error/30 rounded p-3 text-sm text-spal-error">
-                  {calcError}
-                </div>
-              )}
 
               {calcResult && (
                 <div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import SquadPlayerPicker from '../components/SquadPlayerPicker'
@@ -175,6 +176,7 @@ function validate(slots: SquadSlot[], rules: SeasonRules): string[] {
 
 export default function SquadPage() {
   const { user } = useAuth()
+  const { addToast } = useToast()
   const [searchParams] = useSearchParams()
 
   // Read URL params once at mount — used to pre-select season/round when
@@ -194,8 +196,6 @@ export default function SquadPage() {
   const [locked, setLocked]                     = useState(false)
   const [loading, setLoading]                   = useState(true)
   const [saving, setSaving]                     = useState(false)
-  const [saveError, setSaveError]               = useState('')
-  const [saveSuccess, setSaveSuccess]           = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [pickerSlotKey, setPickerSlotKey]       = useState<string | null>(null)
   const [hasPrevRound, setHasPrevRound]         = useState(false)
@@ -221,8 +221,6 @@ export default function SquadPage() {
 
     async function load() {
       setLoading(true)
-      setSaveSuccess(false)
-      setSaveError('')
       setValidationErrors([])
 
       // Rounds from matches
@@ -367,8 +365,6 @@ export default function SquadPage() {
     if (!selectedSeasonId) return
     setSelectedRound(round)
     setLoading(true)
-    setSaveSuccess(false)
-    setSaveError('')
     setValidationErrors([])
     await loadRoundData(selectedSeasonId, round, false)
     setLoading(false)
@@ -392,7 +388,6 @@ export default function SquadPage() {
   function handleSelect(slotKey: string, player: PlayerWithPrice) {
     setSlots(prev => prev.map(s => s.key === slotKey ? { ...s, player } : s))
     setPickerSlotKey(null)
-    setSaveSuccess(false)
     setValidationErrors([])
   }
 
@@ -401,7 +396,6 @@ export default function SquadPage() {
       if (s.key !== slotKey) return s
       return { ...s, player: null, isCaptain: false }
     }))
-    setSaveSuccess(false)
     setValidationErrors([])
   }
 
@@ -410,7 +404,6 @@ export default function SquadPage() {
       ...s,
       isCaptain: s.key === slotKey ? !s.isCaptain : false,
     })))
-    setSaveSuccess(false)
     setValidationErrors([])
   }
 
@@ -457,7 +450,6 @@ export default function SquadPage() {
     }
 
     setSlots(newSlots)
-    setSaveSuccess(false)
     setValidationErrors([])
   }
 
@@ -473,8 +465,6 @@ export default function SquadPage() {
     }
     setValidationErrors([])
     setSaving(true)
-    setSaveError('')
-    setSaveSuccess(false)
 
     try {
       // Upsert the squad header
@@ -516,9 +506,9 @@ export default function SquadPage() {
       }
 
       setSquadStatus(newStatus)
-      setSaveSuccess(true)
+      addToast(submit ? 'Squad submitted' : 'Draft saved', 'success')
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Unknown error')
+      addToast(err instanceof Error ? err.message : 'Unknown error', 'error')
     } finally {
       setSaving(false)
     }
@@ -648,16 +638,6 @@ export default function SquadPage() {
             ))}
           </ul>
         </div>
-      )}
-
-      {saveError && (
-        <p className="mb-4 text-sm text-red-400">{saveError}</p>
-      )}
-
-      {saveSuccess && (
-        <p className="mb-4 text-sm text-spal-cerulean">
-          {squadStatus === 'submitted' ? 'Squad submitted.' : 'Draft saved.'}
-        </p>
       )}
 
       {/* Actions */}

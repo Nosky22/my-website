@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DraftSession } from '../hooks/useDraftSession'
+import { ConfirmModal } from './ConfirmModal'
 
 interface Props {
   session: DraftSession
@@ -9,8 +10,9 @@ interface Props {
 }
 
 export default function DraftRoomAdminBar({ session, totalPicks }: Props) {
-  const [jumpTarget, setJumpTarget] = useState<number | ''>('')
-  const [jumpError, setJumpError]   = useState('')
+  const [jumpTarget, setJumpTarget]     = useState<number | ''>('')
+  const [jumpError, setJumpError]       = useState('')
+  const [confirmModal, setConfirmModal] = useState<'start' | 'reopen' | null>(null)
 
   const deadline = () =>
     new Date(Date.now() + session.pick_timer_seconds * 1000).toISOString()
@@ -97,13 +99,14 @@ export default function DraftRoomAdminBar({ session, totalPicks }: Props) {
   const canAdvance = session.status === 'active' || session.status === 'paused'
 
   return (
+    <>
     <div className="mb-6 px-4 py-3 bg-spal-surface rounded border border-white/10 space-y-2">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Admin</span>
         <span className="text-white/20 select-none">|</span>
 
         {session.status === 'pending' && (
-          <button onClick={handleStart} className={btn('cerulean')}>
+          <button onClick={() => setConfirmModal('start')} className={btn('cerulean')}>
             Start Draft
           </button>
         )}
@@ -129,7 +132,7 @@ export default function DraftRoomAdminBar({ session, totalPicks }: Props) {
         {session.status === 'complete' && (
           <>
             <span className="text-xs text-spal-success">Draft complete</span>
-            <button onClick={handleReopen} className={btn('warning')}>
+            <button onClick={() => setConfirmModal('reopen')} className={btn('warning')}>
               Reopen Draft
             </button>
           </>
@@ -156,6 +159,25 @@ export default function DraftRoomAdminBar({ session, totalPicks }: Props) {
         </div>
       )}
     </div>
+
+    <ConfirmModal
+      open={confirmModal === 'start'}
+      title="Start draft"
+      message="This will activate the draft session and put the first manager on the clock."
+      confirmLabel="Start"
+      onConfirm={() => { setConfirmModal(null); handleStart() }}
+      onCancel={() => setConfirmModal(null)}
+    />
+    <ConfirmModal
+      open={confirmModal === 'reopen'}
+      title="Reopen draft"
+      message="This will reactivate the session from the next unfilled pick."
+      confirmLabel="Reopen"
+      danger
+      onConfirm={() => { setConfirmModal(null); handleReopen() }}
+      onCancel={() => setConfirmModal(null)}
+    />
+    </>
   )
 }
 

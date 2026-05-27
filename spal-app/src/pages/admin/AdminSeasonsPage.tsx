@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
 
 interface Season {
   id: number
@@ -32,6 +33,7 @@ const STATUS_COLOURS: Record<string, string> = {
 }
 
 export default function AdminSeasonsPage() {
+  const { addToast } = useToast()
   const [seasons, setSeasons]       = useState<Season[]>([])
   const [loading, setLoading]       = useState(true)
   const [form, setForm]             = useState({ year: new Date().getFullYear(), status: 'setup' })
@@ -54,15 +56,15 @@ export default function AdminSeasonsPage() {
 
   async function handleSetActive(id: number) {
     setSettingActive(id)
-    // Demote any other season currently marked active to 'complete'.
+    const season = seasons.find(s => s.id === id)
     await supabase
       .from('seasons')
       .update({ status: 'complete' })
       .eq('status', 'active')
       .neq('id', id)
-    // Mark the selected season as active.
     await supabase.from('seasons').update({ status: 'active' }).eq('id', id)
     await fetchSeasons()
+    addToast(`${season?.year ?? 'Season'} set as active`, 'success')
     setSettingActive(null)
   }
 
@@ -93,6 +95,7 @@ export default function AdminSeasonsPage() {
       return
     }
 
+    addToast(`${form.year} season created`, 'success')
     await fetchSeasons()
     setForm({ year: new Date().getFullYear(), status: 'setup' })
     setSubmitting(false)

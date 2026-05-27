@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToastProvider } from './components/Toast'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminLayout from './components/admin/AdminLayout'
@@ -31,6 +32,7 @@ export default function App() {
     // basename strips /spal from every route so paths are defined without it
     <BrowserRouter basename="/spal">
       <AuthProvider>
+        <ToastProvider>
         <Routes>
           <Route element={<Layout />}>
 
@@ -72,6 +74,7 @@ export default function App() {
 
           </Route>
         </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
+import { ConfirmModal } from '../../components/ConfirmModal'
 
 interface Profile {
   id: string
@@ -48,6 +50,7 @@ function fmtDate(iso: string | null) {
 }
 
 export default function AdminManagersPage() {
+  const { addToast } = useToast()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [authMeta, setAuthMeta] = useState<Record<string, AuthMeta>>({})
   const [loading, setLoading]   = useState(true)
@@ -68,7 +71,7 @@ export default function AdminManagersPage() {
   const [previewLoading, setPreviewLoading]       = useState(false)
   const [confirmText, setConfirmText]             = useState('')
   const [merging, setMerging]                     = useState(false)
-  const [mergeError, setMergeError]               = useState<string | null>(null)
+  const [showMergeModal, setShowMergeModal]       = useState(false)
 
   // Step 3: success
   const [auditResult, setAuditResult] = useState<AuditEntry | null>(null)
@@ -129,7 +132,7 @@ export default function AdminManagersPage() {
     setSelectedReal(null)
     setPreview(null)
     setConfirmText('')
-    setMergeError(null)
+    setShowMergeModal(false)
     setAuditResult(null)
     setTimeout(() => searchRef.current?.focus(), 50)
   }
@@ -167,22 +170,21 @@ export default function AdminManagersPage() {
   async function handleMerge() {
     if (!activePlaceholder || !selectedReal) return
     setMerging(true)
-    setMergeError(null)
 
     const { data, error } = await supabase.functions.invoke('merge-profiles', {
       body: { placeholder_id: activePlaceholder.id, real_id: selectedReal.id },
     })
 
     if (error || data?.error) {
-      setMergeError(data?.error ?? error?.message ?? 'Unknown error')
+      addToast(data?.error ?? error?.message ?? 'Merge failed', 'error')
       setMerging(false)
       return
     }
 
     setAuditResult(data.audit as AuditEntry)
     setFlowStep('success')
+    addToast('Merge complete', 'success')
     setMerging(false)
-    // Reload the profile list to reflect the change.
     load()
   }
 
@@ -369,12 +371,6 @@ export default function AdminManagersPage() {
                     className="w-full bg-spal-surface-raised text-spal-text px-3 py-2 rounded text-sm outline-none focus:ring-1 focus:ring-spal-cerulean mb-3"
                   />
 
-                  {mergeError && (
-                    <p className="text-spal-error text-xs mb-3 p-2 bg-spal-surface-raised rounded">
-                      {mergeError}
-                    </p>
-                  )}
-
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setFlowStep('search'); setSelectedReal(null); setPreview(null); setConfirmText('') }}
@@ -383,13 +379,23 @@ export default function AdminManagersPage() {
                       Back
                     </button>
                     <button
-                      onClick={handleMerge}
+                      onClick={() => setShowMergeModal(true)}
                       disabled={!canConfirm}
                       className="flex-1 py-2 rounded bg-spal-cerulean text-white text-xs font-medium hover:bg-spal-cerulean-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {merging ? 'Merging…' : 'Merge'}
                     </button>
                   </div>
+
+                  <ConfirmModal
+                    open={showMergeModal}
+                    title="Confirm merge"
+                    message={`Reassign ${totalRows} row${totalRows !== 1 ? 's' : ''} from "${activePlaceholder?.display_name}" to "${selectedReal?.display_name}". This cannot be undone.`}
+                    confirmLabel="Yes, merge"
+                    danger
+                    onConfirm={() => { setShowMergeModal(false); handleMerge() }}
+                    onCancel={() => setShowMergeModal(false)}
+                  />
                 </>
               )}
             </div>

@@ -28,7 +28,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
   }`
 
 export default function SpalNav() {
-  const { user, isAdmin, loading, signOut } = useAuth()
+  const { user, profile, isAdmin, loading, signOut } = useAuth()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -64,12 +64,19 @@ export default function SpalNav() {
           )}
 
           {!loading && user && (
-            <button
-              onClick={handleSignOut}
-              className="px-3 py-3 text-sm whitespace-nowrap text-spal-muted border-b-2 border-transparent hover:text-spal-text transition-colors"
-            >
-              Sign out
-            </button>
+            <>
+              {profile?.display_name && (
+                <span className="text-sm text-spal-muted whitespace-nowrap">
+                  {profile.display_name}
+                </span>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="px-3 py-3 text-sm whitespace-nowrap text-spal-muted border-b-2 border-transparent hover:text-spal-text transition-colors"
+              >
+                Sign out
+              </button>
+            </>
           )}
         </div>
 

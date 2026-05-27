@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/Toast'
 
 interface Season { id: number; year: number }
 interface Player {
@@ -40,6 +41,7 @@ const ROUNDS = [1, 2, 3, 4, 5] as const
 const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_position: 'Prop' as string }
 
 export default function AdminPlayersPage() {
+  const { addToast } = useToast()
   const [seasons, setSeasons]               = useState<Season[]>([])
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
   const [players, setPlayers]               = useState<Player[]>([])
@@ -54,7 +56,6 @@ export default function AdminPlayersPage() {
   const [roundPrices, setRoundPrices]       = useState<Map<number, PriceRow>>(new Map())
   const [editingPlayerId, setEditingPlayerId] = useState<number | null>(null)
   const [editValue, setEditValue]           = useState('')
-  const [saveError, setSaveError]           = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -125,13 +126,12 @@ export default function AdminPlayersPage() {
     const price = effectivePrice(playerId)
     setEditingPlayerId(playerId)
     setEditValue(price != null ? String(price) : '')
-    setSaveError(null)
   }
 
   async function commitEdit(playerId: number) {
     setEditingPlayerId(null)
     const val = parseFloat(editValue)
-    if (isNaN(val) || val < 0) { setSaveError('Invalid price'); return }
+    if (isNaN(val) || val < 0) { addToast('Invalid price', 'error'); return }
     if (selectedSeasonId == null) return
 
     const { error } = await supabase
@@ -141,7 +141,7 @@ export default function AdminPlayersPage() {
         { onConflict: 'player_id,season_id,round_number' }
       )
 
-    if (error) { setSaveError(error.message); return }
+    if (error) { addToast(error.message, 'error'); return }
 
     // Refresh whichever price map was affected
     if (selectedRound == null) {
@@ -163,6 +163,7 @@ export default function AdminPlayersPage() {
       for (const r of data ?? []) m.set(r.player_id, { id: r.id, source_price: r.source_price, final_price: r.final_price })
       setRoundPrices(m)
     }
+    addToast('Price saved', 'success')
   }
 
   function handleKeyDown(e: React.KeyboardEvent, playerId: number) {
@@ -214,6 +215,7 @@ export default function AdminPlayersPage() {
     for (const r of priceData ?? []) m.set(r.player_id, { id: r.id, source_price: r.source_price, final_price: r.final_price })
     setBasePrices(m)
 
+    addToast(`${form.display_name.trim()} added`, 'success')
     setSubmitting(false)
   }
 
@@ -312,8 +314,6 @@ export default function AdminPlayersPage() {
               </span>
             )}
           </div>
-
-          {saveError && <p className="text-spal-error text-xs mb-2">{saveError}</p>}
 
           {loadingPlayers ? (
             <p className="text-spal-muted text-sm">Loading…</p>

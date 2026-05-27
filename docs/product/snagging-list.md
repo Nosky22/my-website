@@ -24,13 +24,13 @@
 ## Tier 2 — Should fix for a good experience
 - [ ] Invite gate on signup
 - [ ] Season rules editable from admin UI
-- [ ] Success toast/notification system
+- [x] Success toast/notification system — Toast component + useToast hook; toasts on AdminSeasons, AdminPlayers, AdminScores, Squad, AdminManagers
 - [ ] Player search on players and admin players pages
-- [ ] Confirmation on destructive admin actions
+- [x] Confirmation on destructive admin actions — ConfirmModal on Start Draft, Reopen Draft, and manager merge
 - [ ] Submit squad confirmation
 - [ ] Round marked as final in UI
 - [ ] Admin override points UI
-- [ ] Show logged-in user identity in SPAL nav — display the manager's display name when logged in, replacing or augmenting the current Sign out button. Show "Not signed in" or a Sign in prompt when logged out.
+- [x] Show logged-in user identity in SPAL nav — display_name shown next to Sign out button when logged in.
 - [ ] Separate League Table and H2H Cup — the main standings should rank managers by total points only. H2H competition becomes a separate "Head to Head Cup" with its own table ranked by H2H points and W/D/L record. Build as a separate page at /spal/h2h. Update standings page to be points-only. No database changes needed — scoring engine already calculates both.
 
 ## Tier 3 — Polish
