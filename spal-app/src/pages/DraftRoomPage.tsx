@@ -52,6 +52,7 @@ export default function DraftRoomPage() {
   const { picks, loading: picksLoading } = useDraftPicks(seasonId)
 
   const [panelOpen, setPanelOpen] = useState(false)
+  const [activeSlots, setActiveSlots] = useState<string[]>(['Front Row', 'Back Row', 'Outside Back', 'Wales'])
 
   // Seasons
   useEffect(() => {
@@ -66,19 +67,36 @@ export default function DraftRoomPage() {
       })
   }, [])
 
-  // Draft order for the selected season
+  // Draft order + slot config for the selected season
   useEffect(() => {
     if (seasonId == null) return
+
     supabase
       .from('draft_order')
       .select('profile_id, pick_position, profiles!profile_id(display_name)')
       .eq('season_id', seasonId)
       .order('pick_position')
       .then(({ data }) => setDraftOrder((data ?? []) as unknown as DraftOrderEntry[]))
+
+    supabase
+      .from('season_rules')
+      .select('rules')
+      .eq('season_id', seasonId)
+      .maybeSingle()
+      .then(({ data }) => {
+        const blob = (data?.rules ?? {}) as Record<string, unknown>
+        const slots: string[] = []
+        if (blob.slot_front_row_enabled      !== false) slots.push('Front Row')
+        if (blob.slot_back_row_enabled        !== false) slots.push('Back Row')
+        if (blob.slot_outside_back_enabled    !== false) slots.push('Outside Back')
+        if (blob.slot_weakest_nation_enabled  !== false) slots.push('Wales')
+        if (blob.slot_bench_enabled           === true)  slots.push('Bench Sub')
+        setActiveSlots(slots.length > 0 ? slots : ['Front Row', 'Back Row', 'Outside Back', 'Wales'])
+      })
   }, [seasonId])
 
   const managerCount = draftOrder.length
-  const slotsPerManager = 4  // 2026: 4 slots
+  const slotsPerManager = activeSlots.length
   const totalPicks = managerCount * slotsPerManager
 
   // Map pick_number → pick for fast lookup
@@ -147,6 +165,8 @@ export default function DraftRoomPage() {
           session={session}
           totalPicks={totalPicks}
           timeRemaining={timeRemaining}
+          userId={user?.id ?? ''}
+          activeSlots={activeSlots}
         />
       )}
 
@@ -200,6 +220,7 @@ export default function DraftRoomPage() {
                     seasonId={seasonId}
                     onClockProfileId={onClockManager.profile_id}
                     allPicks={picks}
+                    activeSlots={activeSlots}
                     onClose={() => setPanelOpen(false)}
                   />
                 ) : (

@@ -38,7 +38,6 @@ export function useDraftPicks(seasonId: number | null) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'draft_picks', filter: `season_id=eq.${seasonId}` },
         (payload) => {
-          // Realtime INSERT payload has no joins — re-fetch that single pick with joins
           supabase
             .from('draft_picks')
             .select(PICK_SELECT)
@@ -47,6 +46,27 @@ export function useDraftPicks(seasonId: number | null) {
             .then(({ data }) => {
               if (data) setPicks(prev => [...prev, data as unknown as DraftPick])
             })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'draft_picks', filter: `season_id=eq.${seasonId}` },
+        (payload) => {
+          supabase
+            .from('draft_picks')
+            .select(PICK_SELECT)
+            .eq('id', payload.new.id)
+            .single()
+            .then(({ data }) => {
+              if (data) setPicks(prev => prev.map(p => p.id === (data as unknown as DraftPick).id ? data as unknown as DraftPick : p))
+            })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'draft_picks', filter: `season_id=eq.${seasonId}` },
+        (payload) => {
+          setPicks(prev => prev.filter(p => p.id !== payload.old.id))
         }
       )
       .subscribe()

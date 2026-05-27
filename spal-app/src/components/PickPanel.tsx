@@ -16,16 +16,16 @@ interface PickPanelProps {
   seasonId: number
   onClockProfileId: string
   allPicks: DraftPick[]
+  activeSlots: string[]
   onClose: () => void
 }
-
-const ALL_SLOTS = ['Front Row', 'Back Row', 'Outside Back', 'Wales']
 
 const SLOT_COLOUR: Record<string, string> = {
   'Front Row':    'text-orange-300',
   'Back Row':     'text-purple-300',
   'Outside Back': 'text-blue-300',
   'Wales':        'text-red-400',
+  'Bench Sub':    'text-spal-muted',
 }
 
 const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy']
@@ -36,11 +36,12 @@ function isEligibleForSlot(player: Player, slot: string): boolean {
     case 'Back Row':     return player.position_group === 'Back Row'
     case 'Outside Back': return player.position_group === 'Outside Back'
     case 'Wales':        return player.nation === 'Wales'
+    case 'Bench Sub':    return true
     default:             return false
   }
 }
 
-export default function PickPanel({ seasonId, onClockProfileId, allPicks, onClose }: PickPanelProps) {
+export default function PickPanel({ seasonId, onClockProfileId, allPicks, activeSlots, onClose }: PickPanelProps) {
   const { user, session: authSession } = useAuth()
   const [players, setPlayers]     = useState<Player[]>([])
   const [loading, setLoading]     = useState(true)
@@ -76,7 +77,7 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks, onClos
   const takenPlayerIds = new Set(allPicks.map(p => p.player_id))
 
   // Open slots for the on-clock manager
-  const openSlots = ALL_SLOTS.filter(s => !filledSlots.has(s))
+  const openSlots = activeSlots.filter(s => !filledSlots.has(s))
 
   // Filtered player list
   const visiblePlayers = players.filter(p => {
@@ -141,7 +142,7 @@ export default function PickPanel({ seasonId, onClockProfileId, allPicks, onClos
       <div className="mb-4">
         <p className="text-xs text-spal-muted mb-2">Select slot</p>
         <div className="flex flex-wrap gap-2">
-          {ALL_SLOTS.map(slot => {
+          {activeSlots.map(slot => {
             const filled  = filledSlots.has(slot)
             const active  = selectedSlot === slot
             return (
