@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import SquadPlayerPicker from '../components/SquadPlayerPicker'
+import { ConfirmModal } from '../components/ConfirmModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,7 @@ export default function SquadPage() {
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [pickerSlotKey, setPickerSlotKey]       = useState<string | null>(null)
   const [hasPrevRound, setHasPrevRound]         = useState(false)
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
 
   // Load seasons on mount
   useEffect(() => {
@@ -651,7 +653,12 @@ export default function SquadPage() {
             {saving ? 'Saving…' : 'Save Draft'}
           </button>
           <button
-            onClick={() => saveSquad(true)}
+            onClick={() => {
+              if (!rules) return
+              const errors = validate(slots, rules)
+              if (errors.length > 0) { setValidationErrors(errors); return }
+              setShowSubmitConfirm(true)
+            }}
             disabled={saving}
             className="flex-1 py-2.5 rounded bg-spal-cerulean text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-default transition-opacity"
           >
@@ -659,6 +666,37 @@ export default function SquadPage() {
           </button>
         </div>
       )}
+
+      {/* Submit confirmation modal */}
+      <ConfirmModal
+        open={showSubmitConfirm}
+        title={`Submit squad for Round ${selectedRound}?`}
+        confirmLabel="Submit"
+        onConfirm={() => { setShowSubmitConfirm(false); saveSquad(true) }}
+        onCancel={() => setShowSubmitConfirm(false)}
+      >
+        <div className="text-sm space-y-2 mb-5">
+          <div className="flex justify-between">
+            <span className="text-spal-muted">Players</span>
+            <span className="text-spal-text tabular-nums">{filledCount}/16</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-spal-muted">Budget used</span>
+            <span className="text-spal-text tabular-nums">{totalCost}/{rules?.budget_limit ?? '—'}★</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-spal-muted">Captain</span>
+            <span className="text-spal-text">{slots.find(s => s.isCaptain)?.player?.display_name ?? '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-spal-muted">Supersub</span>
+            <span className="text-spal-text">{slots.find(s => s.role === 'supersub')?.player?.display_name ?? '—'}</span>
+          </div>
+          <p className="text-xs text-spal-muted pt-2 border-t border-white/10">
+            You can edit your squad until the round deadline. After that it will be locked.
+          </p>
+        </div>
+      </ConfirmModal>
 
       {/* Player picker modal */}
       {pickerSlot && (

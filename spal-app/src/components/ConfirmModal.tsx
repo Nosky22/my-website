@@ -2,6 +2,7 @@ interface Props {
   open: boolean
   title: string
   message?: string
+  children?: React.ReactNode
   confirmLabel?: string
   danger?: boolean
   onConfirm: () => void
@@ -12,6 +13,7 @@ export function ConfirmModal({
   open,
   title,
   message,
+  children,
   confirmLabel = 'Confirm',
   danger = false,
   onConfirm,
@@ -22,8 +24,8 @@ export function ConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
       <div className="relative bg-spal-surface rounded-lg px-6 py-5 max-w-sm w-full mx-4 shadow-xl border border-white/10">
-        <h2 className="text-base font-semibold text-spal-text mb-2">{title}</h2>
-        {message && <p className="text-sm text-spal-muted mb-5">{message}</p>}
+        <h2 className="text-base font-semibold text-spal-text mb-3">{title}</h2>
+        {children ?? (message && <p className="text-sm text-spal-muted mb-5">{message}</p>)}
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}

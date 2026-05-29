@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../components/Toast'
+import { ConfirmModal } from '../../components/ConfirmModal'
 
 interface Season { id: number; year: number }
 interface Match  { id: number; home_nation: string; away_nation: string }
@@ -61,6 +62,7 @@ export default function AdminScoresPage() {
   const [scores, setScores]         = useState<ScoreRow[]>([])
   const [matchdays, setMatchdays]   = useState<MatchdayRow[]>([])
   const [roundScored, setRoundScored] = useState(false)
+  const [roundFinal, setRoundFinal] = useState(false)
   const [loadingRound, setLoadingRound] = useState(false)
 
   // ── Score entry form ─────────────────────────────────────────────
@@ -73,10 +75,12 @@ export default function AdminScoresPage() {
   const [saveSuccess, setSaveSuccess]     = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
-  // ── Calculate ────────────────────────────────────────────────────
-  const [calculating, setCalculating] = useState(false)
-  const [calcResult, setCalcResult]   = useState<CalcResult | null>(null)
-  const [profiles, setProfiles]       = useState<Map<string, ProfileInfo>>(new Map())
+  // ── Calculate / finalise ─────────────────────────────────────────
+  const [calculating, setCalculating]     = useState(false)
+  const [calcResult, setCalcResult]       = useState<CalcResult | null>(null)
+  const [profiles, setProfiles]           = useState<Map<string, ProfileInfo>>(new Map())
+  const [finalising, setFinalising]       = useState(false)
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false)
 
   // ── Squad locking ─────────────────────────────────────────────────
   const [squadsNeedLock, setSquadsNeedLock] = useState(false)
@@ -97,7 +101,7 @@ export default function AdminScoresPage() {
   // ── Load round data ──────────────────────────────────────────────
   useEffect(() => {
     if (selectedSeasonId == null || selectedRound == null) {
-      setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false)
+      setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false); setRoundFinal(false)
       setCalcResult(null)
       setSquadsNeedLock(false); setLockResult(null); setLockError(null)
       return
@@ -108,6 +112,7 @@ export default function AdminScoresPage() {
   async function loadRound() {
     setLoadingRound(true)
     setCalcResult(null)
+    setRoundFinal(false)
     setLockResult(null); setLockError(null)
 
     const { data: matchData } = await supabase
@@ -118,7 +123,7 @@ export default function AdminScoresPage() {
       .order('kickoff_at')
 
     if (!matchData?.length) {
-      setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false)
+      setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false); setRoundFinal(false)
       setSquadsNeedLock(false)
       setLoadingRound(false); return
     }
@@ -129,7 +134,7 @@ export default function AdminScoresPage() {
       return acc == null || m.kickoff_at < acc ? m.kickoff_at : acc
     }, null)
 
-    setMatches(matchData.map(({ kickoff_at: _k, ...m }) => m) as Match[])
+    setMatches(matchData.map(m => ({ id: m.id, home_nation: m.home_nation, away_nation: m.away_nation })))
 
     const matchIds = matchData.map(m => m.id)
     const [scoresRes, mdRes, mmsRes, squadsRes] = await Promise.all([
@@ -140,7 +145,7 @@ export default function AdminScoresPage() {
         .select('player_id, match_id, status')
         .in('match_id', matchIds),
       supabase.from('manager_match_scores')
-        .select('id').in('match_id', matchIds).limit(1),
+        .select('status').in('match_id', matchIds),
       // Check if any submitted/draft squads exist for this round (deadline passed = needs lock).
       supabase.from('manager_round_squads')
         .select('id, status')
@@ -151,7 +156,10 @@ export default function AdminScoresPage() {
 
     setScores((scoresRes.data ?? []) as unknown as ScoreRow[])
     setMatchdays(mdRes.data ?? [])
-    setRoundScored((mmsRes.data?.length ?? 0) > 0)
+    const mmsRows = mmsRes.data ?? []
+    const scored = mmsRows.length > 0
+    setRoundScored(scored)
+    setRoundFinal(scored && mmsRows.every(r => r.status === 'final'))
 
     // Show lock button if deadline has passed and there are non-locked squads.
     const deadlinePassed = earliest != null && earliest < new Date().toISOString()
@@ -322,7 +330,28 @@ export default function AdminScoresPage() {
     }
 
     addToast(`Round ${result.round_number}: ${result.managers_scored} manager${result.managers_scored !== 1 ? 's' : ''} scored`, 'success')
-    setRoundScored(true); setCalculating(false)
+    setRoundScored(true); setRoundFinal(false); setCalculating(false)
+  }
+
+  // ── Mark round as final ──────────────────────────────────────────
+  async function handleMarkFinal() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    const matchIds = matches.map(m => m.id)
+    if (matchIds.length === 0) return
+    setFinalising(true)
+
+    const [mmsRes, standingsRes] = await Promise.all([
+      supabase.from('manager_match_scores').update({ status: 'final' }).in('match_id', matchIds),
+      supabase.from('season_standings').update({ last_updated_round: selectedRound }).eq('season_id', selectedSeasonId),
+    ])
+
+    setFinalising(false)
+    if (mmsRes.error) { addToast(mmsRes.error.message, 'error'); return }
+    if (standingsRes.error) { addToast(standingsRes.error.message, 'error'); return }
+
+    setRoundFinal(true)
+    setShowFinalConfirm(false)
+    addToast(`Round ${selectedRound} marked as final`, 'success')
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -355,9 +384,11 @@ export default function AdminScoresPage() {
 
         {selectedRound != null && (
           <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-            roundScored ? 'bg-spal-success/20 text-spal-success' : 'bg-white/10 text-spal-muted'
+            roundFinal    ? 'bg-spal-success/20 text-spal-success' :
+            roundScored   ? 'bg-amber-500/20 text-amber-400'       :
+                            'bg-white/10 text-spal-muted'
           }`}>
-            {roundScored ? '● Scored' : '○ Not scored'}
+            {roundFinal ? '● Final' : roundScored ? '● Provisional' : '○ Not scored'}
           </span>
         )}
       </div>
@@ -492,6 +523,27 @@ export default function AdminScoresPage() {
                 {lockResult?.alreadyLocked && (
                   <p className="text-spal-muted text-sm">All squads for this round are already locked.</p>
                 )}
+              </section>
+            )}
+
+            {/* Finalise section — shown after scoring, before final */}
+            {roundScored && !roundFinal && (
+              <section className="bg-spal-surface rounded p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-spal-text">Finalise round</h2>
+                    <p className="text-xs text-spal-muted mt-0.5">
+                      Lock in all scores once you're satisfied they're correct.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowFinalConfirm(true)}
+                    disabled={finalising}
+                    className={`${submitClass} px-5`}
+                  >
+                    {finalising ? 'Finalising…' : 'Mark as final'}
+                  </button>
+                </div>
               </section>
             )}
 
@@ -679,6 +731,15 @@ export default function AdminScoresPage() {
           </aside>
         </div>
       )}
+
+      <ConfirmModal
+        open={showFinalConfirm}
+        title={`Mark Round ${selectedRound} as final?`}
+        message="This confirms all scores are correct. You can still make corrections afterwards by re-running score calculation."
+        confirmLabel="Mark as final"
+        onConfirm={handleMarkFinal}
+        onCancel={() => setShowFinalConfirm(false)}
+      />
     </div>
   )
 }
