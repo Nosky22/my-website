@@ -9,6 +9,10 @@ interface Season {
   created_at: string
 }
 
+const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy'] as const
+
+type RulesForm = typeof DEFAULT_RULES
+
 const DEFAULT_RULES = {
   captain_multiplier: 2,
   supersub_bench_multiplier: 3,
@@ -42,7 +46,23 @@ export default function AdminSeasonsPage() {
   const [error, setError]           = useState<string | null>(null)
   const [changingStatus, setChangingStatus] = useState<number | null>(null)
 
+  // Rules editor
+  const [rulesSeasonId, setRulesSeasonId]   = useState<number | null>(null)
+  const [rulesForm, setRulesForm]           = useState<RulesForm>(DEFAULT_RULES)
+  const [rulesExtra, setRulesExtra]         = useState<Record<string, unknown>>({})
+  const [rulesLoading, setRulesLoading]     = useState(false)
+  const [rulesSaving, setRulesSaving]       = useState(false)
+
   useEffect(() => { fetchSeasons() }, [])
+
+  // Default the rules editor to the first (most recent) season once loaded.
+  useEffect(() => {
+    if (seasons.length > 0 && rulesSeasonId === null) setRulesSeasonId(seasons[0].id)
+  }, [seasons, rulesSeasonId])
+
+  useEffect(() => {
+    if (rulesSeasonId !== null) fetchRules(rulesSeasonId)
+  }, [rulesSeasonId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchSeasons() {
     setLoading(true)
@@ -103,6 +123,53 @@ export default function AdminSeasonsPage() {
     await fetchSeasons()
     setForm({ year: new Date().getFullYear(), status: 'setup' })
     setSubmitting(false)
+  }
+
+  async function fetchRules(seasonId: number) {
+    setRulesLoading(true)
+    const { data } = await supabase
+      .from('season_rules')
+      .select('rules')
+      .eq('season_id', seasonId)
+      .maybeSingle()
+    const blob = (data?.rules ?? {}) as Record<string, unknown>
+
+    // Boolean fields need explicit undefined check — `false ?? default` would
+    // incorrectly fall through to the default.
+    setRulesForm({
+      captain_multiplier:           Number(blob.captain_multiplier           ?? DEFAULT_RULES.captain_multiplier),
+      supersub_bench_multiplier:    Number(blob.supersub_bench_multiplier    ?? DEFAULT_RULES.supersub_bench_multiplier),
+      supersub_starter_multiplier:  Number(blob.supersub_starter_multiplier  ?? DEFAULT_RULES.supersub_starter_multiplier),
+      supersub_not_played_points:   Number(blob.supersub_not_played_points   ?? DEFAULT_RULES.supersub_not_played_points),
+      budget_enabled:               blob.budget_enabled !== undefined               ? Boolean(blob.budget_enabled)               : DEFAULT_RULES.budget_enabled,
+      budget_limit:                 Number(blob.budget_limit                 ?? DEFAULT_RULES.budget_limit),
+      max_players_per_nation:       Number(blob.max_players_per_nation       ?? DEFAULT_RULES.max_players_per_nation),
+      italian_starter_rule_enabled: blob.italian_starter_rule_enabled !== undefined ? Boolean(blob.italian_starter_rule_enabled) : DEFAULT_RULES.italian_starter_rule_enabled,
+      italian_starter_required:     Number(blob.italian_starter_required     ?? DEFAULT_RULES.italian_starter_required),
+      weakest_nation:               String(blob.weakest_nation               ?? DEFAULT_RULES.weakest_nation),
+    })
+
+    // Preserve keys not in this form (e.g. slot_*_enabled set by draft setup)
+    // so a save here doesn't erase them.
+    const formKeys = new Set(Object.keys(DEFAULT_RULES))
+    const extra: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(blob)) {
+      if (!formKeys.has(k)) extra[k] = v
+    }
+    setRulesExtra(extra)
+    setRulesLoading(false)
+  }
+
+  async function handleSaveRules(e: React.FormEvent) {
+    e.preventDefault()
+    if (rulesSeasonId == null) return
+    setRulesSaving(true)
+    const { error } = await supabase
+      .from('season_rules')
+      .upsert({ season_id: rulesSeasonId, rules: { ...rulesExtra, ...rulesForm } }, { onConflict: 'season_id' })
+    if (error) { addToast(error.message, 'error'); setRulesSaving(false); return }
+    addToast('Rules saved', 'success')
+    setRulesSaving(false)
   }
 
   return (
@@ -188,6 +255,136 @@ export default function AdminSeasonsPage() {
           </tbody>
         </table>
       )}
+      {/* ── Season Rules editor ───────────────────────────────────────── */}
+      <section className="mt-12">
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-4">
+          Season Rules
+        </h2>
+
+        <div className="flex items-center gap-3 mb-6">
+          <label className="text-sm text-spal-muted">Season</label>
+          <select
+            value={rulesSeasonId ?? ''}
+            onChange={e => setRulesSeasonId(Number(e.target.value))}
+            className="bg-spal-bg border border-white/10 rounded px-3 py-1.5 text-spal-text text-sm focus:outline-none focus:border-spal-cerulean"
+          >
+            {seasons.map(s => <option key={s.id} value={s.id}>{s.year}</option>)}
+          </select>
+        </div>
+
+        {rulesLoading ? (
+          <p className="text-spal-muted text-sm">Loading…</p>
+        ) : (
+          <form onSubmit={handleSaveRules} className="max-w-lg space-y-7">
+
+            {/* Scoring multipliers */}
+            <div>
+              <p className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+                Scoring multipliers
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Captain multiplier" htmlFor="r-captain">
+                  <input id="r-captain" type="number" step="0.5" min="0"
+                    value={rulesForm.captain_multiplier}
+                    onChange={e => setRulesForm(f => ({ ...f, captain_multiplier: Number(e.target.value) }))}
+                    className={inputClass} />
+                </Field>
+                <Field label="Supersub bench multiplier" htmlFor="r-ssb">
+                  <input id="r-ssb" type="number" step="0.5" min="0"
+                    value={rulesForm.supersub_bench_multiplier}
+                    onChange={e => setRulesForm(f => ({ ...f, supersub_bench_multiplier: Number(e.target.value) }))}
+                    className={inputClass} />
+                </Field>
+                <Field label="Supersub starter multiplier" htmlFor="r-sss">
+                  <input id="r-sss" type="number" step="0.1" min="0"
+                    value={rulesForm.supersub_starter_multiplier}
+                    onChange={e => setRulesForm(f => ({ ...f, supersub_starter_multiplier: Number(e.target.value) }))}
+                    className={inputClass} />
+                </Field>
+                <Field label="Supersub not played points" htmlFor="r-ssnp">
+                  <input id="r-ssnp" type="number" step="1"
+                    value={rulesForm.supersub_not_played_points}
+                    onChange={e => setRulesForm(f => ({ ...f, supersub_not_played_points: Number(e.target.value) }))}
+                    className={inputClass} />
+                </Field>
+              </div>
+            </div>
+
+            {/* Budget */}
+            <div>
+              <p className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+                Budget
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-sm text-spal-muted mb-1">Budget enabled</p>
+                  <label className="flex items-center gap-2 cursor-pointer h-[34px]">
+                    <input type="checkbox"
+                      checked={rulesForm.budget_enabled}
+                      onChange={e => setRulesForm(f => ({ ...f, budget_enabled: e.target.checked }))}
+                      className="accent-spal-cerulean w-4 h-4" />
+                    <span className="text-sm text-spal-text">Enabled</span>
+                  </label>
+                </div>
+                <Field label="Budget limit (★)" htmlFor="r-budget">
+                  <input id="r-budget" type="number" step="1" min="0"
+                    value={rulesForm.budget_limit}
+                    onChange={e => setRulesForm(f => ({ ...f, budget_limit: Number(e.target.value) }))}
+                    disabled={!rulesForm.budget_enabled}
+                    className={inputClass + ' disabled:opacity-40'} />
+                </Field>
+              </div>
+            </div>
+
+            {/* Squad rules */}
+            <div>
+              <p className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+                Squad rules
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <Field label="Max players per nation" htmlFor="r-maxnation">
+                  <input id="r-maxnation" type="number" step="1" min="1" max="15"
+                    value={rulesForm.max_players_per_nation}
+                    onChange={e => setRulesForm(f => ({ ...f, max_players_per_nation: Number(e.target.value) }))}
+                    className={inputClass} />
+                </Field>
+                <Field label="Weakest nation" htmlFor="r-weakest">
+                  <select id="r-weakest"
+                    value={rulesForm.weakest_nation}
+                    onChange={e => setRulesForm(f => ({ ...f, weakest_nation: e.target.value }))}
+                    className={inputClass}>
+                    {NATIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-sm text-spal-muted mb-1">Italian starter rule</p>
+                  <label className="flex items-center gap-2 cursor-pointer h-[34px]">
+                    <input type="checkbox"
+                      checked={rulesForm.italian_starter_rule_enabled}
+                      onChange={e => setRulesForm(f => ({ ...f, italian_starter_rule_enabled: e.target.checked }))}
+                      className="accent-spal-cerulean w-4 h-4" />
+                    <span className="text-sm text-spal-text">Enabled</span>
+                  </label>
+                </div>
+                <Field label="Italian starters required" htmlFor="r-italian">
+                  <input id="r-italian" type="number" step="1" min="0" max="15"
+                    value={rulesForm.italian_starter_required}
+                    onChange={e => setRulesForm(f => ({ ...f, italian_starter_required: Number(e.target.value) }))}
+                    disabled={!rulesForm.italian_starter_rule_enabled}
+                    className={inputClass + ' disabled:opacity-40'} />
+                </Field>
+              </div>
+            </div>
+
+            <button type="submit" disabled={rulesSaving} className={submitClass}>
+              {rulesSaving ? 'Saving…' : 'Save rules'}
+            </button>
+          </form>
+        )}
+      </section>
+
     </div>
   )
 }
