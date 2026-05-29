@@ -21,6 +21,7 @@ export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [draftedBy, setDraftedBy] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [nationFilter, setNationFilter] = useState('')
   const [draftPosFilter, setDraftPosFilter] = useState('')
   const [canonPosFilter, setCanonPosFilter] = useState('')
@@ -62,11 +63,15 @@ export default function PlayersPage() {
     })
   }, [seasonId])
 
-  const visible = players.filter(p =>
-    (!nationFilter || p.nation === nationFilter) &&
-    (!draftPosFilter || p.position_group === draftPosFilter) &&
-    (!canonPosFilter || p.canonical_position === canonPosFilter)
-  )
+  const visible = players.filter(p => {
+    const q = searchQuery.trim().toLowerCase()
+    return (
+      (!q || p.display_name.toLowerCase().includes(q)) &&
+      (!nationFilter || p.nation === nationFilter) &&
+      (!draftPosFilter || p.position_group === draftPosFilter) &&
+      (!canonPosFilter || p.canonical_position === canonPosFilter)
+    )
+  })
 
   return (
     <div>
@@ -83,6 +88,14 @@ export default function PlayersPage() {
         </select>
 
         <span className="text-white/20">|</span>
+
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search players..."
+          className={`${selectClass} w-44`}
+        />
 
         <select
           value={nationFilter}
@@ -111,9 +124,9 @@ export default function PlayersPage() {
           {CANONICAL_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
 
-        {(nationFilter || draftPosFilter || canonPosFilter) && (
+        {(searchQuery || nationFilter || draftPosFilter || canonPosFilter) && (
           <button
-            onClick={() => { setNationFilter(''); setDraftPosFilter(''); setCanonPosFilter('') }}
+            onClick={() => { setSearchQuery(''); setNationFilter(''); setDraftPosFilter(''); setCanonPosFilter('') }}
             className="text-xs text-spal-muted hover:text-spal-text transition-colors underline"
           >
             Clear

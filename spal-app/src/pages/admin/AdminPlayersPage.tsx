@@ -50,6 +50,10 @@ export default function AdminPlayersPage() {
   const [submitting, setSubmitting]         = useState(false)
   const [formError, setFormError]           = useState<string | null>(null)
 
+  // Search + sort
+  const [searchQuery, setSearchQuery]       = useState('')
+  const [sortDir, setSortDir]               = useState<'asc' | 'desc'>('asc')
+
   // Price state
   const [selectedRound, setSelectedRound]   = useState<number | null>(null)
   const [basePrices, setBasePrices]         = useState<Map<number, PriceRow>>(new Map())
@@ -219,6 +223,16 @@ export default function AdminPlayersPage() {
     setSubmitting(false)
   }
 
+  const visiblePlayers = players
+    .filter(p => {
+      const q = searchQuery.trim().toLowerCase()
+      return !q || p.display_name.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      const cmp = a.display_name.localeCompare(b.display_name)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-spal-yellow mb-6">Players</h1>
@@ -290,6 +304,17 @@ export default function AdminPlayersPage() {
         {/* Players table */}
         <div className="flex-1 min-w-0">
 
+          {/* Search */}
+          <div className="mb-4">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search players..."
+              className="bg-spal-bg border border-white/10 rounded px-3 py-1.5 text-spal-text text-sm focus:outline-none focus:border-spal-cerulean w-56"
+            />
+          </div>
+
           {/* Round selector */}
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs text-spal-muted">Prices for</span>
@@ -323,7 +348,15 @@ export default function AdminPlayersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-spal-muted border-b border-white/10">
-                  <th className="pb-2 pr-6 font-normal">Name</th>
+                  <th className="pb-2 pr-6 font-normal">
+                    <button
+                      onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                      className="flex items-center gap-1 hover:text-spal-text transition-colors"
+                    >
+                      Name
+                      <span className="text-xs opacity-60">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                    </button>
+                  </th>
                   <th className="pb-2 pr-6 font-normal">Nation</th>
                   <th className="pb-2 pr-6 font-normal">Position</th>
                   <th className="pb-2 pr-6 font-normal">Slot group</th>
@@ -331,7 +364,7 @@ export default function AdminPlayersPage() {
                 </tr>
               </thead>
               <tbody>
-                {players.map(p => {
+                {visiblePlayers.map(p => {
                   const price = effectivePrice(p.id)
                   const isEditing = editingPlayerId === p.id
                   const hasRoundOverride = selectedRound != null && roundPrices.has(p.id)
