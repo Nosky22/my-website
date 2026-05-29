@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import NationBadge from '../components/NationBadge'
+import { EmptyState } from '../components/EmptyState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -307,7 +308,18 @@ export default function DashboardPage() {
   }
 
   if (!season) {
-    return <p className="text-spal-muted text-sm py-8">No active season.</p>
+    return (
+      <EmptyState
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        }
+        title="No active season"
+        body="Check back when a season is active"
+      />
+    )
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────

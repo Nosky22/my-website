@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
+import { EmptyState } from '../components/EmptyState'
 
 interface Season { id: number; year: number }
 interface Pick {
@@ -24,17 +25,17 @@ const SLOT_ABBR: Record<string, string> = {
   'Bench Sub':    'SUB',
 }
 
-const SLOT_CLASS: Record<string, string> = {
-  'Front Row':    'text-orange-300',
-  'Back Row':     'text-purple-300',
-  'Outside Back': 'text-blue-300',
-  'Wales':        'text-red-400',
-  'Bench Sub':    'text-spal-muted',
+const SLOT_PILL: Record<string, string> = {
+  'Front Row':    'bg-orange-500/20 text-orange-300',
+  'Back Row':     'bg-purple-500/20 text-purple-300',
+  'Outside Back': 'bg-blue-500/20 text-blue-300',
+  'Wales':        'bg-red-500/20 text-red-400',
+  'Bench Sub':    'bg-white/10 text-spal-muted',
 }
 
 function SlotBadge({ slot }: { slot: string }) {
   return (
-    <span className={`text-xs font-semibold ${SLOT_CLASS[slot] ?? 'text-spal-muted'}`}>
+    <span className={`inline-block text-xs font-semibold px-1.5 py-0.5 rounded ${SLOT_PILL[slot] ?? 'bg-white/10 text-spal-muted'}`}>
       {SLOT_ABBR[slot] ?? slot}
     </span>
   )
@@ -104,35 +105,71 @@ export default function DraftPage() {
 
       {loading ? (
         <p className="text-spal-muted text-sm">Loading…</p>
+      ) : groups.length === 0 ? (
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+          title="No picks yet for this season"
+          body="The draft hasn't taken place yet"
+        />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {groups.map(group => (
-            <div key={group.name} className="bg-spal-surface rounded p-4">
-              <h2 className="text-spal-text font-semibold mb-3">{group.name}</h2>
-              <table className="w-full text-sm">
-                <tbody>
-                  {group.picks.map(pick => (
-                    <tr key={pick.id} className="border-b border-white/5 last:border-0">
-                      <td className="py-1.5 pr-2 text-spal-muted text-xs tabular-nums w-5 align-top pt-2">
-                        {pick.pick_number}
-                      </td>
-                      <td className="py-1.5 pr-2 text-spal-text leading-tight">
-                        <div>{pick.players?.display_name ?? '—'}</div>
-                        <div className="text-xs text-spal-muted">{pick.players?.canonical_position}</div>
-                      </td>
-                      <td className="py-1.5 pr-2 align-middle">
-                        <NationBadge nation={pick.players?.nation ?? ''} />
-                      </td>
-                      <td className="py-1.5 text-right align-middle">
-                        <SlotBadge slot={pick.draft_slot} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
+        <>
+          {(() => {
+            const maxPicks = Math.max(...groups.map(g => g.picks.length))
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {groups.map(group => {
+                  const placeholderCount = maxPicks - group.picks.length
+                  return (
+                    <div key={group.name} className="bg-spal-surface rounded p-4">
+                      <h2 className="text-spal-text font-semibold mb-3">{group.name}</h2>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left border-b border-white/10">
+                            <th className="pb-1.5 pr-2 text-xs text-spal-muted font-normal w-6">#</th>
+                            <th className="pb-1.5 pr-2 text-xs text-spal-muted font-normal">Player</th>
+                            <th className="pb-1.5 pr-2 text-xs text-spal-muted font-normal">Nat</th>
+                            <th className="pb-1.5 text-xs text-spal-muted font-normal text-right">Slot</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.picks.map(pick => (
+                            <tr key={pick.id} className="border-b border-white/5 last:border-0">
+                              <td className="py-1.5 pr-2 text-spal-muted text-xs tabular-nums align-top pt-2">
+                                {pick.pick_number}
+                              </td>
+                              <td className="py-1.5 pr-2 text-spal-text leading-tight">
+                                <div>{pick.players?.display_name ?? '—'}</div>
+                                <div className="text-xs text-spal-muted">{pick.players?.canonical_position}</div>
+                              </td>
+                              <td className="py-1.5 pr-2 align-middle">
+                                <NationBadge nation={pick.players?.nation ?? ''} />
+                              </td>
+                              <td className="py-1.5 text-right align-middle">
+                                <SlotBadge slot={pick.draft_slot} />
+                              </td>
+                            </tr>
+                          ))}
+                          {Array.from({ length: placeholderCount }, (_, i) => (
+                            <tr key={`ph-${i}`} className="border-b border-white/5 last:border-0 opacity-35">
+                              <td className="py-1.5 pr-2 text-spal-muted text-xs tabular-nums">—</td>
+                              <td className="py-1.5 pr-2 text-spal-muted text-xs italic" colSpan={3}>
+                                Not yet picked
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </>
       )}
     </div>
   )

@@ -783,6 +783,7 @@ export default function AdminScoresPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-spal-muted border-b border-white/10">
+                        <th className="pb-2 pr-3 font-normal w-10">Pos</th>
                         <th className="pb-2 pr-6 font-normal">Manager</th>
                         <th className="pb-2 pr-6 font-normal">Team</th>
                         <th className="pb-2 font-normal text-right tabular-nums">Score</th>
@@ -791,17 +792,18 @@ export default function AdminScoresPage() {
                     <tbody>
                       {calcResult.scores.map((s, i) => {
                         const p = profiles.get(s.profile_id)
+                        const isFirst = i === 0
                         return (
-                          <tr key={s.profile_id} className="border-b border-white/5">
-                            <td className="py-2 pr-6">
-                              <span className={`mr-2 tabular-nums ${i === 0 ? 'text-spal-yellow' : 'text-spal-muted'}`}>
-                                {i + 1}.
-                              </span>
-                              <span className="text-spal-text">{p?.display_name ?? s.profile_id}</span>
+                          <tr key={s.profile_id} className={`border-b border-white/5 ${isFirst ? 'bg-spal-yellow/5' : ''}`}>
+                            <td className={`py-2 pr-3 tabular-nums text-xs font-medium ${isFirst ? 'text-spal-yellow' : 'text-spal-muted'}`}>
+                              {ordinal(i + 1)}
                             </td>
-                            <td className="py-2 pr-6 text-spal-muted text-xs">{p?.team_name ?? '—'}</td>
-                            <td className="py-2 text-right tabular-nums font-medium text-spal-text">
-                              {s.round_score}
+                            <td className={`py-2 pr-6 font-medium ${isFirst ? 'text-spal-yellow' : 'text-spal-text'}`}>
+                              {p?.display_name ?? s.profile_id}
+                            </td>
+                            <td className="py-2 pr-6 text-spal-muted text-xs">{p?.team_name || '—'}</td>
+                            <td className={`py-2 text-right tabular-nums font-semibold ${isFirst ? 'text-spal-yellow' : 'text-spal-text'}`}>
+                              {Number(s.round_score).toFixed(1)}
                             </td>
                           </tr>
                         )
@@ -968,6 +970,12 @@ export default function AdminScoresPage() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0])
+}
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (

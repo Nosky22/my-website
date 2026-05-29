@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { EmptyState } from '../components/EmptyState'
 
 interface Season { id: number; year: number }
 
@@ -117,8 +118,16 @@ export default function StandingsPage() {
         <>
           {/* ── Score standings ──────────────────────────────────────────── */}
           {standingRows.length === 0 ? (
-            <div className="bg-spal-surface rounded p-5 mb-10 text-sm text-spal-muted">
-              No scores yet for this season.
+            <div className="mb-10">
+              <EmptyState
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M6 9v11M18 9v11M6 4h12M3 20h18" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                }
+                title="No scores yet"
+                body="Scores will appear here after the first round is calculated"
+              />
             </div>
           ) : (
             <div className="mb-10">

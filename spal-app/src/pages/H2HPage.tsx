@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { EmptyState } from '../components/EmptyState'
 
 interface Season { id: number; year: number }
 
@@ -106,14 +107,17 @@ export default function H2HPage() {
 
       {loading ? (
         <p className="text-spal-muted text-sm">Loading…</p>
-      ) : !hasFixtures ? (
-        <div className="bg-spal-surface rounded p-5 text-sm text-spal-muted">
-          No H2H fixtures yet for this season.
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="bg-spal-surface rounded p-5 text-sm text-spal-muted">
-          No standings yet for this season.
-        </div>
+      ) : !hasFixtures || rows.length === 0 ? (
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <path d="M17 3v4M7 3v4M3 9h18M7 13h.01M12 13h.01M17 13h.01M7 17h.01M12 17h.01M17 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+            </svg>
+          }
+          title="No H2H data yet"
+          body="H2H Cup results will appear after rounds are played"
+        />
       ) : (
         <>
           <table className="w-full text-sm">

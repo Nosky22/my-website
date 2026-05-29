@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
+import { EmptyState } from '../components/EmptyState'
 
 interface Season { id: number; year: number }
 interface Player {
@@ -138,6 +139,16 @@ export default function PlayersPage() {
 
       {loading ? (
         <p className="text-spal-muted text-sm">Loading…</p>
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35M8 11h6M11 8v6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+          title="No players found"
+          body="Try adjusting your filters"
+        />
       ) : (
         <table className="w-full text-sm">
           <thead>

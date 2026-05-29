@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import SquadPlayerPicker from '../components/SquadPlayerPicker'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { EmptyState } from '../components/EmptyState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -531,6 +532,23 @@ export default function SquadPage() {
   }
 
   const filledCount = slots.filter(s => s.player !== null).length
+
+  if (allPlayers.length === 0 && filledCount === 0) {
+    return (
+      <div className="max-w-spal mx-auto px-4 py-6">
+        <h1 className="text-xl font-bold text-spal-yellow mb-6">Squad Builder</h1>
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+          title="No squad yet"
+          body="Build your squad for this round"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-spal mx-auto px-4 py-6">
