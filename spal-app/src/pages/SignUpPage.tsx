@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 type PageStatus = 'idle' | 'submitting' | 'done'
 
 export default function SignUpPage() {
+  const [searchParams] = useSearchParams()
+  const [inviteToken, setInviteToken] = useState(() => searchParams.get('token') ?? '')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
@@ -16,7 +18,30 @@ export default function SignUpPage() {
     setError(null)
     setStatus('submitting')
 
-    const { error: authError } = await supabase.auth.signUp({
+    // ── 1. Verify invite token ────────────────────────────────────────────
+    const token = inviteToken.trim()
+    if (!token) {
+      setError('An invite code is required.')
+      setStatus('idle')
+      return
+    }
+
+    const { data: tokenRow } = await supabase
+      .from('invite_tokens')
+      .select('id')
+      .eq('token', token)
+      .is('claimed_by', null)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .maybeSingle()
+
+    if (!tokenRow) {
+      setError('Invalid or already used invite code.')
+      setStatus('idle')
+      return
+    }
+
+    // ── 2. Create account ─────────────────────────────────────────────────
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -29,6 +54,17 @@ export default function SignUpPage() {
       setError(authError.message)
       setStatus('idle')
       return
+    }
+
+    // ── 3. Claim token ────────────────────────────────────────────────────
+    // claim_invite_token is a security-definer RPC callable by anon, so this
+    // works whether or not the session is immediately available (email
+    // confirmation on or off).
+    if (authData.user) {
+      await supabase.rpc('claim_invite_token', {
+        p_token:   token,
+        p_user_id: authData.user.id,
+      })
     }
 
     setStatus('done')
@@ -60,7 +96,7 @@ export default function SignUpPage() {
       <div className="bg-spal-surface rounded p-8">
         <h1 className="text-2xl font-bold text-spal-yellow mb-1">Create account</h1>
         <p className="text-spal-muted text-sm mb-6">
-          SPAL is invite-only. Only use this form if you have been invited by the commissioner.
+          SPAL is invite-only. Enter the invite code shared with you by the commissioner.
         </p>
 
         {error && (
@@ -70,6 +106,20 @@ export default function SignUpPage() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="inviteToken" className="text-sm text-spal-muted">Invite code</label>
+            <input
+              id="inviteToken"
+              type="text"
+              value={inviteToken}
+              onChange={e => setInviteToken(e.target.value)}
+              placeholder="e.g. X7K2M9PQAR"
+              autoComplete="off"
+              required
+              className="bg-spal-surface-raised text-spal-text px-3 py-2 rounded text-sm font-mono outline-none focus:ring-1 focus:ring-spal-cerulean tracking-widest"
+            />
+          </div>
+
           <div className="flex flex-col gap-1">
             <label htmlFor="displayName" className="text-sm text-spal-muted">Your name</label>
             <input

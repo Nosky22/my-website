@@ -225,6 +225,25 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `017_invite_tokens.sql`
+**Applied:** 2026-05-29
+**Status:** Applied successfully — table, 3 policies, and function verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `invite_tokens` | `bigint identity` | Unique token; `created_by` FK → profiles; `claimed_by` FK → profiles nullable |
+
+**Functions created:**
+- `claim_invite_token(p_token text, p_user_id uuid) RETURNS boolean` — security definer; verifies profile exists then atomically marks token claimed. Callable by `anon` + `authenticated`. Used by signup flow when no session is available (email confirmation on).
+
+**RLS:** 3 policies — admin full CRUD (`is_admin()`); `anon` SELECT on unclaimed rows (`claimed_by IS NULL`); `authenticated` UPDATE for claiming own token only (`WITH CHECK (claimed_by = auth.uid())`).
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
+import { useAuth } from '../../hooks/useAuth'
 
 interface Profile {
   id: string
@@ -28,6 +29,14 @@ interface AuditEntry {
 
 type FlowStep = 'search' | 'preview' | 'success'
 
+interface InviteToken {
+  id: number
+  token: string
+  created_at: string
+  claimed_by: string | null
+  claimedByName: string | null
+}
+
 const FK_TABLES = [
   'draft_order',
   'draft_picks',
@@ -49,7 +58,23 @@ function fmtDate(iso: string | null) {
   })
 }
 
+function makeToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = new Uint8Array(10)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => chars[b % chars.length]).join('')
+}
+
+function inviteUrl(token: string): string {
+  return `${window.location.origin}/spal/signup?token=${token}`
+}
+
+async function copyToClipboard(text: string) {
+  await navigator.clipboard.writeText(text)
+}
+
 export default function AdminManagersPage() {
+  const { user } = useAuth()
   const { addToast } = useToast()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [authMeta, setAuthMeta] = useState<Record<string, AuthMeta>>({})
@@ -75,6 +100,13 @@ export default function AdminManagersPage() {
 
   // Step 3: success
   const [auditResult, setAuditResult] = useState<AuditEntry | null>(null)
+
+  // Invite tokens
+  const [tokens, setTokens]           = useState<InviteToken[]>([])
+  const [tokensLoading, setTokensLoading] = useState(true)
+  const [generating, setGenerating]   = useState(false)
+  const [newToken, setNewToken]       = useState<string | null>(null)
+  const [revokingId, setRevokingId]   = useState<number | null>(null)
 
   // ── Load profiles + auth metadata ────────────────────────────────────────
 
@@ -103,6 +135,52 @@ export default function AdminManagersPage() {
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Invite tokens ─────────────────────────────────────────────────────────
+
+  async function loadTokens() {
+    setTokensLoading(true)
+    const { data } = await supabase
+      .from('invite_tokens')
+      .select('id, token, created_at, claimed_by, profiles!claimed_by(display_name)')
+      .order('created_at', { ascending: false })
+    type Raw = { id: number; token: string; created_at: string; claimed_by: string | null; profiles: { display_name: string } | null }
+    setTokens((data ?? []).map((r: unknown) => {
+      const t = r as Raw
+      return { id: t.id, token: t.token, created_at: t.created_at, claimed_by: t.claimed_by, claimedByName: t.profiles?.display_name ?? null }
+    }))
+    setTokensLoading(false)
+  }
+
+  useEffect(() => { loadTokens() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleGenerateToken() {
+    if (!user) return
+    setGenerating(true)
+    const token = makeToken()
+    const { error } = await supabase
+      .from('invite_tokens')
+      .insert({ token, created_by: user.id })
+    if (error) { addToast(error.message, 'error'); setGenerating(false); return }
+    setNewToken(token)
+    await loadTokens()
+    setGenerating(false)
+  }
+
+  async function handleRevokeToken(id: number) {
+    setRevokingId(id)
+    const revokedToken = tokens.find(t => t.id === id)
+    const { error } = await supabase
+      .from('invite_tokens')
+      .delete()
+      .eq('id', id)
+      .is('claimed_by', null)
+    if (error) { addToast(error.message, 'error'); setRevokingId(null); return }
+    if (revokedToken?.token === newToken) setNewToken(null)
+    addToast('Token revoked', 'success')
+    await loadTokens()
+    setRevokingId(null)
+  }
 
   // ── Search for real accounts ──────────────────────────────────────────────
 
@@ -270,6 +348,103 @@ export default function AdminManagersPage() {
           </table>
           </div>
         )}
+        {/* ── Invite Tokens ──────────────────────────────────────────────── */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Invite Tokens</h2>
+            <button
+              onClick={handleGenerateToken}
+              disabled={generating}
+              className="text-xs text-spal-cerulean hover:text-spal-cerulean-light disabled:opacity-40 transition-colors"
+            >
+              {generating ? 'Generating…' : '+ Generate token'}
+            </button>
+          </div>
+
+          {/* Newly generated token */}
+          {newToken && (
+            <div className="mb-4 p-4 bg-spal-cerulean/10 border border-spal-cerulean/20 rounded">
+              <div className="flex items-start justify-between mb-3">
+                <p className="text-xs text-spal-muted">New token — share with the manager</p>
+                <button
+                  onClick={() => setNewToken(null)}
+                  className="text-spal-muted hover:text-spal-text text-lg leading-none ml-2"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mb-2">
+                <code className="text-spal-cerulean font-mono text-base font-bold tracking-widest">
+                  {newToken}
+                </code>
+                <button
+                  onClick={() => { copyToClipboard(newToken); addToast('Token copied', 'success') }}
+                  className="text-xs text-spal-muted hover:text-spal-text transition-colors"
+                >
+                  Copy code
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-spal-muted truncate flex-1 font-mono">
+                  {inviteUrl(newToken)}
+                </span>
+                <button
+                  onClick={() => { copyToClipboard(inviteUrl(newToken)); addToast('URL copied', 'success') }}
+                  className="text-xs text-spal-muted hover:text-spal-text transition-colors shrink-0"
+                >
+                  Copy URL
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Token list */}
+          {tokensLoading ? (
+            <p className="text-spal-muted text-sm">Loading…</p>
+          ) : tokens.length === 0 ? (
+            <p className="text-spal-muted text-sm">No invite tokens yet.</p>
+          ) : (
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-spal-muted border-b border-spal-surface-raised">
+                  <th className="pb-2 pr-4 font-medium">Token</th>
+                  <th className="pb-2 pr-4 font-medium">Status</th>
+                  <th className="pb-2 pr-4 font-medium">Claimed by</th>
+                  <th className="pb-2 pr-4 font-medium">Created</th>
+                  <th className="pb-2 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {tokens.map(t => (
+                  <tr key={t.id} className="border-b border-spal-surface-raised/50">
+                    <td className="py-2.5 pr-4 font-mono text-spal-text tracking-wider">{t.token}</td>
+                    <td className="py-2.5 pr-4">
+                      {t.claimed_by ? (
+                        <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-spal-muted">Claimed</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400">Unclaimed</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-4 text-spal-muted">{t.claimedByName ?? '—'}</td>
+                    <td className="py-2.5 pr-4 text-spal-muted">{fmtDate(t.created_at)}</td>
+                    <td className="py-2.5 text-right">
+                      {!t.claimed_by && (
+                        <button
+                          onClick={() => handleRevokeToken(t.id)}
+                          disabled={revokingId === t.id}
+                          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 transition-colors"
+                        >
+                          {revokingId === t.id ? 'Revoking…' : 'Revoke'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
       </div>
 
       {/* Link Account side panel */}
