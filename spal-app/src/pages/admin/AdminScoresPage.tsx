@@ -22,6 +22,9 @@ interface CalcScore    { profile_id: string; round_score: number }
 interface CalcResult   { round_number: number; managers_scored: number; scores: CalcScore[] }
 interface ProfileInfo  { display_name: string; team_name: string }
 interface LockSummary  { alreadyLocked: boolean; locked?: number; copied?: number; empty?: number; error?: string }
+interface ManagerOption { id: string; display_name: string }
+interface PenaltyRow   { id: number; profile_id: string; penalty_type: string; description: string; points_adjustment: number; created_by: string }
+interface PenaltyForm  { profileId: string; penaltyType: string; description: string; points: string }
 
 const MATCHDAY_STATUSES = ['starting', 'bench', 'not_selected'] as const
 type MatchdayStatus = (typeof MATCHDAY_STATUSES)[number]
@@ -38,6 +41,17 @@ const EMPTY_FORM: ScoreForm = {
   matchId: null, playerId: null, playerDisplayName: '', sourcePts: '', matchdayStatus: 'starting',
 }
 
+const EMPTY_PENALTY_FORM: PenaltyForm = {
+  profileId: '', penaltyType: 'admin_correction', description: '', points: '',
+}
+
+const PENALTY_TYPES = [
+  { value: 'late_submission',  label: 'Late submission'  },
+  { value: 'rules_breach',     label: 'Rules breach'     },
+  { value: 'admin_correction', label: 'Admin correction' },
+  { value: 'bonus',            label: 'Bonus'            },
+] as const
+
 const ROUNDS = [1, 2, 3, 4, 5] as const
 
 const MATCHDAY_LABEL: Record<string, string> = {
@@ -49,7 +63,7 @@ const MATCHDAY_COLOUR: Record<string, string> = {
 }
 
 export default function AdminScoresPage() {
-  const { session } = useAuth()
+  const { user, session } = useAuth()
   const { addToast } = useToast()
 
   // ── Selection ────────────────────────────────────────────────────
@@ -88,6 +102,13 @@ export default function AdminScoresPage() {
   const [lockResult, setLockResult]         = useState<LockSummary | null>(null)
   const [lockError, setLockError]           = useState<string | null>(null)
 
+  // ── Penalties & adjustments ───────────────────────────────────────
+  const [allManagers, setAllManagers]       = useState<ManagerOption[]>([])
+  const [penalties, setPenalties]           = useState<PenaltyRow[]>([])
+  const [penaltyForm, setPenaltyForm]       = useState<PenaltyForm>(EMPTY_PENALTY_FORM)
+  const [addingPenalty, setAddingPenalty]   = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+
   // ── Load seasons ─────────────────────────────────────────────────
   useEffect(() => {
     supabase.from('seasons').select('id, year').order('year', { ascending: false })
@@ -98,12 +119,20 @@ export default function AdminScoresPage() {
       })
   }, [])
 
+  // ── Load managers (for penalty dropdown) ────────────────────────
+  useEffect(() => {
+    if (selectedSeasonId == null) return
+    supabase.from('profiles').select('id, display_name').order('display_name')
+      .then(({ data }) => setAllManagers(data ?? []))
+  }, [selectedSeasonId])
+
   // ── Load round data ──────────────────────────────────────────────
   useEffect(() => {
     if (selectedSeasonId == null || selectedRound == null) {
       setMatches([]); setScores([]); setMatchdays([]); setRoundScored(false); setRoundFinal(false)
       setCalcResult(null)
       setSquadsNeedLock(false); setLockResult(null); setLockError(null)
+      setPenalties([])
       return
     }
     loadRound()
@@ -165,7 +194,19 @@ export default function AdminScoresPage() {
     const deadlinePassed = earliest != null && earliest < new Date().toISOString()
     setSquadsNeedLock(deadlinePassed && (squadsRes.data?.length ?? 0) > 0)
 
+    await loadPenalties()
     setLoadingRound(false)
+  }
+
+  async function loadPenalties() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    const { data } = await supabase
+      .from('league_penalties')
+      .select('id, profile_id, penalty_type, description, points_adjustment, created_by')
+      .eq('season_id', selectedSeasonId)
+      .eq('round_number', selectedRound)
+      .order('created_at')
+    setPenalties((data ?? []) as PenaltyRow[])
   }
 
   // ── Derived maps ─────────────────────────────────────────────────
@@ -183,6 +224,12 @@ export default function AdminScoresPage() {
     }
     return m
   }, [scores])
+
+  const managersById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const mgr of allManagers) m.set(mgr.id, mgr.display_name)
+    return m
+  }, [allManagers])
 
   // ── Player search (debounced, only when no player is selected) ───
   useEffect(() => {
@@ -352,6 +399,60 @@ export default function AdminScoresPage() {
     setRoundFinal(true)
     setShowFinalConfirm(false)
     addToast(`Round ${selectedRound} marked as final`, 'success')
+  }
+
+  // ── Quiet recalculate (after penalty changes) ────────────────────
+  async function recalculateQuiet() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    const { data, error } = await supabase.functions.invoke('score-round', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+    if (error) {
+      addToast('Scores could not be recalculated automatically — use Calculate scores to retry', 'error')
+      return
+    }
+    const result = data as CalcResult
+    setRoundScored(result.managers_scored > 0)
+    setRoundFinal(false)
+    setCalcResult(null)
+  }
+
+  // ── Add penalty ──────────────────────────────────────────────────
+  async function handleAddPenalty(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedSeasonId || !selectedRound || !user) return
+    const pts = parseFloat(penaltyForm.points)
+    if (isNaN(pts)) return
+
+    setAddingPenalty(true)
+    const { error } = await supabase.from('league_penalties').insert({
+      season_id:        selectedSeasonId,
+      profile_id:       penaltyForm.profileId,
+      round_number:     selectedRound,
+      penalty_type:     penaltyForm.penaltyType,
+      description:      penaltyForm.description.trim(),
+      points_adjustment: pts,
+      created_by:       user.id,
+    })
+    setAddingPenalty(false)
+
+    if (error) { addToast(error.message, 'error'); return }
+
+    addToast('Adjustment added', 'success')
+    setPenaltyForm(EMPTY_PENALTY_FORM)
+    await loadPenalties()
+    await recalculateQuiet()
+  }
+
+  // ── Delete penalty ───────────────────────────────────────────────
+  async function handleDeletePenalty() {
+    if (pendingDeleteId == null) return
+    const { error } = await supabase.from('league_penalties').delete().eq('id', pendingDeleteId)
+    setPendingDeleteId(null)
+    if (error) { addToast(error.message, 'error'); return }
+    addToast('Adjustment removed', 'success')
+    await loadPenalties()
+    await recalculateQuiet()
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -547,6 +648,118 @@ export default function AdminScoresPage() {
               </section>
             )}
 
+            {/* Penalties & Adjustments section */}
+            <section className="bg-spal-surface rounded p-5">
+              <h2 className="font-semibold text-spal-text mb-4">Penalties &amp; Adjustments</h2>
+
+              {/* Add form */}
+              <form onSubmit={handleAddPenalty} className="space-y-3 mb-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-spal-muted mb-1">Manager</label>
+                    <select
+                      value={penaltyForm.profileId}
+                      onChange={e => setPenaltyForm(f => ({ ...f, profileId: e.target.value }))}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">Select manager…</option>
+                      {allManagers.map(m => (
+                        <option key={m.id} value={m.id}>{m.display_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-spal-muted mb-1">Type</label>
+                    <select
+                      value={penaltyForm.penaltyType}
+                      onChange={e => setPenaltyForm(f => ({ ...f, penaltyType: e.target.value }))}
+                      className={inputClass}
+                    >
+                      {PENALTY_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-spal-muted mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={penaltyForm.description}
+                    onChange={e => setPenaltyForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Reason for adjustment…"
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-spal-muted mb-1">Points (negative = deduction)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={penaltyForm.points}
+                      onChange={e => setPenaltyForm(f => ({ ...f, points: e.target.value }))}
+                      placeholder="e.g. −5 or 3"
+                      required
+                      className={inputClass}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={addingPenalty || !penaltyForm.profileId || !penaltyForm.description || penaltyForm.points === ''}
+                    className={`${submitClass} px-5 shrink-0`}
+                  >
+                    {addingPenalty ? 'Adding…' : 'Add Adjustment'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Existing adjustments */}
+              {penalties.length === 0 ? (
+                <p className="text-spal-muted text-sm">No adjustments for this round.</p>
+              ) : (
+                <table className="w-full text-sm mb-3">
+                  <thead>
+                    <tr className="text-left text-spal-muted border-b border-white/10">
+                      <th className="pb-2 pr-4 font-normal">Manager</th>
+                      <th className="pb-2 pr-4 font-normal">Type</th>
+                      <th className="pb-2 pr-4 font-normal">Description</th>
+                      <th className="pb-2 pr-4 font-normal text-right tabular-nums">Pts</th>
+                      <th className="pb-2 pr-4 font-normal">Created by</th>
+                      <th className="pb-2 font-normal"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {penalties.map(p => (
+                      <tr key={p.id} className="border-b border-white/5">
+                        <td className="py-2 pr-4 text-spal-text">{managersById.get(p.profile_id) ?? p.profile_id}</td>
+                        <td className="py-2 pr-4 text-spal-muted text-xs capitalize">{p.penalty_type.replace(/_/g, ' ')}</td>
+                        <td className="py-2 pr-4 text-spal-muted text-xs">{p.description}</td>
+                        <td className={`py-2 pr-4 text-right tabular-nums font-medium ${p.points_adjustment < 0 ? 'text-red-400' : 'text-spal-success'}`}>
+                          {p.points_adjustment > 0 ? '+' : ''}{p.points_adjustment}
+                        </td>
+                        <td className="py-2 pr-4 text-spal-muted text-xs">{managersById.get(p.created_by) ?? '—'}</td>
+                        <td className="py-2">
+                          <button
+                            onClick={() => setPendingDeleteId(p.id)}
+                            className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <p className="text-xs text-spal-muted mt-3">
+                Adjustments are applied automatically when scores are calculated. Adding or removing an adjustment here will recalculate scores for this round.
+              </p>
+            </section>
+
             {/* Calculate section */}
             <section className="bg-spal-surface rounded p-5">
               <div className="flex items-center justify-between mb-4">
@@ -739,6 +952,16 @@ export default function AdminScoresPage() {
         confirmLabel="Mark as final"
         onConfirm={handleMarkFinal}
         onCancel={() => setShowFinalConfirm(false)}
+      />
+
+      <ConfirmModal
+        open={pendingDeleteId != null}
+        title="Delete this adjustment?"
+        message="This will remove the adjustment and recalculate scores for this round."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDeletePenalty}
+        onCancel={() => setPendingDeleteId(null)}
       />
     </div>
   )
