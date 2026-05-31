@@ -310,12 +310,24 @@ export default function AdminPoolPage() {
     if (pendingRemoveId == null || selectedSeasonId == null) return
     setRemoving(true)
 
-    const { error } = await supabase.from('players').delete().eq('id', pendingRemoveId)
+    const { error: priceError } = await supabase
+      .from('player_prices')
+      .delete()
+      .eq('player_id', pendingRemoveId)
+
+    if (priceError) {
+      setRemoving(false)
+      setPendingRemoveId(null)
+      addToast(priceError.message, 'error')
+      return
+    }
+
+    const { error: playerError } = await supabase.from('players').delete().eq('id', pendingRemoveId)
 
     setRemoving(false)
     setPendingRemoveId(null)
 
-    if (error) { addToast(error.message, 'error'); return }
+    if (playerError) { addToast(playerError.message, 'error'); return }
     addToast('Player removed from pool', 'success')
     loadPool(selectedSeasonId)
   }
