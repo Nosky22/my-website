@@ -467,18 +467,27 @@ export default function AdminPoolPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-spal-yellow">Player Pool</h1>
         {csvStep === 'idle' && (
-          <label className="cursor-pointer">
-            <span className="text-xs text-spal-cerulean border border-spal-cerulean/40 rounded px-3 py-1.5 hover:bg-spal-cerulean/10 transition-colors">
-              Import CSV
-            </span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="sr-only"
-              onChange={handleFileChange}
-            />
-          </label>
+          <div className="flex items-center gap-3">
+            <a
+              href="data:text/csv;charset=utf-8,display_name,nation,canonical_position,price%0AAntoine%20Dupont,France,Scrum-half,12"
+              download="pool-template.csv"
+              className="text-xs text-spal-muted hover:text-spal-text transition-colors"
+            >
+              Download CSV template
+            </a>
+            <label className="cursor-pointer">
+              <span className="text-xs text-spal-cerulean border border-spal-cerulean/40 rounded px-3 py-1.5 hover:bg-spal-cerulean/10 transition-colors">
+                Import CSV
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-only"
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
         )}
         {csvStep === 'review' && (
           <button
