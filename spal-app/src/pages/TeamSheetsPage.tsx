@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
 import { EmptyState } from '../components/EmptyState'
 
 interface Season { id: number; year: number }
@@ -21,8 +20,6 @@ interface PublicSquadPlayer {
   nation: string
   canonical_position: string
 }
-
-const ROUNDS = [1, 2, 3, 4, 5] as const
 
 const NATION_BADGE: Record<string, { abbr: string; cls: string }> = {
   England:  { abbr: 'ENG', cls: 'bg-red-900/40 text-red-300' },
@@ -55,14 +52,12 @@ function formatKickoff(ts: string): string {
 }
 
 export default function TeamSheetsPage() {
-  const { user } = useAuth()
-
-  const [activeSeason, setActiveSeason]   = useState<Season | null>(null)
-  const [allMatches, setAllMatches]       = useState<Match[]>([])
-  const [selectedRound, setSelectedRound] = useState<number>(1)
-  const [squadMap, setSquadMap]           = useState<Map<string, PublicSquadPlayer[]>>(new Map())
-  const [ownershipMap, setOwnershipMap]   = useState<Map<number, number>>(new Map())
-  const [loading, setLoading]             = useState(true)
+  const [activeSeason, setActiveSeason]     = useState<Season | null>(null)
+  const [allMatches, setAllMatches]         = useState<Match[]>([])
+  const [selectedRound, setSelectedRound]   = useState<number>(1)
+  const [squadMap, setSquadMap]             = useState<Map<string, PublicSquadPlayer[]>>(new Map())
+  const [draftOwnerMap, setDraftOwnerMap]   = useState<Map<number, string[]>>(new Map())
+  const [loading, setLoading]               = useState(true)
 
   // Load active season + all matches to determine available rounds and current round
   useEffect(() => {
@@ -129,7 +124,8 @@ export default function TeamSheetsPage() {
       await loadSquadsForMatches(roundMatches)
     }
 
-    if (user) await loadOwnership(seasonId, round)
+    // draft_picks are anon-readable; show to all visitors
+    await loadDraftOwnership(seasonId)
 
     setLoading(false)
   }
@@ -164,27 +160,23 @@ export default function TeamSheetsPage() {
     setSquadMap(map)
   }
 
-  async function loadOwnership(seasonId: number, round: number) {
-    const { data: squadData } = await supabase
-      .from('manager_round_squads')
-      .select('id')
+  async function loadDraftOwnership(seasonId: number) {
+    const { data } = await supabase
+      .from('draft_picks')
+      .select('player_id, profiles!profile_id(display_name)')
       .eq('season_id', seasonId)
-      .eq('round_number', round)
 
-    const squadIds = (squadData ?? []).map(s => s.id as string)
-    if (squadIds.length === 0) { setOwnershipMap(new Map()); return }
-
-    const { data: playerData } = await supabase
-      .from('manager_round_squad_players')
-      .select('player_id')
-      .in('squad_id', squadIds)
-
-    const counts = new Map<number, number>()
-    for (const row of playerData ?? []) {
-      const pid = row.player_id as number
-      counts.set(pid, (counts.get(pid) ?? 0) + 1)
+    const ownerMap = new Map<number, string[]>()
+    for (const row of (data ?? []) as unknown as Array<{
+      player_id: number
+      profiles: { display_name: string } | null
+    }>) {
+      if (!row.profiles?.display_name) continue
+      const existing = ownerMap.get(row.player_id) ?? []
+      existing.push(row.profiles.display_name)
+      ownerMap.set(row.player_id, existing)
     }
-    setOwnershipMap(counts)
+    setDraftOwnerMap(ownerMap)
   }
 
   const availableRounds = useMemo(
@@ -217,7 +209,7 @@ export default function TeamSheetsPage() {
         <h1 className="text-2xl font-bold text-spal-yellow">Team Sheets</h1>
         {availableRounds.length > 0 && (
           <div className="flex items-center gap-1">
-            {(availableRounds.length > 0 ? availableRounds : (ROUNDS as unknown as number[])).map(r => (
+            {availableRounds.map(r => (
               <button
                 key={r}
                 onClick={() => setSelectedRound(r)}
@@ -249,80 +241,110 @@ export default function TeamSheetsPage() {
       ) : (
         <div className="space-y-6">
           {roundMatches.map(match => {
-            const players  = squadMap.get(match.id) ?? []
-            const starters = players
-              .filter(p => p.status === 'starting')
-              .sort((a, b) => (POSITION_ORDER[a.canonical_position] ?? 99) - (POSITION_ORDER[b.canonical_position] ?? 99))
-            const bench = players.filter(p => p.status === 'bench')
-
+            const players = squadMap.get(match.id) ?? []
             return (
-              <div key={match.id} className="bg-spal-surface rounded-lg p-5 border border-white/5">
-                {/* Match header */}
-                <div className="flex items-center gap-2 mb-5">
-                  <NationBadge nation={match.home_nation} />
-                  <span className="text-spal-text font-semibold">
-                    {match.home_nation} vs {match.away_nation}
-                  </span>
-                  <NationBadge nation={match.away_nation} />
-                  {match.kickoff_at && (
-                    <span className="text-xs text-spal-muted ml-auto">{formatKickoff(match.kickoff_at)}</span>
-                  )}
-                </div>
-
-                {players.length === 0 ? (
-                  <p className="text-sm text-spal-muted italic">Not yet announced</p>
-                ) : (
-                  <>
-                    <PublicPlayerList title="Starters" players={starters} ownershipMap={user ? ownershipMap : null} />
-                    {bench.length > 0 && (
-                      <PublicPlayerList title="Bench" players={bench} ownershipMap={user ? ownershipMap : null} />
-                    )}
-                  </>
-                )}
-              </div>
+              <MatchCard
+                key={match.id}
+                match={match}
+                players={players}
+                draftOwnerMap={draftOwnerMap}
+              />
             )
           })}
         </div>
-      )}
-
-      {user && (
-        <p className="text-xs text-spal-muted mt-8">
-          Cerulean dots indicate players selected in at least one manager's squad this round.
-        </p>
       )}
     </div>
   )
 }
 
-// ── PublicPlayerList ──────────────────────────────────────────────────────────
+// ── MatchCard ─────────────────────────────────────────────────────────────────
 
-interface PublicPlayerListProps {
-  title: string
+interface MatchCardProps {
+  match: Match
   players: PublicSquadPlayer[]
-  ownershipMap: Map<number, number> | null
+  draftOwnerMap: Map<number, string[]>
 }
 
-function PublicPlayerList({ title, players, ownershipMap }: PublicPlayerListProps) {
-  return (
-    <div className="mb-5 last:mb-0">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-semibold text-spal-muted uppercase tracking-wider">{title}</span>
-        <span className="text-xs text-spal-muted">{players.length}</span>
+function MatchCard({ match, players, draftOwnerMap }: MatchCardProps) {
+  function renderTeam(nation: string) {
+    const teamPlayers = players.filter(p => p.nation === nation)
+    if (teamPlayers.length === 0) return null
+
+    const starters = teamPlayers
+      .filter(p => p.status === 'starting')
+      .sort((a, b) => (POSITION_ORDER[a.canonical_position] ?? 99) - (POSITION_ORDER[b.canonical_position] ?? 99))
+    const bench = teamPlayers.filter(p => p.status === 'bench')
+
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <NationBadge nation={nation} />
+          <span className="text-sm font-semibold text-spal-text">{nation}</span>
+        </div>
+        {starters.length > 0 && (
+          <PlayerList players={starters} draftOwnerMap={draftOwnerMap} />
+        )}
+        {bench.length > 0 && (
+          <>
+            <p className="text-xs font-semibold text-spal-muted uppercase tracking-wider mt-3 mb-1">Bench</p>
+            <PlayerList players={bench} draftOwnerMap={draftOwnerMap} />
+          </>
+        )}
       </div>
+    )
+  }
+
+  const hasPlayers = players.length > 0
+
+  return (
+    <div className="bg-spal-surface rounded-lg p-5 border border-white/5">
+      {/* Match header */}
+      <div className="flex items-center gap-2 mb-5">
+        <NationBadge nation={match.home_nation} />
+        <span className="text-spal-text font-semibold">
+          {match.home_nation} vs {match.away_nation}
+        </span>
+        <NationBadge nation={match.away_nation} />
+        {match.kickoff_at && (
+          <span className="text-xs text-spal-muted ml-auto">{formatKickoff(match.kickoff_at)}</span>
+        )}
+      </div>
+
+      {!hasPlayers ? (
+        <p className="text-sm text-spal-muted italic">Not yet announced</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {renderTeam(match.home_nation)}
+          {renderTeam(match.away_nation)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PlayerList ────────────────────────────────────────────────────────────────
+
+interface PlayerListProps {
+  players: PublicSquadPlayer[]
+  draftOwnerMap: Map<number, string[]>
+}
+
+function PlayerList({ players, draftOwnerMap }: PlayerListProps) {
+  return (
+    <div>
       {players.map(p => {
-        const owned = ownershipMap?.has(p.player_id)
+        const owners = draftOwnerMap.get(p.player_id)
         return (
-          <div key={p.player_id} className="flex items-center gap-3 py-1.5 border-b border-white/5 last:border-0">
-            <span className={`text-xs font-mono rounded px-1.5 py-0.5 ${NATION_BADGE[p.nation]?.cls ?? 'bg-white/10 text-spal-muted'}`}>
-              {NATION_BADGE[p.nation]?.abbr ?? p.nation.slice(0, 3).toUpperCase()}
-            </span>
+          <div key={p.player_id} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
             <span className="text-spal-text text-sm flex-1">{p.display_name}</span>
-            <span className="text-spal-muted text-xs">{p.canonical_position}</span>
-            {ownershipMap != null && owned && (
+            <span className="text-spal-muted text-xs shrink-0">{p.canonical_position}</span>
+            {owners && owners.length > 0 && (
               <span
-                title={`In ${ownershipMap.get(p.player_id)} manager squad(s)`}
-                className="w-2 h-2 rounded-full bg-spal-cerulean ml-1 shrink-0"
-              />
+                title={`Drafted by: ${owners.join(', ')}`}
+                className="text-xs bg-spal-cerulean/20 text-spal-cerulean rounded px-1.5 py-0.5 shrink-0"
+              >
+                {owners.join(', ')}
+              </span>
             )}
           </div>
         )

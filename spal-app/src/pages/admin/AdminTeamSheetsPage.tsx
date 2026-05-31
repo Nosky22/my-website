@@ -32,7 +32,6 @@ interface PoolPlayer {
   canonical_position: string
 }
 
-// CSV import types
 interface TsCsvRow { csvMatch: string; csvPlayer: string; csvStatus: string }
 
 interface TsReviewRow {
@@ -68,6 +67,11 @@ const NATION_BY_LOWER: Record<string, string> = {
   wales: 'Wales', wal: 'Wales',
   france: 'France', fra: 'France',
   italy: 'Italy', ita: 'Italy',
+}
+
+const POSITION_ORDER: Record<string, number> = {
+  'Prop': 1, 'Hooker': 2, 'Second Row': 3, 'Flanker': 4, 'Number 8': 5,
+  'Scrum-half': 6, 'Fly-half': 7, 'Centre': 8, 'Wing': 9, 'Fullback': 10,
 }
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
@@ -115,9 +119,16 @@ function buildTsReviewRows(csvRows: TsCsvRow[], matches: Match[], pool: PoolPlay
     const status = normalizeStatus(row.csvStatus)
 
     let issue: string | null = null
-    if (!match)  issue = `Match not found: "${row.csvMatch}"`
-    else if (!player) issue = `Player not in pool: "${row.csvPlayer}"`
-    else if (!status) issue = `Unknown status: "${row.csvStatus}"`
+    if (!match) {
+      issue = `Match not found: "${row.csvMatch}"`
+    } else if (!player) {
+      issue = `Player not in pool: "${row.csvPlayer}"`
+    } else if (player.nation !== match.home_nation && player.nation !== match.away_nation) {
+      // Player's nation must be one of the two teams in this match
+      issue = `Player's nation (${player.nation}) is not in this match (${match.home_nation} vs ${match.away_nation})`
+    } else if (!status) {
+      issue = `Unknown status: "${row.csvStatus}"`
+    }
 
     return {
       csvMatch:       row.csvMatch,
@@ -149,7 +160,6 @@ export default function AdminTeamSheetsPage() {
   const [pool, setPool]         = useState<PoolPlayer[]>([])
   const [loading, setLoading]   = useState(false)
 
-  // Load seasons
   useEffect(() => {
     supabase
       .from('seasons')
@@ -162,7 +172,6 @@ export default function AdminTeamSheetsPage() {
       })
   }, [])
 
-  // Load pool when season changes
   useEffect(() => {
     if (selectedSeasonId == null) return
     supabase
@@ -173,7 +182,6 @@ export default function AdminTeamSheetsPage() {
       .then(({ data }) => setPool(data ?? []))
   }, [selectedSeasonId])
 
-  // Load matches + squads when season or round changes
   useEffect(() => {
     if (selectedSeasonId == null) return
     loadRound(selectedSeasonId, selectedRound)
@@ -231,6 +239,17 @@ export default function AdminTeamSheetsPage() {
   }
 
   async function handleAdd(matchId: string, playerId: number, status: 'starting' | 'bench') {
+    const match  = matches.find(m => m.id === matchId)
+    const player = pool.find(p => p.id === playerId)
+
+    if (match && player && player.nation !== match.home_nation && player.nation !== match.away_nation) {
+      addToast(
+        `This player's nation (${player.nation}) is not playing in this match (${match.home_nation} vs ${match.away_nation})`,
+        'error'
+      )
+      return
+    }
+
     const { error } = await supabase
       .from('matchday_squads')
       .upsert(
@@ -255,7 +274,6 @@ export default function AdminTeamSheetsPage() {
     <div>
       <h1 className="text-2xl font-bold text-spal-yellow mb-6">Team Sheets</h1>
 
-      {/* Selectors */}
       <div className="flex items-center gap-4 mb-6 flex-wrap">
         <div className="flex items-center gap-2">
           <label className="text-sm text-spal-muted">Season</label>
@@ -284,7 +302,6 @@ export default function AdminTeamSheetsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-4 mb-6 border-b border-white/10">
         {(['manual', 'csv'] as const).map(t => (
           <button
@@ -301,7 +318,6 @@ export default function AdminTeamSheetsPage() {
         ))}
       </div>
 
-      {/* Manual tab */}
       {tab === 'manual' && (
         loading ? (
           <p className="text-spal-muted text-sm">Loading…</p>
@@ -317,25 +333,20 @@ export default function AdminTeamSheetsPage() {
           />
         ) : (
           <div className="space-y-6">
-            {matches.map(match => {
-              const players = squadMap.get(match.id) ?? []
-              return (
-                <MatchPanel
-                  key={match.id}
-                  match={match}
-                  starters={players.filter(p => p.status === 'starting')}
-                  bench={players.filter(p => p.status === 'bench')}
-                  pool={pool}
-                  onAdd={handleAdd}
-                  onRemove={handleRemove}
-                />
-              )
-            })}
+            {matches.map(match => (
+              <MatchPanel
+                key={match.id}
+                match={match}
+                players={squadMap.get(match.id) ?? []}
+                pool={pool}
+                onAdd={handleAdd}
+                onRemove={handleRemove}
+              />
+            ))}
           </div>
         )
       )}
 
-      {/* CSV tab */}
       {tab === 'csv' && (
         <CsvTeamSheetsPanel
           matches={matches}
@@ -351,34 +362,40 @@ export default function AdminTeamSheetsPage() {
 
 interface MatchPanelProps {
   match: Match
-  starters: SquadPlayer[]
-  bench: SquadPlayer[]
+  players: SquadPlayer[]
   pool: PoolPlayer[]
   onAdd: (matchId: string, playerId: number, status: 'starting' | 'bench') => Promise<void>
   onRemove: (matchId: string, playerId: number) => Promise<void>
 }
 
-function MatchPanel({ match, starters, bench, pool, onAdd, onRemove }: MatchPanelProps) {
-  const [addingFor, setAddingFor] = useState<'starting' | 'bench' | null>(null)
+function MatchPanel({ match, players, pool, onAdd, onRemove }: MatchPanelProps) {
+  const [addingFor, setAddingFor] = useState<{ nation: string; status: 'starting' | 'bench' } | null>(null)
   const [query, setQuery]         = useState('')
   const [saving, setSaving]       = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const presentIds = useMemo(
-    () => new Set([...starters, ...bench].map(p => p.player_id)),
-    [starters, bench]
+    () => new Set(players.map(p => p.player_id)),
+    [players]
   )
 
+  // Pool is the season's player pool — the source of truth for which players are
+  // available. Only pool players can be added to a matchday squad, by design.
+  // Results are further scoped to the nation of the section being added to.
   const searchResults = useMemo(() => {
     if (!addingFor || !query.trim()) return []
     const q = query.toLowerCase()
     return pool
-      .filter(p => !presentIds.has(p.id) && p.display_name.toLowerCase().includes(q))
+      .filter(p =>
+        !presentIds.has(p.id) &&
+        p.nation === addingFor.nation &&
+        p.display_name.toLowerCase().includes(q)
+      )
       .slice(0, 8)
   }, [query, addingFor, pool, presentIds])
 
-  function startAdding(section: 'starting' | 'bench') {
-    setAddingFor(section)
+  function startAdding(nation: string, status: 'starting' | 'bench') {
+    setAddingFor({ nation, status })
     setQuery('')
     setTimeout(() => inputRef.current?.focus(), 0)
   }
@@ -391,13 +408,9 @@ function MatchPanel({ match, starters, bench, pool, onAdd, onRemove }: MatchPane
   async function addPlayer(player: PoolPlayer) {
     if (!addingFor) return
     setSaving(true)
-    await onAdd(match.id, player.id, addingFor)
+    await onAdd(match.id, player.id, addingFor.status)
     setSaving(false)
     cancelAdding()
-  }
-
-  async function removePlayer(playerId: number) {
-    await onRemove(match.id, playerId)
   }
 
   const badge = (nation: string) => {
@@ -416,10 +429,70 @@ function MatchPanel({ match, starters, bench, pool, onAdd, onRemove }: MatchPane
       })
     : null
 
+  // Render one team's starters + bench with add controls
+  function renderTeam(nation: string) {
+    const starters = players
+      .filter(p => p.nation === nation && p.status === 'starting')
+      .sort((a, b) => (POSITION_ORDER[a.canonical_position] ?? 99) - (POSITION_ORDER[b.canonical_position] ?? 99))
+    const bench = players.filter(p => p.nation === nation && p.status === 'bench')
+    const addingHereStart = addingFor?.nation === nation && addingFor?.status === 'starting'
+    const addingHereBench = addingFor?.nation === nation && addingFor?.status === 'bench'
+
+    return (
+      <div>
+        {/* Nation subheading */}
+        <div className="flex items-center gap-2 mb-3">
+          {badge(nation)}
+          <span className="text-sm font-semibold text-spal-text">{nation}</span>
+        </div>
+
+        {/* Starters */}
+        <div className="mb-4 pl-3 border-l border-white/5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs text-spal-muted uppercase tracking-wider">Starters</span>
+            <span className="text-xs text-spal-muted">{starters.length}/15</span>
+          </div>
+          {starters.map(p => (
+            <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => onRemove(match.id, p.player_id)} />
+          ))}
+          {addingHereStart ? (
+            <AddSearch inputRef={inputRef} query={query} results={searchResults} saving={saving}
+              onChange={setQuery} onSelect={addPlayer} onCancel={cancelAdding} />
+          ) : (
+            <button onClick={() => startAdding(nation, 'starting')}
+              className="mt-1 text-xs text-spal-muted hover:text-spal-cerulean transition-colors">
+              + Add starter
+            </button>
+          )}
+        </div>
+
+        {/* Bench */}
+        <div className="pl-3 border-l border-white/5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs text-spal-muted uppercase tracking-wider">Bench</span>
+            <span className="text-xs text-spal-muted">{bench.length}/8</span>
+          </div>
+          {bench.map(p => (
+            <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => onRemove(match.id, p.player_id)} />
+          ))}
+          {addingHereBench ? (
+            <AddSearch inputRef={inputRef} query={query} results={searchResults} saving={saving}
+              onChange={setQuery} onSelect={addPlayer} onCancel={cancelAdding} />
+          ) : (
+            <button onClick={() => startAdding(nation, 'bench')}
+              className="mt-1 text-xs text-spal-muted hover:text-spal-cerulean transition-colors">
+              + Add bench player
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-spal-surface rounded-lg p-5 border border-white/5">
       {/* Match header */}
-      <div className="flex items-center gap-2 mb-5">
+      <div className="flex items-center gap-2 mb-6">
         {badge(match.home_nation)}
         <span className="text-spal-text font-semibold">
           {match.home_nation} vs {match.away_nation}
@@ -430,63 +503,9 @@ function MatchPanel({ match, starters, bench, pool, onAdd, onRemove }: MatchPane
         )}
       </div>
 
-      {/* Starters */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Starters</span>
-          <span className="text-xs text-spal-muted">{starters.length}/15</span>
-        </div>
-        {starters.map(p => (
-          <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => removePlayer(p.player_id)} />
-        ))}
-        {addingFor === 'starting' ? (
-          <AddSearch
-            inputRef={inputRef}
-            query={query}
-            results={searchResults}
-            saving={saving}
-            onChange={setQuery}
-            onSelect={addPlayer}
-            onCancel={cancelAdding}
-          />
-        ) : (
-          <button
-            onClick={() => startAdding('starting')}
-            className="mt-1 text-xs text-spal-muted hover:text-spal-cerulean transition-colors"
-          >
-            + Add starter
-          </button>
-        )}
-      </div>
-
-      {/* Bench */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Bench</span>
-          <span className="text-xs text-spal-muted">{bench.length}/8</span>
-        </div>
-        {bench.map(p => (
-          <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => removePlayer(p.player_id)} />
-        ))}
-        {addingFor === 'bench' ? (
-          <AddSearch
-            inputRef={inputRef}
-            query={query}
-            results={searchResults}
-            saving={saving}
-            onChange={setQuery}
-            onSelect={addPlayer}
-            onCancel={cancelAdding}
-          />
-        ) : (
-          <button
-            onClick={() => startAdding('bench')}
-            className="mt-1 text-xs text-spal-muted hover:text-spal-cerulean transition-colors"
-          >
-            + Add bench player
-          </button>
-        )}
-      </div>
+      {renderTeam(match.home_nation)}
+      <div className="border-t border-white/10 my-5" />
+      {renderTeam(match.away_nation)}
     </div>
   )
 }
@@ -536,10 +555,7 @@ function AddSearch({ inputRef, query, results, saving, onChange, onSelect, onCan
           disabled={saving}
           className="bg-spal-bg border border-white/10 rounded px-3 py-1.5 text-spal-text text-sm focus:outline-none focus:border-spal-cerulean w-56 disabled:opacity-50"
         />
-        <button
-          onClick={onCancel}
-          className="text-xs text-spal-muted hover:text-spal-text transition-colors"
-        >
+        <button onClick={onCancel} className="text-xs text-spal-muted hover:text-spal-text transition-colors">
           Cancel
         </button>
       </div>
@@ -553,7 +569,7 @@ function AddSearch({ inputRef, query, results, saving, onChange, onSelect, onCan
                 className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors disabled:opacity-50"
               >
                 <span className="text-spal-text">{p.display_name}</span>
-                <span className="text-spal-muted ml-2 text-xs">{p.nation} · {p.canonical_position}</span>
+                <span className="text-spal-muted ml-2 text-xs">{p.canonical_position}</span>
               </button>
             </li>
           ))}
@@ -656,7 +672,7 @@ function CsvTeamSheetsPanel({ matches, pool, onImportDone }: CsvTeamSheetsPanelP
             />
           </label>
           <a
-            href={`data:text/csv;charset=utf-8,match,player_name,status%0AEngland%20vs%20Ireland,Owen%20Farrell,starting%0AEngland%20vs%20Ireland,Tom%20Curry,bench`}
+            href="data:text/csv;charset=utf-8,match,player_name,status%0AEngland%20vs%20Ireland,Owen%20Farrell,starting%0AEngland%20vs%20Ireland,Tom%20Curry,bench"
             download="teamsheet-template.csv"
             className="text-xs text-spal-muted hover:text-spal-text transition-colors"
           >
@@ -666,7 +682,8 @@ function CsvTeamSheetsPanel({ matches, pool, onImportDone }: CsvTeamSheetsPanelP
         <p className="text-xs text-spal-muted mt-3">
           Format: <span className="text-spal-text font-mono">match</span> (e.g. "England vs Ireland"),{' '}
           <span className="text-spal-text font-mono">player_name</span>,{' '}
-          <span className="text-spal-text font-mono">status</span> (starting / bench / not_selected)
+          <span className="text-spal-text font-mono">status</span> (starting / bench / not_selected).
+          Player's nation must match one of the two teams in the match.
         </p>
       </div>
     )
@@ -686,7 +703,6 @@ function CsvTeamSheetsPanel({ matches, pool, onImportDone }: CsvTeamSheetsPanelP
     )
   }
 
-  // review step
   return (
     <div>
       <div className="flex items-center gap-4 text-xs text-spal-muted mb-4">
@@ -715,12 +731,8 @@ function CsvTeamSheetsPanel({ matches, pool, onImportDone }: CsvTeamSheetsPanelP
                 <td className="py-2 pr-4 text-xs text-amber-400">{row.issue ?? '—'}</td>
                 <td className="py-2">
                   {!row.issue && (
-                    <input
-                      type="checkbox"
-                      checked={row.include}
-                      onChange={() => toggleInclude(idx)}
-                      className="accent-spal-cerulean"
-                    />
+                    <input type="checkbox" checked={row.include} onChange={() => toggleInclude(idx)}
+                      className="accent-spal-cerulean" />
                   )}
                 </td>
               </tr>
