@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { EmptyState } from '../../components/EmptyState'
-import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS } from '../../lib/positions'
+import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS, toSearchName } from '../../lib/positions'
 
 interface Season { id: number; year: number }
 
@@ -49,10 +49,6 @@ interface ReviewRow {
   resolveEditName: string
   resolveEditNation: string
   resolveEditPosition: string
-}
-
-function toSearchName(name: string): string {
-  return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
 function parseCSV(text: string): CsvRow[] {

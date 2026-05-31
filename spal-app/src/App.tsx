@@ -9,6 +9,7 @@ import AdminSeasonsPage from './pages/admin/AdminSeasonsPage'
 import AdminPlayersPage from './pages/admin/AdminPlayersPage'
 import AdminDraftPage from './pages/admin/AdminDraftPage'
 import AdminCanonicalPage from './pages/admin/AdminCanonicalPage'
+import AdminTeamSheetsPage from './pages/admin/AdminTeamSheetsPage'
 import AdminImportsPage from './pages/admin/AdminImportsPage'
 import AdminManagersPage from './pages/admin/AdminManagersPage'
 import AdminPoolPage from './pages/admin/AdminPoolPage'
@@ -27,6 +28,7 @@ import PlayersPage from './pages/PlayersPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import SignUpPage from './pages/SignUpPage'
 import SquadPage from './pages/SquadPage'
+import TeamSheetsPage from './pages/TeamSheetsPage'
 import H2HPage from './pages/H2HPage'
 import StandingsPage from './pages/StandingsPage'
 
@@ -43,6 +45,7 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="standings" element={<StandingsPage />} />
             <Route path="h2h" element={<H2HPage />} />
+            <Route path="teamsheets" element={<TeamSheetsPage />} />
             <Route path="players" element={<PlayersPage />} />
             <Route path="laws" element={<LawsPage />} />
             <Route path="history" element={<HistoryPage />} />
@@ -66,8 +69,9 @@ export default function App() {
                 <Route path="seasons"  element={<AdminSeasonsPage />} />
                 <Route path="players"   element={<AdminPlayersPage />} />
                 <Route path="canonical" element={<AdminCanonicalPage />} />
-                <Route path="pool"      element={<AdminPoolPage />} />
-                <Route path="draft"    element={<AdminDraftPage />} />
+                <Route path="pool"        element={<AdminPoolPage />} />
+                <Route path="teamsheets" element={<AdminTeamSheetsPage />} />
+                <Route path="draft"      element={<AdminDraftPage />} />
                 <Route path="scores"    element={<AdminScoresPage />} />
                 <Route path="managers" element={<AdminManagersPage />} />
                 <Route path="imports"  element={<AdminImportsPage />} />

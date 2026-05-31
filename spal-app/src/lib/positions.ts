@@ -1,3 +1,7 @@
+export function toSearchName(name: string): string {
+  return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+
 export const POSITION_GROUP: Record<string, string> = {
   'Prop':       'Front Row',
   'Hooker':     'Front Row',

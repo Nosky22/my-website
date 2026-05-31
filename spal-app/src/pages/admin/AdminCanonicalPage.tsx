@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
-import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS } from '../../lib/positions'
+import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS, toSearchName } from '../../lib/positions'
 
 interface CanonicalPlayer {
   id: number
@@ -14,9 +14,6 @@ interface CanonicalPlayer {
 
 const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_position: 'Prop' as string }
 
-function toSearchName(name: string): string {
-  return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
-}
 
 export default function AdminCanonicalPage() {
   const { addToast } = useToast()
