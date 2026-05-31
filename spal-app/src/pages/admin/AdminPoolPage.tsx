@@ -78,9 +78,9 @@ function parseCSV(text: string): CsvRow[] {
   const lines = text.trim().split('\n').filter(l => l.trim())
   if (lines.length < 2) return []
   const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
-  const nameIdx     = header.indexOf('name')
+  const nameIdx     = header.findIndex(h => h === 'name' || h === 'display_name')
   const nationIdx   = header.indexOf('nation')
-  const positionIdx = header.findIndex(h => h === 'position' || h === 'pos')
+  const positionIdx = header.findIndex(h => h === 'position' || h === 'pos' || h === 'canonical_position')
   const priceIdx    = header.indexOf('price')
   if (nameIdx === -1 || nationIdx === -1) return []
 
