@@ -17,6 +17,19 @@ const POSITIONS = [
   'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback',
 ] as const
 
+const POSITION_GROUP: Record<string, string> = {
+  'Prop':       'Front Row',
+  'Hooker':     'Front Row',
+  'Second Row': 'Other',
+  'Flanker':    'Back Row',
+  'Number 8':   'Back Row',
+  'Scrum-half': 'Other',
+  'Fly-half':   'Other',
+  'Centre':     'Other',
+  'Wing':       'Outside Back',
+  'Fullback':   'Outside Back',
+}
+
 const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_position: 'Prop' as string }
 
 function toSearchName(name: string): string {
@@ -73,9 +86,10 @@ export default function AdminCanonicalPage() {
 
     const { error } = await supabase.from('canonical_players').insert({
       display_name,
-      search_name: toSearchName(display_name),
-      nation: form.nation,
+      search_name:        toSearchName(display_name),
+      nation:             form.nation,
       canonical_position: form.canonical_position,
+      position_group:     POSITION_GROUP[form.canonical_position] ?? 'Other',
     })
 
     if (error) { setFormError(error.message); setSubmitting(false); return }
@@ -97,7 +111,13 @@ export default function AdminCanonicalPage() {
 
     const { error } = await supabase
       .from('canonical_players')
-      .update({ display_name, search_name: toSearchName(display_name), nation: editForm.nation, canonical_position: editForm.canonical_position })
+      .update({
+        display_name,
+        search_name:        toSearchName(display_name),
+        nation:             editForm.nation,
+        canonical_position: editForm.canonical_position,
+        position_group:     POSITION_GROUP[editForm.canonical_position] ?? 'Other',
+      })
       .eq('id', editingId)
 
     setSaving(false)
