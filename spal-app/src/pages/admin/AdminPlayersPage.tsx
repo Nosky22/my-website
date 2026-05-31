@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
+import { POSITION_GROUP, CANONICAL_POSITIONS, NATIONS } from '../../lib/positions'
 
 interface Season { id: number; year: number }
 interface Player {
@@ -15,26 +16,6 @@ interface PriceRow {
   id: number
   source_price: number
   final_price: number
-}
-
-const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy'] as const
-
-const CANONICAL_POSITIONS = [
-  'Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8',
-  'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback',
-] as const
-
-const POSITION_GROUP: Record<string, string> = {
-  'Prop':       'Front Row',
-  'Hooker':     'Front Row',
-  'Second Row': 'Other',
-  'Flanker':    'Back Row',
-  'Number 8':   'Back Row',
-  'Scrum-half': 'Other',
-  'Fly-half':   'Other',
-  'Centre':     'Other',
-  'Wing':       'Outside Back',
-  'Fullback':   'Outside Back',
 }
 
 const ROUNDS = [1, 2, 3, 4, 5] as const

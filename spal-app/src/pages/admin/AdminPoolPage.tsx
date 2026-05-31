@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { EmptyState } from '../../components/EmptyState'
+import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS } from '../../lib/positions'
 
 interface Season { id: number; year: number }
 
@@ -48,26 +49,6 @@ interface ReviewRow {
   resolveEditName: string
   resolveEditNation: string
   resolveEditPosition: string
-}
-
-const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy'] as const
-
-const POSITIONS = [
-  'Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8',
-  'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback',
-] as const
-
-const POSITION_GROUP: Record<string, string> = {
-  'Prop':       'Front Row',
-  'Hooker':     'Front Row',
-  'Second Row': 'Other',
-  'Flanker':    'Back Row',
-  'Number 8':   'Back Row',
-  'Scrum-half': 'Other',
-  'Fly-half':   'Other',
-  'Centre':     'Other',
-  'Wing':       'Outside Back',
-  'Fullback':   'Outside Back',
 }
 
 function toSearchName(name: string): string {
@@ -382,6 +363,7 @@ export default function AdminPoolPage() {
             search_name:        toSearchName(display_name),
             nation:             row.resolveEditNation,
             canonical_position: row.resolveEditPosition,
+            position_group:     POSITION_GROUP[row.resolveEditPosition] ?? 'Other',
           })
           .select('id')
           .single()

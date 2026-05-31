@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
+import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS } from '../../lib/positions'
 
 interface CanonicalPlayer {
   id: number
@@ -9,25 +10,6 @@ interface CanonicalPlayer {
   search_name: string
   nation: string
   canonical_position: string
-}
-
-const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy'] as const
-const POSITIONS = [
-  'Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8',
-  'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback',
-] as const
-
-const POSITION_GROUP: Record<string, string> = {
-  'Prop':       'Front Row',
-  'Hooker':     'Front Row',
-  'Second Row': 'Other',
-  'Flanker':    'Back Row',
-  'Number 8':   'Back Row',
-  'Scrum-half': 'Other',
-  'Fly-half':   'Other',
-  'Centre':     'Other',
-  'Wing':       'Outside Back',
-  'Fullback':   'Outside Back',
 }
 
 const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_position: 'Prop' as string }
