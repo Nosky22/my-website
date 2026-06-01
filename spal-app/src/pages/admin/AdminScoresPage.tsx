@@ -113,6 +113,10 @@ export default function AdminScoresPage() {
   const [addingPenalty, setAddingPenalty]   = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
+  // ── Generate insights ────────────────────────────────────────────
+  const [generatingInsights, setGeneratingInsights] = useState(false)
+  const [insightsMsg, setInsightsMsg]               = useState<string | null>(null)
+
   // ── Predo results ─────────────────────────────────────────────
   const [predoResults, setPredoResults]       = useState<PredoResultRow[]>([])
   const [predoForms, setPredoForms]           = useState<Record<number, PredoResultForm>>({})
@@ -545,6 +549,21 @@ export default function AdminScoresPage() {
     }
 
     addToast(`Predo scores calculated: ${result.managers_scored} manager${result.managers_scored !== 1 ? 's' : ''} scored`, 'success')
+  }
+
+  // ── Generate insights ─────────────────────────────────────────────
+  async function handleGenerateInsights() {
+    if (!selectedSeasonId || !selectedRound || !session) return
+    setGeneratingInsights(true); setInsightsMsg(null)
+    const { data, error } = await supabase.functions.invoke('generate-insights', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    setGeneratingInsights(false)
+    if (error) { addToast(error.message, 'error'); return }
+    const result = data as { round_number: number; season_id: number }
+    setInsightsMsg(`Insights generated for round ${result.round_number}`)
+    addToast(`Insights generated for round ${result.round_number}`, 'success')
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -1021,6 +1040,28 @@ export default function AdminScoresPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </section>
+
+            {/* Generate insights section */}
+            <section className="bg-spal-surface rounded p-5">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="font-semibold text-spal-text">Generate insights</h2>
+                  <p className="text-xs text-spal-muted mt-0.5">
+                    Computes round insights and stores them for the Insights page.
+                  </p>
+                </div>
+                <button
+                  onClick={handleGenerateInsights}
+                  disabled={generatingInsights}
+                  className={`${submitClass} px-5`}
+                >
+                  {generatingInsights ? 'Generating…' : 'Generate insights'}
+                </button>
+              </div>
+              {insightsMsg && (
+                <p className="text-xs text-spal-success mt-2">{insightsMsg}</p>
               )}
             </section>
           </div>
