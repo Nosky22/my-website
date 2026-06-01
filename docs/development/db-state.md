@@ -291,6 +291,25 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `021_chronicle.sql`
+**Applied:** 2026-06-01
+**Status:** Applied successfully — both tables and 6 RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `chronicle_posts` | `bigint identity` | Slug unique; `published boolean`; body stored as markdown; `updated_at` trigger |
+| `chronicle_comments` | `bigint identity` | `parent_id` self-referential FK (ON DELETE CASCADE); one level of replies only; `updated_at` trigger |
+
+**RLS:**
+- `chronicle_posts`: public SELECT where `published = true`; admin full access.
+- `chronicle_comments`: public SELECT where post is published; authenticated INSERT (own author_id, published post, replies limited to one level); authenticated DELETE own comments (replies cascade); admin full access.
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.
