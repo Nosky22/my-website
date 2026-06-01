@@ -33,6 +33,8 @@ import SignUpPage from './pages/SignUpPage'
 import SquadPage from './pages/SquadPage'
 import TeamSheetsPage from './pages/TeamSheetsPage'
 import H2HPage from './pages/H2HPage'
+import PredosPage from './pages/PredosPage'
+import PredosAllTimePage from './pages/PredosAllTimePage'
 import StandingsPage from './pages/StandingsPage'
 
 export default function App() {
@@ -48,6 +50,8 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="standings" element={<StandingsPage />} />
             <Route path="h2h" element={<H2HPage />} />
+            <Route path="predos" element={<PredosPage />} />
+            <Route path="predos/alltime" element={<PredosAllTimePage />} />
             <Route path="teamsheets" element={<TeamSheetsPage />} />
             <Route path="players" element={<PlayersPage />} />
             <Route path="laws" element={<LawsPage />} />

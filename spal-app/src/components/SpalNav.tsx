@@ -5,6 +5,7 @@ const publicLinks = [
   { to: '/',          label: 'Home',      end: true  },
   { to: '/standings', label: 'Standings', end: false },
   { to: '/h2h',        label: 'H2H Cup',    end: false },
+  { to: '/predos',     label: 'Predos',     end: false },
   { to: '/teamsheets', label: 'Team Sheets', end: false },
   { to: '/players',    label: 'Players',    end: false },
   { to: '/laws',      label: 'Laws',      end: false },
