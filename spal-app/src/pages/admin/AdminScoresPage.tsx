@@ -6,6 +6,10 @@ import { ConfirmModal } from '../../components/ConfirmModal'
 
 interface Season { id: number; year: number }
 interface Match  { id: number; home_nation: string; away_nation: string }
+interface PredoResultRow  { match_id: number; actual_winner: string; actual_margin: number }
+interface PredoResultForm { winner: string; margin: string }
+interface PredoCalcScore  { profile_id: string; winning_team_points: number; margin_points: number; total_points: number }
+interface PredoCalcResult { round_number: number; managers_scored: number; scores: PredoCalcScore[] }
 interface ScoreRow {
   id: number
   player_id: number
@@ -109,6 +113,14 @@ export default function AdminScoresPage() {
   const [addingPenalty, setAddingPenalty]   = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
+  // ── Predo results ─────────────────────────────────────────────
+  const [predoResults, setPredoResults]       = useState<PredoResultRow[]>([])
+  const [predoForms, setPredoForms]           = useState<Record<number, PredoResultForm>>({})
+  const [savingPredos, setSavingPredos]       = useState(false)
+  const [predoSaveMsg, setPredoSaveMsg]       = useState<string | null>(null)
+  const [calcPredos, setCalcPredos]           = useState(false)
+  const [predoCalcResult, setPredoCalcResult] = useState<PredoCalcResult | null>(null)
+
   // ── Load seasons ─────────────────────────────────────────────────
   useEffect(() => {
     supabase.from('seasons').select('id, year').order('year', { ascending: false })
@@ -133,6 +145,7 @@ export default function AdminScoresPage() {
       setCalcResult(null)
       setSquadsNeedLock(false); setLockResult(null); setLockError(null)
       setPenalties([])
+      setPredoResults([]); setPredoForms({}); setPredoCalcResult(null); setPredoSaveMsg(null)
       return
     }
     loadRound()
@@ -194,8 +207,29 @@ export default function AdminScoresPage() {
     const deadlinePassed = earliest != null && earliest < new Date().toISOString()
     setSquadsNeedLock(deadlinePassed && (squadsRes.data?.length ?? 0) > 0)
 
-    await loadPenalties()
+    await Promise.all([loadPenalties(), loadPredoResults(matchIds, matchData)])
     setLoadingRound(false)
+  }
+
+  async function loadPredoResults(matchIds: number[], matchData: Array<{ id: number; home_nation: string; away_nation: string }>) {
+    const { data } = await supabase
+      .from('predo_results')
+      .select('match_id, actual_winner, actual_margin')
+      .in('match_id', matchIds)
+    const existing = (data ?? []) as PredoResultRow[]
+    setPredoResults(existing)
+    setPredoCalcResult(null)
+
+    // Pre-fill form: existing results first, then default to home team / 0.
+    const forms: Record<number, PredoResultForm> = {}
+    for (const m of matchData) {
+      const ex = existing.find(r => r.match_id === m.id)
+      forms[m.id] = ex
+        ? { winner: ex.actual_winner, margin: String(ex.actual_margin) }
+        : { winner: m.home_nation, margin: '0' }
+    }
+    setPredoForms(forms)
+    setPredoSaveMsg(null)
   }
 
   async function loadPenalties() {
@@ -453,6 +487,64 @@ export default function AdminScoresPage() {
     addToast('Adjustment removed', 'success')
     await loadPenalties()
     await recalculateQuiet()
+  }
+
+  // ── Save predo results ───────────────────────────────────────
+  async function handleSavePredoResults() {
+    if (!matches.length) return
+    setSavingPredos(true); setPredoSaveMsg(null)
+
+    const rows = matches.map(m => {
+      const f = predoForms[m.id] ?? { winner: m.home_nation, margin: '0' }
+      const margin = f.winner === 'Draw' ? 0 : Math.max(0, parseInt(f.margin, 10) || 0)
+      return { match_id: m.id, actual_winner: f.winner, actual_margin: margin }
+    })
+
+    const { error } = await supabase
+      .from('predo_results')
+      .upsert(rows, { onConflict: 'match_id' })
+
+    setSavingPredos(false)
+    if (error) {
+      setPredoSaveMsg(error.message)
+    } else {
+      setPredoSaveMsg('Results saved.')
+      const matchIds = matches.map(m => m.id)
+      await loadPredoResults(matchIds, matches)
+    }
+  }
+
+  // ── Calculate predo scores ───────────────────────────────────
+  async function handleCalcPredos() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    setCalcPredos(true); setPredoCalcResult(null)
+
+    const { data, error } = await supabase.functions.invoke('score-predos', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+
+    setCalcPredos(false)
+    if (error) {
+      let msg = error.message
+      try {
+        const ctx = (error as unknown as { context?: Response }).context
+        if (ctx) { const b = await ctx.json(); msg = b.error ?? b.message ?? msg }
+      } catch { /* use original message */ }
+      addToast(msg, 'error'); return
+    }
+
+    const result = data as PredoCalcResult
+    setPredoCalcResult(result)
+
+    if (result.scores.length) {
+      const ids = result.scores.map(s => s.profile_id)
+      const { data: pd } = await supabase.from('profiles').select('id, display_name, team_name').in('id', ids)
+      const m = new Map<string, ProfileInfo>()
+      for (const p of pd ?? []) m.set(p.id, { display_name: p.display_name, team_name: p.team_name })
+      setProfiles(m)
+    }
+
+    addToast(`Predo scores calculated: ${result.managers_scored} manager${result.managers_scored !== 1 ? 's' : ''} scored`, 'success')
   }
 
   // ── Render ───────────────────────────────────────────────────────
@@ -758,6 +850,124 @@ export default function AdminScoresPage() {
               <p className="text-xs text-spal-muted mt-3">
                 Adjustments are applied automatically when scores are calculated. Adding or removing an adjustment here will recalculate scores for this round.
               </p>
+            </section>
+
+            {/* ── Predo Results section ────────────────────────────── */}
+            <section className="bg-spal-surface rounded p-5">
+              <h2 className="font-semibold text-spal-text mb-1">Predo results</h2>
+              <p className="text-xs text-spal-muted mb-4">
+                Enter the actual result for each match, then calculate predo scores.
+              </p>
+
+              <div className="space-y-3 mb-4">
+                {matches.map(m => {
+                  const f = predoForms[m.id] ?? { winner: m.home_nation, margin: '0' }
+                  const saved = predoResults.find(r => r.match_id === m.id)
+                  return (
+                    <div key={m.id} className="flex items-center gap-4 flex-wrap">
+                      <span className="text-sm text-spal-text w-44 shrink-0">
+                        {m.home_nation} vs {m.away_nation}
+                        {saved && <span className="text-xs text-spal-success ml-1">✓</span>}
+                      </span>
+                      <select
+                        value={f.winner}
+                        onChange={e => {
+                          const w = e.target.value
+                          setPredoForms(prev => ({
+                            ...prev,
+                            [m.id]: { winner: w, margin: w === 'Draw' ? '0' : prev[m.id]?.margin ?? '0' },
+                          }))
+                        }}
+                        className={inputClass}
+                      >
+                        <option value={m.home_nation}>{m.home_nation}</option>
+                        <option value={m.away_nation}>{m.away_nation}</option>
+                        <option value="Draw">Draw</option>
+                      </select>
+                      {f.winner !== 'Draw' && (
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-spal-muted">Margin</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={f.margin}
+                            onChange={e => setPredoForms(prev => ({
+                              ...prev,
+                              [m.id]: { ...prev[m.id], margin: e.target.value },
+                            }))}
+                            className={`${inputClass} w-20`}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center gap-4 flex-wrap mb-6">
+                <button onClick={handleSavePredoResults} disabled={savingPredos} className={`${submitClass} px-5`}>
+                  {savingPredos ? 'Saving…' : 'Save results'}
+                </button>
+                {predoSaveMsg && (
+                  <p className={`text-sm ${predoSaveMsg.includes('aved') ? 'text-spal-success' : 'text-spal-error'}`}>
+                    {predoSaveMsg}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/10 pt-4">
+                <div>
+                  <p className="text-sm font-medium text-spal-text">Calculate predo scores</p>
+                  <p className="text-xs text-spal-muted mt-0.5">Requires all results saved above.</p>
+                </div>
+                <button onClick={handleCalcPredos} disabled={calcPredos} className={`${submitClass} px-5`}>
+                  {calcPredos ? 'Calculating…' : 'Calculate predo scores'}
+                </button>
+              </div>
+
+              {predoCalcResult && (
+                <div className="mt-4">
+                  <p className="text-xs text-spal-muted mb-3">
+                    {predoCalcResult.managers_scored} manager{predoCalcResult.managers_scored !== 1 ? 's' : ''} scored
+                    — round {predoCalcResult.round_number}
+                  </p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-spal-muted border-b border-white/10">
+                        <th className="pb-2 pr-3 font-normal w-10">Pos</th>
+                        <th className="pb-2 pr-6 font-normal">Manager</th>
+                        <th className="pb-2 pr-4 font-normal text-right tabular-nums hidden sm:table-cell">Win pts</th>
+                        <th className="pb-2 pr-4 font-normal text-right tabular-nums hidden sm:table-cell">Margin pts</th>
+                        <th className="pb-2 font-normal text-right tabular-nums">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {predoCalcResult.scores.map((s, i) => {
+                        const p = profiles.get(s.profile_id)
+                        return (
+                          <tr key={s.profile_id} className={`border-b border-white/5 ${i === 0 ? 'bg-spal-yellow/5' : ''}`}>
+                            <td className={`py-2 pr-3 tabular-nums text-xs font-medium ${i === 0 ? 'text-spal-yellow' : 'text-spal-muted'}`}>
+                              {ordinal(i + 1)}
+                            </td>
+                            <td className={`py-2 pr-6 font-medium ${i === 0 ? 'text-spal-yellow' : 'text-spal-text'}`}>
+                              {p?.display_name ?? s.profile_id}
+                            </td>
+                            <td className="py-2 pr-4 text-right tabular-nums text-spal-muted hidden sm:table-cell">
+                              {Number(s.winning_team_points).toFixed(1)}
+                            </td>
+                            <td className="py-2 pr-4 text-right tabular-nums text-spal-muted hidden sm:table-cell">
+                              {Number(s.margin_points).toFixed(1)}
+                            </td>
+                            <td className={`py-2 text-right tabular-nums font-semibold ${i === 0 ? 'text-spal-yellow' : 'text-spal-text'}`}>
+                              {Number(s.total_points).toFixed(1)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             {/* Calculate section */}
