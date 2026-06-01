@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import InsightsPanel, { type InsightPayload } from '../components/InsightsPanel'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,9 +78,14 @@ export default function SeasonReviewPage() {
   const [matchScores, setMatchScores]       = useState<MatchScoreRow[]>([])
   const [priceMap, setPriceMap]             = useState<Map<number, number>>(new Map())
   const [predoStandings, setPredoStandings] = useState<PredoStandingRow[]>([])
+  const [insightsRound, setInsightsRound]   = useState<number | null>(null)
+  const [insightsPayload, setInsightsPayload] = useState<InsightPayload | null>(null)
+  const [insightsGenAt, setInsightsGenAt]   = useState<string | null>(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
   const [loading, setLoading]               = useState(true)
   const [notFound, setNotFound]             = useState(false)
   const [seasonYear, setSeasonYear]         = useState<number | null>(null)
+  const [seasonId, setSeasonId]             = useState<number | null>(null)
 
   useEffect(() => {
     if (!year) return
@@ -98,6 +104,7 @@ export default function SeasonReviewPage() {
       if (!seasonRow) { setNotFound(true); setLoading(false); return }
       const seasonId: number = seasonRow.id
       setSeasonYear(seasonRow.year)
+      setSeasonId(seasonId)
 
       // 2. All queries in parallel
       const [standingsRes, picksRes, scoresRes, matchScoresRes, pricesRes, predoRes] = await Promise.all([
@@ -217,6 +224,23 @@ export default function SeasonReviewPage() {
 
     load()
   }, [year])
+
+  // ── Load insights for selected round ──────────────────────────────────────
+  useEffect(() => {
+    if (!seasonId || insightsRound == null) { setInsightsPayload(null); setInsightsGenAt(null); return }
+    setInsightsLoading(true)
+    supabase
+      .from('round_insights')
+      .select('payload, generated_at')
+      .eq('season_id', seasonId)
+      .eq('round_number', insightsRound)
+      .maybeSingle()
+      .then(({ data }) => {
+        setInsightsPayload(data ? (data.payload as InsightPayload) : null)
+        setInsightsGenAt(data ? (data.generated_at as string) : null)
+        setInsightsLoading(false)
+      })
+  }, [seasonId, insightsRound])
 
   // ── Derived: per-manager round-by-round totals ────────────────────────────
 
@@ -508,6 +532,38 @@ export default function SeasonReviewPage() {
         )}
       </section>
 
+      {/* ── 7. Round insights ──────────────────────────────────── */}
+      <section>
+        <SectionHeader title="Round insights" />
+        <div className="flex items-center gap-2 mb-5">
+          {([1,2,3,4,5] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setInsightsRound(r)}
+              className={roundBtnClass(insightsRound === r)}
+            >
+              R{r}
+            </button>
+          ))}
+        </div>
+        {insightsRound == null ? (
+          <p className="text-spal-muted text-sm">Select a round to view insights.</p>
+        ) : insightsLoading ? (
+          <p className="text-spal-muted text-sm">Loading…</p>
+        ) : !insightsPayload ? (
+          <p className="text-spal-muted text-sm">No insights generated for Round {insightsRound} yet.</p>
+        ) : (
+          <>
+            {insightsGenAt && (
+              <p className="text-xs text-spal-muted mb-6">
+                Generated {new Date(insightsGenAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
+            <InsightsPanel payload={insightsPayload} />
+          </>
+        )}
+      </section>
+
       {/* ── 6. Predo standings ─────────────────────────────────── */}
       <section>
         <SectionHeader title="Predos" />
@@ -542,4 +598,12 @@ export default function SeasonReviewPage() {
       </section>
     </div>
   )
+}
+
+function roundBtnClass(active: boolean) {
+  return `px-2.5 py-1 rounded text-xs font-medium transition-colors border ${
+    active
+      ? 'border-spal-cerulean bg-spal-cerulean/10 text-spal-cerulean'
+      : 'border-white/10 text-spal-muted hover:border-white/30 hover:text-spal-text'
+  }`
 }
