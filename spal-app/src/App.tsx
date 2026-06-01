@@ -36,6 +36,7 @@ import H2HPage from './pages/H2HPage'
 import PredosPage from './pages/PredosPage'
 import PredosAllTimePage from './pages/PredosAllTimePage'
 import StandingsPage from './pages/StandingsPage'
+import InsightsPage from './pages/InsightsPage'
 
 export default function App() {
   return (
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="history" element={<HistoryPage />} />
             <Route path="history/:year" element={<SeasonReviewPage />} />
             <Route path="alltime" element={<AllTimePage />} />
+            <Route path="insights" element={<InsightsPage />} />
             <Route path="manager/:profileId" element={<ManagerProfilePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignUpPage />} />
