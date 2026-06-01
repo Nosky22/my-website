@@ -273,6 +273,24 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `020_insights.sql`
+**Applied:** 2026-06-01
+**Status:** Applied successfully — table and 2 RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `round_insights` | `bigint identity` | One row per (season, round); `payload jsonb` holds all insight data; unique per (season_id, round_number); public read |
+
+**RLS:**
+- `round_insights_public_read`: public SELECT (`anon + authenticated`).
+- `round_insights_admin_write`: admin full access (`is_admin()`).
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.
