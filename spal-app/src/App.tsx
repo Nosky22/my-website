@@ -37,6 +37,8 @@ import PredosPage from './pages/PredosPage'
 import PredosAllTimePage from './pages/PredosAllTimePage'
 import StandingsPage from './pages/StandingsPage'
 import InsightsPage from './pages/InsightsPage'
+import ChroniclePage from './pages/ChroniclePage'
+import ChroniclePostPage from './pages/ChroniclePostPage'
 
 export default function App() {
   return (
@@ -60,6 +62,8 @@ export default function App() {
             <Route path="history/:year" element={<SeasonReviewPage />} />
             <Route path="alltime" element={<AllTimePage />} />
             <Route path="insights" element={<InsightsPage />} />
+            <Route path="chronicle" element={<ChroniclePage />} />
+            <Route path="chronicle/:slug" element={<ChroniclePostPage />} />
             <Route path="manager/:profileId" element={<ManagerProfilePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignUpPage />} />
