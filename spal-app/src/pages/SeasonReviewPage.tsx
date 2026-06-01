@@ -38,6 +38,12 @@ interface MatchScoreRow {
   round_number: number
 }
 
+interface PredoStandingRow {
+  profile_id: string
+  display_name: string
+  total_points: number
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const DRAFT_SLOT_LABELS: Record<string, string> = {
@@ -70,6 +76,7 @@ export default function SeasonReviewPage() {
   const [topPlayers, setTopPlayers]         = useState<PlayerScore[]>([])
   const [matchScores, setMatchScores]       = useState<MatchScoreRow[]>([])
   const [priceMap, setPriceMap]             = useState<Map<number, number>>(new Map())
+  const [predoStandings, setPredoStandings] = useState<PredoStandingRow[]>([])
   const [loading, setLoading]               = useState(true)
   const [notFound, setNotFound]             = useState(false)
   const [seasonYear, setSeasonYear]         = useState<number | null>(null)
@@ -93,7 +100,7 @@ export default function SeasonReviewPage() {
       setSeasonYear(seasonRow.year)
 
       // 2. All queries in parallel
-      const [standingsRes, picksRes, scoresRes, matchScoresRes, pricesRes] = await Promise.all([
+      const [standingsRes, picksRes, scoresRes, matchScoresRes, pricesRes, predoRes] = await Promise.all([
         supabase
           .from('season_standings')
           .select('profile_id, total_points, rounds_played, profiles!profile_id(display_name)')
@@ -121,6 +128,11 @@ export default function SeasonReviewPage() {
           .select('player_id, final_price')
           .eq('season_id', seasonId)
           .is('round_number', null),
+
+        supabase
+          .from('predo_scores')
+          .select('profile_id, total_points, profiles!profile_id(display_name)')
+          .eq('season_id', seasonId),
       ])
 
       // Standings
@@ -186,6 +198,20 @@ export default function SeasonReviewPage() {
       }
       setPriceMap(pMap)
 
+      // Predo standings — aggregate total_points per manager across all rounds
+      type RawPredo = { profile_id: string; total_points: number; profiles: { display_name: string } | null }
+      const predoTotals = new Map<string, { display_name: string; total: number }>()
+      for (const row of (predoRes.data ?? []) as unknown as RawPredo[]) {
+        const cur = predoTotals.get(row.profile_id) ?? { display_name: row.profiles?.display_name ?? 'Unknown', total: 0 }
+        cur.total += Number(row.total_points)
+        predoTotals.set(row.profile_id, cur)
+      }
+      setPredoStandings(
+        Array.from(predoTotals.entries())
+          .map(([id, v]) => ({ profile_id: id, display_name: v.display_name, total_points: v.total }))
+          .sort((a, b) => b.total_points - a.total_points)
+      )
+
       setLoading(false)
     }
 
@@ -213,8 +239,6 @@ export default function SeasonReviewPage() {
   // ── Derived: summary stats ────────────────────────────────────────────────
 
   const summaryStats = useMemo(() => {
-    if (standings.length === 0) return null
-
     // Highest single-round score (any manager)
     let highRoundScore = 0
     let highRoundManager = ''
@@ -340,9 +364,11 @@ export default function SeasonReviewPage() {
       </section>
 
       {/* ── 2. Round by round ──────────────────────────────────────── */}
-      {rounds.length > 0 && (
-        <section>
-          <SectionHeader title="Round by round" />
+      <section>
+        <SectionHeader title="Round by round" />
+        {rounds.length === 0 ? (
+          <p className="text-spal-muted text-sm">No round scores recorded yet.</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="text-sm">
               <thead>
@@ -378,13 +404,15 @@ export default function SeasonReviewPage() {
               </tbody>
             </table>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* ── 3. Top 10 players ──────────────────────────────────────── */}
-      {topPlayers.length > 0 && (
-        <section>
-          <SectionHeader title="Top 10 players" />
+      <section>
+        <SectionHeader title="Top 10 players" />
+        {topPlayers.length === 0 ? (
+          <p className="text-spal-muted text-sm">No player scores recorded yet.</p>
+        ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-spal-muted border-b border-white/10">
@@ -407,13 +435,15 @@ export default function SeasonReviewPage() {
               ))}
             </tbody>
           </table>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* ── 4. Summary stats ───────────────────────────────────────── */}
-      {summaryStats && (
-        <section>
-          <SectionHeader title="Season stats" />
+      <section>
+        <SectionHeader title="Season stats" />
+        {!summaryStats.highRoundScore && !summaryStats.mostConsistent && !summaryStats.bestValue ? (
+          <p className="text-spal-muted text-sm">Stats will be available once rounds have been scored.</p>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {summaryStats.highRoundScore && (
               <div className="bg-spal-surface border border-white/5 rounded-lg p-4">
@@ -445,13 +475,15 @@ export default function SeasonReviewPage() {
               </div>
             )}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* ── 5. Draft board ─────────────────────────────────────────── */}
-      {draftByManager.length > 0 && (
-        <section>
-          <SectionHeader title="Draft board" />
+      <section>
+        <SectionHeader title="Draft board" />
+        {draftByManager.length === 0 ? (
+          <p className="text-spal-muted text-sm">No draft recorded for this season.</p>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {draftByManager.map(mg => (
               <div key={mg.id}>
@@ -473,8 +505,41 @@ export default function SeasonReviewPage() {
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
+
+      {/* ── 6. Predo standings ─────────────────────────────────── */}
+      <section>
+        <SectionHeader title="Predos" />
+        {predoStandings.length === 0 ? (
+          <p className="text-spal-muted text-sm">No predo scores recorded for this season.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-spal-muted border-b border-white/10">
+                <th className="pb-2 pr-4 font-normal w-8">#</th>
+                <th className="pb-2 pr-6 font-normal">Manager</th>
+                <th className="pb-2 font-normal text-right tabular-nums">Predo pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {predoStandings.map((row, i) => (
+                <tr key={row.profile_id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                  <td className="py-2 pr-4 text-spal-muted tabular-nums">{i + 1}</td>
+                  <td className="py-2 pr-6 font-medium text-spal-text">
+                    <Link to={`/manager/${row.profile_id}`} className="hover:text-spal-cerulean transition-colors">
+                      {row.display_name}
+                    </Link>
+                  </td>
+                  <td className={`py-2 text-right tabular-nums font-semibold ${i === 0 ? 'text-spal-yellow' : 'text-spal-text'}`}>
+                    {Number(row.total_points).toFixed(1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   )
 }

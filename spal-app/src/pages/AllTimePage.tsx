@@ -19,6 +19,7 @@ interface AllTimeRow {
   avg_per_season: number
   best_finish: number      // 1 = won
   seasons_won: number
+  predo_points: number | null
 }
 
 export default function AllTimePage() {
@@ -26,11 +27,20 @@ export default function AllTimePage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase
-      .from('season_standings')
-      .select('season_id, profile_id, total_points, seasons!season_id(year), profiles!profile_id(display_name)')
-      .then(({ data }) => {
-        const standings = (data ?? []) as unknown as RawStanding[]
+    Promise.all([
+      supabase
+        .from('season_standings')
+        .select('season_id, profile_id, total_points, seasons!season_id(year), profiles!profile_id(display_name)'),
+      supabase
+        .from('predo_scores')
+        .select('profile_id, total_points'),
+    ]).then(([standingsRes, predoRes]) => {
+        const standings = (standingsRes.data ?? []) as unknown as RawStanding[]
+        // Build predo totals: profile_id → sum of total_points
+        const predoTotals = new Map<string, number>()
+        for (const row of (predoRes.data ?? []) as Array<{ profile_id: string; total_points: number }>) {
+          predoTotals.set(row.profile_id, (predoTotals.get(row.profile_id) ?? 0) + Number(row.total_points))
+        }
 
         // Group all standings by season so we can compute per-season ranks
         const bySeason = new Map<number, RawStanding[]>()
@@ -80,6 +90,7 @@ export default function AllTimePage() {
           avg_per_season: m.total_points / m.season_ids.size,
           best_finish:    Math.min(...m.finishes),
           seasons_won:    m.finishes.filter(f => f === 1).length,
+          predo_points:   predoTotals.has(profile_id) ? predoTotals.get(profile_id)! : null,
         }))
 
         allTime.sort((a, b) => b.total_points - a.total_points)
@@ -118,7 +129,8 @@ export default function AllTimePage() {
               <th className="pb-2 pr-4 font-normal text-right tabular-nums">Total pts</th>
               <th className="pb-2 pr-4 font-normal text-right tabular-nums hidden md:table-cell">Avg / season</th>
               <th className="pb-2 pr-4 font-normal text-right tabular-nums hidden md:table-cell">Best finish</th>
-              <th className="pb-2 font-normal text-right tabular-nums hidden sm:table-cell">Wins</th>
+              <th className="pb-2 pr-4 font-normal text-right tabular-nums hidden sm:table-cell">Wins</th>
+              <th className="pb-2 font-normal text-right tabular-nums hidden lg:table-cell">Predo pts</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +156,7 @@ export default function AllTimePage() {
                   <td className="py-3 pr-4 text-right tabular-nums text-spal-muted hidden md:table-cell">
                     {row.best_finish === 1 ? <span className="text-spal-yellow">1st</span> : `${row.best_finish}${ordinal(row.best_finish)}`}
                   </td>
-                  <td className="py-3 text-right tabular-nums hidden sm:table-cell">
+                  <td className="py-3 pr-4 text-right tabular-nums hidden sm:table-cell">
                     {row.seasons_won > 0 ? (
                       <span className={isTopWinner ? 'text-spal-yellow font-semibold' : 'text-spal-text'}>
                         {row.seasons_won}
@@ -152,6 +164,9 @@ export default function AllTimePage() {
                     ) : (
                       <span className="text-spal-muted">—</span>
                     )}
+                  </td>
+                  <td className="py-3 text-right tabular-nums text-spal-muted hidden lg:table-cell">
+                    {row.predo_points != null ? Number(row.predo_points).toFixed(1) : '—'}
                   </td>
                 </tr>
               )
