@@ -252,6 +252,27 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `019_predos.sql`
+**Applied:** 2026-06-01
+**Status:** Applied successfully — all 3 tables and 9 RLS policies verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `predo_predictions` | `bigint identity` | One row per manager per match; unique per (profile_id, match_id); `predicted_margin >= 0` check; `updated_at` trigger |
+| `predo_results` | `bigint identity` | One row per match (entered by admin); unique on `match_id`; `actual_margin >= 0` check; `updated_at` trigger |
+| `predo_scores` | `bigint identity` | Calculated per manager per round; unique per (season_id, profile_id, round_number); all points columns `numeric(5,1)` to support 0.5 tie-sharing increments; `updated_at` trigger |
+
+**RLS:**
+- `predo_predictions`: managers always see own rows (`authenticated` SELECT WHERE `auth.uid() = profile_id`); everyone sees all predictions after first kickoff of the round has passed (`anon + authenticated` SELECT with `kickoff_at <= now()` subquery); managers can INSERT/UPDATE own only before deadline (same subquery negated); admin full access.
+- `predo_results`: public read (`anon + authenticated`); admin write only.
+- `predo_scores`: public read (`anon + authenticated`); admin write only.
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.
