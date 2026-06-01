@@ -11,7 +11,8 @@ const adminLinks = [
   { to: '/admin/scores',    label: 'Scores',    end: false },
   { to: '/admin/managers',  label: 'Managers',  end: false },
   { to: '/admin/imports',   label: 'Imports',   end: false },
-  { to: '/admin/settings', label: 'Settings',  end: false },
+  { to: '/admin/chronicle', label: 'Chronicle', end: false },
+  { to: '/admin/settings',  label: 'Settings',  end: false },
 ]
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>

@@ -15,6 +15,7 @@ import AdminManagersPage from './pages/admin/AdminManagersPage'
 import AdminPoolPage from './pages/admin/AdminPoolPage'
 import AdminScoresPage from './pages/admin/AdminScoresPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
+import AdminChroniclePage from './pages/admin/AdminChroniclePage'
 import DashboardPage from './pages/DashboardPage'
 import DraftPage from './pages/DraftPage'
 import DraftRoomPage from './pages/DraftRoomPage'
@@ -91,7 +92,8 @@ export default function App() {
                 <Route path="scores"    element={<AdminScoresPage />} />
                 <Route path="managers" element={<AdminManagersPage />} />
                 <Route path="imports"  element={<AdminImportsPage />} />
-                <Route path="settings" element={<AdminSettingsPage />} />
+                <Route path="settings"   element={<AdminSettingsPage />} />
+                <Route path="chronicle" element={<AdminChroniclePage />} />
               </Route>
             </Route>
 
