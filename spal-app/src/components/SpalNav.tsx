@@ -11,6 +11,8 @@ const publicLinks = [
   { to: '/laws',      label: 'Laws',      end: false },
   { to: '/history',   label: 'History',   end: false },
   { to: '/alltime',   label: 'All-Time',  end: false },
+  { to: '/insights',  label: 'Insights',  end: false },
+  { to: '/chronicle', label: 'Chronicle', end: false },
 ]
 
 const managerLinks = [
