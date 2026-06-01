@@ -25,7 +25,7 @@ const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy']
 const DRAFT_POSITION_GROUPS = ['Front Row', 'Back Row', 'Outside Back', 'Other']
 const CANONICAL_POSITIONS = ['Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8', 'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback']
 
-type SortKey = 'name' | 'nation' | 'position' | 'draft' | 'pts' | 'value' | 'form' | 'ownership'
+type SortKey = 'name' | 'nation' | 'position' | 'price' | 'draft' | 'pts' | 'value' | 'form' | 'ownership'
 
 const POSITION_ORDER = Object.fromEntries(CANONICAL_POSITIONS.map((p, i) => [p, i + 1]))
 
@@ -34,6 +34,7 @@ const DEFAULT_SORT_DIR: Record<SortKey, 'asc' | 'desc'> = {
   name:      'asc',
   nation:    'asc',
   position:  'asc',
+  price:     'desc',
   draft:     'desc',
   pts:       'desc',
   value:     'desc',
@@ -249,6 +250,15 @@ export default function PlayersPage() {
           return dir * (ao - bo)
         }
 
+        case 'price': {
+          const ap = priceMap.get(a.id) ?? null
+          const bp = priceMap.get(b.id) ?? null
+          if (ap === null && bp === null) return 0
+          if (ap === null) return 1
+          if (bp === null) return -1
+          return dir * (ap - bp)
+        }
+
         case 'draft': {
           // true (drafted) = 1, false (available) = 0
           // desc → drafted first; asc → available first
@@ -278,7 +288,7 @@ export default function PlayersPage() {
         }
       }
     })
-  }, [visible, sortBy, sortDir, statsMap, draftedBy])
+  }, [visible, sortBy, sortDir, statsMap, draftedBy, priceMap])
 
   return (
     <div>
@@ -373,6 +383,9 @@ export default function PlayersPage() {
               <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('position')}>
                 Position <SortIcon k="position" />
               </th>
+              <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('price')}>
+                Price <SortIcon k="price" />
+              </th>
               <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('pts')}>
                 Pts <SortIcon k="pts" />
               </th>
@@ -404,6 +417,9 @@ export default function PlayersPage() {
                   <td className="py-2 pr-4 text-spal-text font-medium">{p.display_name}</td>
                   <td className="py-2 pr-4"><NationBadge nation={p.nation} /></td>
                   <td className="py-2 pr-4 text-spal-muted hidden md:table-cell">{p.canonical_position}</td>
+                  <td className="py-2 pr-4 tabular-nums hidden md:table-cell text-spal-muted">
+                    {priceMap.has(p.id) ? `★${priceMap.get(p.id)}` : '—'}
+                  </td>
                   <td className="py-2 pr-4 tabular-nums hidden md:table-cell text-spal-text">
                     {stats.totalPts != null ? stats.totalPts : '—'}
                   </td>

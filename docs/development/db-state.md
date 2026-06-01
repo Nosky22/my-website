@@ -244,6 +244,14 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `018_anon_read_manager_match_scores.sql`
+**Applied:** 2026-06-01
+**Status:** Applied successfully — policy `manager_match_scores_anon_read` verified by query
+
+**Changes:** Added `manager_match_scores_anon_read` SELECT policy for the `anon` role on `manager_match_scores`. Required for public history pages (season review, all-time records) to display round-by-round and per-manager scoring without login. Score history contains no PII. The existing `authenticated`-only SELECT and admin write policies are unchanged. Additive only.
+
+---
+
 ## Pending migrations
 
 None.

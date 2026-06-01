@@ -20,6 +20,9 @@ import DraftPage from './pages/DraftPage'
 import DraftRoomPage from './pages/DraftRoomPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HistoryPage from './pages/HistoryPage'
+import SeasonReviewPage from './pages/SeasonReviewPage'
+import AllTimePage from './pages/AllTimePage'
+import ManagerProfilePage from './pages/ManagerProfilePage'
 import HomePage from './pages/HomePage'
 import LawsPage from './pages/LawsPage'
 import LoginPage from './pages/LoginPage'
@@ -49,6 +52,9 @@ export default function App() {
             <Route path="players" element={<PlayersPage />} />
             <Route path="laws" element={<LawsPage />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="history/:year" element={<SeasonReviewPage />} />
+            <Route path="alltime" element={<AllTimePage />} />
+            <Route path="manager/:profileId" element={<ManagerProfilePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignUpPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />

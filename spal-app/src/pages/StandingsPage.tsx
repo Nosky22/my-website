@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { EmptyState } from '../components/EmptyState'
@@ -150,7 +151,10 @@ export default function StandingsPage() {
                       >
                         <td className="py-3 pr-4 text-spal-muted tabular-nums">{i + 1}</td>
                         <td className={`py-3 pr-6 font-medium ${isMe ? 'text-spal-cerulean' : 'text-spal-text'}`}>
-                          {row.display_name}{isMe && <span className="ml-1 text-xs opacity-60">you</span>}
+                          <Link to={`/manager/${row.profile_id}`} className="hover:text-spal-cerulean transition-colors">
+                            {row.display_name}
+                          </Link>
+                          {isMe && <span className="ml-1 text-xs opacity-60">you</span>}
                         </td>
                         <td className="py-3 pr-4 text-right tabular-nums text-spal-text">
                           {Number(row.total_points).toFixed(1)}

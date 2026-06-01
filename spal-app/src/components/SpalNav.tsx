@@ -9,6 +9,7 @@ const publicLinks = [
   { to: '/players',    label: 'Players',    end: false },
   { to: '/laws',      label: 'Laws',      end: false },
   { to: '/history',   label: 'History',   end: false },
+  { to: '/alltime',   label: 'All-Time',  end: false },
 ]
 
 const managerLinks = [
