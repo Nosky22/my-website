@@ -25,7 +25,21 @@ const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy']
 const DRAFT_POSITION_GROUPS = ['Front Row', 'Back Row', 'Outside Back', 'Other']
 const CANONICAL_POSITIONS = ['Prop', 'Hooker', 'Second Row', 'Flanker', 'Number 8', 'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback']
 
-type SortKey = 'pts' | 'value'
+type SortKey = 'name' | 'nation' | 'position' | 'draft' | 'pts' | 'value' | 'form' | 'ownership'
+
+const POSITION_ORDER = Object.fromEntries(CANONICAL_POSITIONS.map((p, i) => [p, i + 1]))
+
+// First click on a column uses this direction; subsequent clicks toggle.
+const DEFAULT_SORT_DIR: Record<SortKey, 'asc' | 'desc'> = {
+  name:      'asc',
+  nation:    'asc',
+  position:  'asc',
+  draft:     'desc',
+  pts:       'desc',
+  value:     'desc',
+  form:      'desc',
+  ownership: 'desc',
+}
 
 export default function PlayersPage() {
   const { user } = useAuth()
@@ -198,7 +212,7 @@ export default function PlayersPage() {
       setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     } else {
       setSortBy(key)
-      setSortDir('desc')
+      setSortDir(DEFAULT_SORT_DIR[key])
     }
   }
 
@@ -219,17 +233,52 @@ export default function PlayersPage() {
 
   const sorted = useMemo(() => {
     if (!sortBy) return visible
+    const dir = sortDir === 'asc' ? 1 : -1
+
     return [...visible].sort((a, b) => {
-      const as_ = statsMap.get(a.id)
-      const bs_ = statsMap.get(b.id)
-      const av = sortBy === 'pts' ? (as_?.totalPts ?? null) : (as_?.value ?? null)
-      const bv = sortBy === 'pts' ? (bs_?.totalPts ?? null) : (bs_?.value ?? null)
-      if (av === null && bv === null) return 0
-      if (av === null) return 1
-      if (bv === null) return -1
-      return sortDir === 'desc' ? bv - av : av - bv
+      switch (sortBy) {
+        case 'name':
+          return dir * a.display_name.localeCompare(b.display_name)
+
+        case 'nation':
+          return dir * a.nation.localeCompare(b.nation)
+
+        case 'position': {
+          const ao = POSITION_ORDER[a.canonical_position] ?? 99
+          const bo = POSITION_ORDER[b.canonical_position] ?? 99
+          return dir * (ao - bo)
+        }
+
+        case 'draft': {
+          // true (drafted) = 1, false (available) = 0
+          // desc → drafted first; asc → available first
+          const am = Number(draftedBy.has(a.id))
+          const bm = Number(draftedBy.has(b.id))
+          return dir * (am - bm) * -1  // invert so desc = drafted first
+        }
+
+        default: {
+          // Numeric stats — nulls always at bottom regardless of direction
+          const as_ = statsMap.get(a.id)
+          const bs_ = statsMap.get(b.id)
+          const av: number | null =
+            sortBy === 'pts'       ? (as_?.totalPts  ?? null) :
+            sortBy === 'value'     ? (as_?.value      ?? null) :
+            sortBy === 'form'      ? (as_?.form        ?? null) :
+            /* ownership */          (as_?.ownership   ?? null)
+          const bv: number | null =
+            sortBy === 'pts'       ? (bs_?.totalPts  ?? null) :
+            sortBy === 'value'     ? (bs_?.value      ?? null) :
+            sortBy === 'form'      ? (bs_?.form        ?? null) :
+            /* ownership */          (bs_?.ownership   ?? null)
+          if (av === null && bv === null) return 0
+          if (av === null) return 1
+          if (bv === null) return -1
+          return dir * (av - bv)
+        }
+      }
     })
-  }, [visible, sortBy, sortDir, statsMap])
+  }, [visible, sortBy, sortDir, statsMap, draftedBy])
 
   return (
     <div>
@@ -315,31 +364,35 @@ export default function PlayersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-spal-muted border-b border-white/10">
-              <th className="pb-2 pr-4 font-normal">Player</th>
-              <th className="pb-2 pr-4 font-normal">Nation</th>
-              <th className="pb-2 pr-4 font-normal hidden md:table-cell">Position</th>
-              <th
-                className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap"
-                onClick={() => handleSort('pts')}
-              >
+              <th className="pb-2 pr-4 font-normal cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('name')}>
+                Player <SortIcon k="name" />
+              </th>
+              <th className="pb-2 pr-4 font-normal cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('nation')}>
+                Nation <SortIcon k="nation" />
+              </th>
+              <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('position')}>
+                Position <SortIcon k="position" />
+              </th>
+              <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('pts')}>
                 Pts <SortIcon k="pts" />
               </th>
-              <th
-                className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap"
-                onClick={() => handleSort('value')}
-              >
+              <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('value')}>
                 Value <SortIcon k="value" />
               </th>
-              <th className="pb-2 pr-4 font-normal hidden md:table-cell">Form</th>
+              <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('form')}>
+                Form <SortIcon k="form" />
+              </th>
               {user && (
-                <th className="pb-2 pr-4 font-normal hidden md:table-cell whitespace-nowrap">
-                  Ownership
+                <th className="pb-2 pr-4 font-normal hidden md:table-cell cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('ownership')}>
+                  Ownership <SortIcon k="ownership" />
                   {ownership?.round != null && (
                     <span className="text-white/30 font-normal ml-1">(R{ownership.round})</span>
                   )}
                 </th>
               )}
-              <th className="pb-2 font-normal">Draft status</th>
+              <th className="pb-2 font-normal cursor-pointer select-none whitespace-nowrap" onClick={() => handleSort('draft')}>
+                Draft status <SortIcon k="draft" />
+              </th>
             </tr>
           </thead>
           <tbody>
