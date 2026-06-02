@@ -34,10 +34,10 @@
 - [x] Separate League Table and H2H Cup — StandingsPage ranks by total points only; H2HPage at /h2h has W/D/L record and H2H points table.
 
 ## Tier 3 — Polish
-- [ ] Empty state illustrations
-- [ ] Admin imports/settings stubs replaced with proper content
-- [ ] Score result table formatting
-- [ ] Draft board slot context improvements
+- [x] Empty state illustrations
+- [x] Admin imports/settings stubs replaced with proper content
+- [x] Score result table formatting
+- [x] Draft board slot context improvements
 
 ## Historical Data & Records
 - [x] Historical season results page — SeasonReviewPage at /history/:year with standings, scores, squad builder, draft board, predos, insights.
@@ -49,8 +49,8 @@
 
 ## Scoring & Data
 - [ ] Live score updates during matches — final scores only for v1 recommended
-- [ ] Official API adapter for 2027 — officialFantasyAdapter Edge Function using /v1/flux, ready for January 2027
-- [ ] Team sheet import — admin UI to import official starting XVs when announced Thursday/Friday pre-round
+- [ ] Official API adapter — build officialFantasyAdapter Edge Function using /v1/flux endpoint. Target: November/December 2026 ready for January 2027 season.
+- [x] Team sheet import — built at /admin/teamsheets with manual entry and CSV import.
 - [ ] Late change handling — admin can update matchday status after initial import
 - [ ] Price updates per round — mechanism to update player prices between rounds via API or manual entry
 
@@ -58,6 +58,10 @@
 - [ ] Visual workflow indicator — already built on dashboard, continue refining
 - [ ] Display official team sheets to managers before squad deadline
 - [ ] Keep SPAL in step with official game schedule
+
+## Admin Management
+- [ ] Admin Predos management — ability to edit, reset, and delete predo predictions and results. Reset predo scores for a round. View all manager predictions before the deadline (admin bypass).
+- [ ] Admin Chronicle management improvements — ability to edit and delete comments (admin moderation), pin posts, manage post order, insights embed syntax in post body.
 
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
