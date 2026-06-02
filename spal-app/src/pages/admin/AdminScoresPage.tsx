@@ -38,11 +38,14 @@ interface ScoreForm {
   playerId: number | null
   playerDisplayName: string
   sourcePts: string
+  overridePts: string
+  overrideReason: string
   matchdayStatus: MatchdayStatus
 }
 
 const EMPTY_FORM: ScoreForm = {
-  matchId: null, playerId: null, playerDisplayName: '', sourcePts: '', matchdayStatus: 'starting',
+  matchId: null, playerId: null, playerDisplayName: '', sourcePts: '',
+  overridePts: '', overrideReason: '', matchdayStatus: 'starting',
 }
 
 const EMPTY_PENALTY_FORM: PenaltyForm = {
@@ -311,6 +314,8 @@ export default function AdminScoresPage() {
       playerId: row.player_id,
       playerDisplayName: row.players.display_name,
       sourcePts: String(row.source_points),
+      overridePts: row.admin_override_points != null ? String(row.admin_override_points) : '',
+      overrideReason: '',
       matchdayStatus: mdStatus,
     })
     setPlayerSearch(row.players.display_name)
@@ -335,13 +340,22 @@ export default function AdminScoresPage() {
     const pts = parseFloat(form.sourcePts)
     if (isNaN(pts)) { setSaveError('Invalid points value'); return }
 
+    const overrideVal = form.overridePts.trim() === '' ? null : parseFloat(form.overridePts.trim())
+    if (overrideVal !== null && isNaN(overrideVal)) { setSaveError('Invalid override value'); return }
+    if (overrideVal !== null && !form.overrideReason.trim()) { setSaveError('Override reason is required'); return }
+
+    // Capture old override before writing, for the audit record
+    const existingRow = scores.find(s => s.match_id === form.matchId && s.player_id === form.playerId)
+    const oldOverride = existingRow?.admin_override_points ?? null
+    const overrideChanged = overrideVal !== oldOverride
+
     setSaving(true); setSaveError(null); setSaveSuccess(false)
 
     const [scoreRes, mdRes] = await Promise.all([
       supabase.from('player_match_scores').upsert(
-        { match_id: form.matchId, player_id: form.playerId, season_id: selectedSeasonId, source_points: pts, status: 'provisional' },
+        { match_id: form.matchId, player_id: form.playerId, season_id: selectedSeasonId, source_points: pts, admin_override_points: overrideVal, status: 'provisional' },
         { onConflict: 'match_id,player_id' }
-      ),
+      ).select('id'),
       supabase.from('matchday_squads').upsert(
         { match_id: form.matchId, player_id: form.playerId, status: form.matchdayStatus, source: 'admin' },
         { onConflict: 'match_id,player_id' }
@@ -351,6 +365,22 @@ export default function AdminScoresPage() {
     if (scoreRes.error || mdRes.error) {
       setSaveError(scoreRes.error?.message ?? mdRes.error?.message ?? 'Save failed')
       setSaving(false); return
+    }
+
+    // Audit override changes (CLAUDE.md: all admin overrides must be recorded)
+    if (overrideChanged && user && selectedSeasonId != null) {
+      const scoreId = (scoreRes.data as Array<{ id: number }> | null)?.[0]?.id
+      await supabase.from('admin_overrides').insert({
+        season_id:   selectedSeasonId,
+        entity_type: 'player_match_score',
+        entity_id:   scoreId != null ? String(scoreId) : `${form.matchId}_${form.playerId}`,
+        field_name:  'admin_override_points',
+        old_value:   oldOverride,
+        new_value:   overrideVal,
+        reason:      overrideVal === null ? 'Override cleared' : form.overrideReason.trim(),
+        created_by:  user.id,
+      })
+      await recalculateQuiet()
     }
 
     setSaveSuccess(true); setSaving(false)
@@ -1154,6 +1184,56 @@ export default function AdminScoresPage() {
                       className={inputClass}
                     />
                   </Field>
+
+                  <Field label="Override score" htmlFor="f-override">
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="f-override"
+                        type="number"
+                        step="0.5"
+                        value={form.overridePts}
+                        onChange={e => setForm(f => ({ ...f, overridePts: e.target.value, overrideReason: '' }))}
+                        placeholder="Leave blank for no override"
+                        className={inputClass}
+                      />
+                      {form.overridePts !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, overridePts: '', overrideReason: '' }))}
+                          className="text-xs text-spal-muted hover:text-spal-text whitespace-nowrap transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-spal-muted mt-1">Takes precedence over source score</p>
+                  </Field>
+
+                  {form.overridePts !== '' && (
+                    <Field label="Override reason" htmlFor="f-override-reason">
+                      <input
+                        id="f-override-reason"
+                        type="text"
+                        value={form.overrideReason}
+                        onChange={e => setForm(f => ({ ...f, overrideReason: e.target.value }))}
+                        placeholder="Required — e.g. corrected after official update"
+                        className={inputClass}
+                      />
+                    </Field>
+                  )}
+
+                  {(form.sourcePts !== '' || form.overridePts !== '') && (
+                    <div className="flex items-center gap-2 text-xs py-1 px-3 rounded bg-white/5">
+                      <span className="text-spal-muted">Final score:</span>
+                      {form.overridePts !== '' ? (
+                        <span className="text-spal-warning font-semibold tabular-nums">
+                          {form.overridePts} <span className="font-normal">(overridden)</span>
+                        </span>
+                      ) : (
+                        <span className="text-spal-text font-semibold tabular-nums">{form.sourcePts}</span>
+                      )}
+                    </div>
+                  )}
 
                   <Field label="Matchday status" htmlFor="f-md-status">
                     <select
