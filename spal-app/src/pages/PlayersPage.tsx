@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import NationBadge from '../components/NationBadge'
@@ -294,9 +295,14 @@ export default function PlayersPage() {
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-spal-yellow">Players</h1>
-        {statsRound != null && (
-          <span className="text-xs text-spal-muted">Stats current to Round {statsRound}</span>
-        )}
+        <div className="flex items-center gap-4">
+          {statsRound != null && (
+            <span className="text-xs text-spal-muted">Stats current to Round {statsRound}</span>
+          )}
+          <Link to="/players/alltime" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+            All-time records →
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-6">

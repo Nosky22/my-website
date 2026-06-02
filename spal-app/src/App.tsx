@@ -38,6 +38,7 @@ import PredosPage from './pages/PredosPage'
 import PredosAllTimePage from './pages/PredosAllTimePage'
 import StandingsPage from './pages/StandingsPage'
 import InsightsPage from './pages/InsightsPage'
+import PlayersAllTimePage from './pages/PlayersAllTimePage'
 import ChroniclePage from './pages/ChroniclePage'
 import ChroniclePostPage from './pages/ChroniclePostPage'
 
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="predos/alltime" element={<PredosAllTimePage />} />
             <Route path="teamsheets" element={<TeamSheetsPage />} />
             <Route path="players" element={<PlayersPage />} />
+            <Route path="players/alltime" element={<PlayersAllTimePage />} />
             <Route path="laws" element={<LawsPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="history/:year" element={<SeasonReviewPage />} />

@@ -29,7 +29,7 @@
 - [x] Confirmation on destructive admin actions — ConfirmModal on Start Draft, Reopen Draft, and manager merge
 - [x] Submit squad confirmation — ConfirmModal on SquadPage before final submission.
 - [x] Round marked as final in UI — AdminScoresPage has "Finalise round" action; standings display last_updated_round.
-- [ ] Admin override points UI — score entry form only handles source_points; no separate field to set admin_override_points independently.
+- [x] Admin override points UI — override field in score entry form; takes precedence over source score; requires reason; writes audit record to admin_overrides; triggers quiet score recalculation.
 - [x] Show logged-in user identity in SPAL nav — display_name shown next to Sign out button when logged in.
 - [x] Separate League Table and H2H Cup — StandingsPage ranks by total points only; H2HPage at /h2h has W/D/L record and H2H points table.
 
@@ -44,7 +44,7 @@
 - [x] All-time league table — AllTimePage at /alltime with cumulative manager standings across seasons.
 - [x] Manager profile pages — ManagerProfilePage at /manager/:profileId.
 - [x] Season review pages — SeasonReviewPage (see above).
-- [ ] All-time top players — no player-level all-time records page yet.
+- [x] All-time top players — PlayersAllTimePage at /players/alltime; total pts, seasons, avg/season, best round; nation + position filters; linked from PlayersPage and AllTimePage; Top Players in nav.
 - [x] Historical draft records — draft board section included in SeasonReviewPage.
 
 ## Scoring & Data

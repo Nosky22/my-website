@@ -104,7 +104,12 @@ export default function AllTimePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-spal-yellow mb-1">All-Time Table</h1>
+      <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+        <h1 className="text-2xl font-bold text-spal-yellow">All-Time Table</h1>
+        <Link to="/players/alltime" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+          Top players →
+        </Link>
+      </div>
       <p className="text-spal-muted text-sm mb-8">Aggregated across all seasons in the database.</p>
 
       {loading ? (
