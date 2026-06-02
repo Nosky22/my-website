@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BarChart2, BookOpen, Calendar, ChevronDown, ClipboardList, Clock,
   FileText, Gamepad2, Home, LayoutDashboard, Lightbulb, LogIn,
@@ -56,7 +56,8 @@ export default function SpalNav() {
   }
 
   // Active round from URL search params (for Team Sheets sub-links)
-  const activeRound = new URLSearchParams(location.search).get('round')
+  const [navSearchParams] = useSearchParams()
+  const activeRound = navSearchParams.get('round')
 
   // ── Group definitions ──────────────────────────────────────────────
 

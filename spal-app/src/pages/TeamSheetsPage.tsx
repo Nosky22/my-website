@@ -53,7 +53,7 @@ function formatKickoff(ts: string): string {
 }
 
 export default function TeamSheetsPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [activeSeason, setActiveSeason]     = useState<Season | null>(null)
   const [allMatches, setAllMatches]         = useState<Match[]>([])
@@ -226,7 +226,7 @@ export default function TeamSheetsPage() {
             {availableRounds.map(r => (
               <button
                 key={r}
-                onClick={() => setSelectedRound(r)}
+                onClick={() => setSearchParams({ round: String(r) })}
                 className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border ${
                   selectedRound === r
                     ? 'border-spal-cerulean bg-spal-cerulean/10 text-spal-cerulean'
