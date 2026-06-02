@@ -47,6 +47,24 @@ const POSITION_ORDER = [
   'Scrum-half', 'Fly-half', 'Centre', 'Wing', 'Fullback',
 ]
 
+function Tooltip({ text }: { text: string }) {
+  return (
+    <span className="relative inline-flex items-center ml-1 group/tip align-middle">
+      <span className="text-spal-cerulean text-[10px] cursor-help leading-none select-none">ⓘ</span>
+      <span className="
+        absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56
+        bg-spal-surface border border-white/15 shadow-lg
+        text-spal-text text-xs rounded px-2.5 py-1.5
+        opacity-0 group-hover/tip:opacity-100
+        pointer-events-none transition-opacity duration-150
+        z-50 leading-relaxed normal-case tracking-normal font-normal
+      ">
+        {text}
+      </span>
+    </span>
+  )
+}
+
 function SectionTitle({ title }: { title: string }) {
   return (
     <h3 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
@@ -55,10 +73,12 @@ function SectionTitle({ title }: { title: string }) {
   )
 }
 
-function Card({ label, children }: { label: string; children: React.ReactNode }) {
+function Card({ label, tooltip, children }: { label: string; tooltip?: string; children: React.ReactNode }) {
   return (
     <div className="bg-spal-surface border border-white/5 rounded-lg p-4">
-      <p className="text-xs text-spal-muted uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-xs text-spal-muted uppercase tracking-wider mb-2">
+        {label}{tooltip && <Tooltip text={tooltip} />}
+      </p>
       {children}
     </div>
   )
@@ -86,7 +106,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
         <SectionTitle title="Round performance" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {round.highest_scoring_manager && (
-            <Card label="Highest score">
+            <Card
+              label="Highest score"
+              tooltip="The manager who scored the most fantasy points this round across all three matches"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">
                 {fmt(round.highest_scoring_manager.score ?? 0)}
               </p>
@@ -94,7 +117,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {round.lowest_scoring_manager && (
-            <Card label="Lowest score">
+            <Card
+              label="Lowest score"
+              tooltip="The manager who scored the fewest fantasy points this round"
+            >
               <p className="text-2xl font-bold text-spal-muted tabular-nums">
                 {fmt(round.lowest_scoring_manager.score ?? 0)}
               </p>
@@ -102,7 +128,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {round.closest_margin && (
-            <Card label="Closest margin">
+            <Card
+              label="Closest margin"
+              tooltip="The two managers whose round scores were closest to each other"
+            >
               <p className="text-2xl font-bold text-spal-cerulean tabular-nums">
                 {fmt(round.closest_margin.gap)}
               </p>
@@ -114,7 +143,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {round.most_improved && (
-            <Card label="Most improved">
+            <Card
+              label="Most improved"
+              tooltip="The manager who moved up the most positions in the league table this round"
+            >
               <p className="text-lg font-bold text-spal-success">
                 ↑{round.most_improved.positions_gained}
               </p>
@@ -135,14 +167,20 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
         <SectionTitle title="Player highlights" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
           {players.highest_scorer && (
-            <Card label="Top scorer">
+            <Card
+              label="Top scorer"
+              tooltip="The player who scored the most official fantasy points across all matches this round"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">{fmt(players.highest_scorer.points ?? 0)}</p>
               <p className="text-sm text-spal-text mt-1">{players.highest_scorer.name}</p>
               <p className="text-xs text-spal-muted">{players.highest_scorer.nation} · {players.highest_scorer.position}</p>
             </Card>
           )}
           {players.most_selected && (
-            <Card label="Most selected">
+            <Card
+              label="Most selected"
+              tooltip="The player chosen by the most managers in their squad this round"
+            >
               <p className="text-2xl font-bold text-spal-cerulean tabular-nums">
                 {players.most_selected.squad_count}/{players.most_selected.total_managers}
               </p>
@@ -151,14 +189,20 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {players.one_that_got_away && (
-            <Card label="One that got away">
+            <Card
+              label="One that got away"
+              tooltip="The highest scoring player this round who was not selected by any manager"
+            >
               <p className="text-2xl font-bold text-red-400 tabular-nums">{fmt(players.one_that_got_away.points ?? 0)}</p>
               <p className="text-sm text-spal-text mt-1">{players.one_that_got_away.name}</p>
               <p className="text-xs text-spal-muted">{players.one_that_got_away.nation} · {players.one_that_got_away.position}</p>
             </Card>
           )}
           {players.best_supersub && (
-            <Card label="Best supersub">
+            <Card
+              label="Best supersub"
+              tooltip="The supersub who delivered the biggest points boost — supersubs score 3x points if they come off the bench"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">{fmt(players.best_supersub.multiplied_points)}</p>
               <p className="text-sm text-spal-text mt-1">{players.best_supersub.name}</p>
               <p className="text-xs text-spal-muted">
@@ -171,7 +215,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
         {/* Top per position */}
         {posEntries.length > 0 && (
           <div className="bg-spal-surface border border-white/5 rounded-lg overflow-hidden">
-            <p className="text-xs text-spal-muted uppercase tracking-wider px-4 pt-3 pb-2">Best per position</p>
+            <p className="text-xs text-spal-muted uppercase tracking-wider px-4 pt-3 pb-2">
+              Best per position
+              <Tooltip text="The top scoring player in each position for this round" />
+            </p>
             <table className="w-full text-sm">
               <tbody>
                 {posEntries.map(({ pos, name, nation, points }) => (
@@ -192,7 +239,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             {nationBars.length > 0 && (
               <div className="bg-spal-surface border border-white/5 rounded-lg p-4">
-                <p className="text-xs text-spal-muted uppercase tracking-wider mb-3">Points share by nation</p>
+                <p className="text-xs text-spal-muted uppercase tracking-wider mb-3">
+                  Points share by nation
+                  <Tooltip text="Share of total SPAL fantasy points contributed by each nation's players this round" />
+                </p>
                 <div className="space-y-2">
                   {nationBars.map(([nation, pct]) => (
                     <div key={nation}>
@@ -210,7 +260,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             )}
             {posBars.length > 0 && (
               <div className="bg-spal-surface border border-white/5 rounded-lg p-4">
-                <p className="text-xs text-spal-muted uppercase tracking-wider mb-3">Points share by position</p>
+                <p className="text-xs text-spal-muted uppercase tracking-wider mb-3">
+                  Points share by position
+                  <Tooltip text="Share of total SPAL fantasy points contributed by each position group this round" />
+                </p>
                 <div className="space-y-2">
                   {posBars.map(([pos, pct]) => (
                     <div key={pos}>
@@ -235,21 +288,30 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
         <SectionTitle title="Draft" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {draft.best_drafted_player && (
-            <Card label="Best drafted player">
+            <Card
+              label="Best drafted player"
+              tooltip="The highest scoring player this round who was selected in the draft"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">{fmt(draft.best_drafted_player.points)}</p>
               <p className="text-sm text-spal-text mt-1">{draft.best_drafted_player.name}</p>
               <p className="text-xs text-spal-muted">Drafted by {draft.best_drafted_player.drafted_by_name}</p>
             </Card>
           )}
           {draft.best_draft_manager && (
-            <Card label="Best draft return">
+            <Card
+              label="Best draft return"
+              tooltip="The manager whose drafted players combined for the most points this round"
+            >
               <p className="text-2xl font-bold text-spal-cerulean tabular-nums">{fmt(draft.best_draft_manager.total_drafted_points)}</p>
               <p className="text-sm text-spal-text mt-1">{draft.best_draft_manager.name}</p>
               <p className="text-xs text-spal-muted">Total from drafted players</p>
             </Card>
           )}
           {draft.best_value && (
-            <Card label="Best value">
+            <Card
+              label="Best value"
+              tooltip="The player who delivered the most points per star of their price this round"
+            >
               <p className="text-2xl font-bold text-spal-success tabular-nums">{fmt(draft.best_value.points_per_star)}</p>
               <p className="text-xs text-spal-muted">pts/★</p>
               <p className="text-sm text-spal-text mt-1">{draft.best_value.name}</p>
@@ -264,6 +326,7 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
           <div className="mt-3 bg-spal-surface border border-white/5 rounded-lg p-4">
             <p className="text-xs text-spal-muted uppercase tracking-wider mb-2">
               Drafted players who scored 0 ({draft.zero_scorers.length})
+              <Tooltip text="Drafted players who scored zero points this round — either didn't play or had a poor game" />
             </p>
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               {draft.zero_scorers.map(z => (
@@ -284,7 +347,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
         <SectionTitle title="Season to date" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {season_to_date.leader && (
-            <Card label="League leader">
+            <Card
+              label="League leader"
+              tooltip="Current leader and their points advantage over second place"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">{fmt(season_to_date.leader.total_points)}</p>
               <p className="text-sm text-spal-text mt-1">{season_to_date.leader.name}</p>
               {season_to_date.leader.lead_over_second > 0 && (
@@ -293,7 +359,10 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {season_to_date.most_consistent && (
-            <Card label="Most consistent">
+            <Card
+              label="Most consistent"
+              tooltip="The manager with the smallest variation in their round scores — consistently solid rather than feast or famine"
+            >
               <p className="text-sm text-spal-text font-semibold mt-1">{season_to_date.most_consistent.name}</p>
               <p className="text-xs text-spal-muted">
                 Variance {fmt(season_to_date.most_consistent.score_variance)}
@@ -304,14 +373,20 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
             </Card>
           )}
           {season_to_date.best_draft && (
-            <Card label="Best draft portfolio">
+            <Card
+              label="Best draft portfolio"
+              tooltip="The manager whose drafted players have contributed the most total points across all rounds so far"
+            >
               <p className="text-2xl font-bold text-spal-cerulean tabular-nums">{fmt(season_to_date.best_draft.total_drafted_points)}</p>
               <p className="text-sm text-spal-text mt-1">{season_to_date.best_draft.name}</p>
               <p className="text-xs text-spal-muted">Draft pts across all rounds</p>
             </Card>
           )}
           {season_to_date.top_season_player && (
-            <Card label="Top season player">
+            <Card
+              label="Top season player"
+              tooltip="The player who has scored the most fantasy points across all rounds this season"
+            >
               <p className="text-2xl font-bold text-spal-yellow tabular-nums">{fmt(season_to_date.top_season_player.total_points ?? 0)}</p>
               <p className="text-sm text-spal-text mt-1">{season_to_date.top_season_player.name}</p>
               <p className="text-xs text-spal-muted">{season_to_date.top_season_player.nation} · {season_to_date.top_season_player.position}</p>
