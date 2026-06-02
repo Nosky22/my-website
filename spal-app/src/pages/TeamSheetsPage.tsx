@@ -65,6 +65,12 @@ export default function TeamSheetsPage() {
   const [draftOwnerMap, setDraftOwnerMap]   = useState<Map<number, string[]>>(new Map())
   const [loading, setLoading]               = useState(true)
 
+  // Sync selectedRound when ?round=N param changes (e.g. nav sub-link clicks)
+  const roundParam = searchParams.get('round')
+  useEffect(() => {
+    if (roundParam) setSelectedRound(parseInt(roundParam, 10))
+  }, [roundParam])
+
   // Load active season + all matches to determine available rounds and current round
   useEffect(() => {
     async function init() {
