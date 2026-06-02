@@ -310,6 +310,24 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `022_chronicle_fix_rls_recursion.sql`
+**Applied:** 2026-06-02
+**Status:** Applied successfully — both functions (prosecdef=true) and all 4 chronicle_comments policies verified by query
+
+**Changes:** Fixed infinite recursion in `chronicle_comments` RLS policies.
+
+**Functions created:**
+- `is_post_published(p_post_id bigint) RETURNS boolean` — security definer; checks `chronicle_posts.published = true` without triggering RLS on that table.
+- `is_top_level_comment(p_comment_id bigint) RETURNS boolean` — security definer; checks that a comment has `parent_id IS NULL` without re-entering `chronicle_comments` RLS.
+
+**Policies replaced (drop + recreate):**
+- `chronicle_comments_public_read` — now uses `is_post_published(post_id)` instead of an inline EXISTS subquery on `chronicle_posts`.
+- `chronicle_comments_manager_insert` — now uses `is_post_published(post_id)` and `is_top_level_comment(parent_id)` instead of inline subqueries.
+
+**No data modified. No irreversible changes.**
+
+---
+
 ## Pending migrations
 
 None.
