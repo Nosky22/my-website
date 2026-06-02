@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
 
@@ -52,9 +53,14 @@ function formatKickoff(ts: string): string {
 }
 
 export default function TeamSheetsPage() {
+  const [searchParams] = useSearchParams()
+
   const [activeSeason, setActiveSeason]     = useState<Season | null>(null)
   const [allMatches, setAllMatches]         = useState<Match[]>([])
-  const [selectedRound, setSelectedRound]   = useState<number>(1)
+  const [selectedRound, setSelectedRound]   = useState<number>(() => {
+    const r = searchParams.get('round')
+    return r ? parseInt(r, 10) : 1
+  })
   const [squadMap, setSquadMap]             = useState<Map<string, PublicSquadPlayer[]>>(new Map())
   const [draftOwnerMap, setDraftOwnerMap]   = useState<Map<number, string[]>>(new Map())
   const [loading, setLoading]               = useState(true)
@@ -88,12 +94,14 @@ export default function TeamSheetsPage() {
         .filter(m => m.kickoff_at && m.kickoff_at > now)
         .map(m => m.round_number)
 
-      const rounds = [...new Set(matches.map(m => m.round_number))].sort((a, b) => a - b)
-      const defaultRound = roundsWithFutureKickoff.length > 0
-        ? Math.min(...roundsWithFutureKickoff)
-        : (rounds[rounds.length - 1] ?? 1)
-
-      setSelectedRound(defaultRound)
+      // Only apply smart default if no round was specified in the URL
+      if (!searchParams.get('round')) {
+        const rounds = [...new Set(matches.map(m => m.round_number))].sort((a, b) => a - b)
+        const defaultRound = roundsWithFutureKickoff.length > 0
+          ? Math.min(...roundsWithFutureKickoff)
+          : (rounds[rounds.length - 1] ?? 1)
+        setSelectedRound(defaultRound)
+      }
     }
     init()
   }, [])
