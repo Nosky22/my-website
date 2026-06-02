@@ -214,7 +214,7 @@ export default function InsightsPanel({ payload }: { payload: InsightPayload }) 
 
         {/* Top per position */}
         {posEntries.length > 0 && (
-          <div className="bg-spal-surface border border-white/5 rounded-lg overflow-hidden">
+          <div className="bg-spal-surface border border-white/5 rounded-lg">
             <p className="text-xs text-spal-muted uppercase tracking-wider px-4 pt-3 pb-2">
               Best per position
               <Tooltip text="The top scoring player in each position for this round" />
