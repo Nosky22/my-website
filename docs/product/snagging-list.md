@@ -22,16 +22,16 @@
 - [x] Canonical player identity — migration 014 applied 2026-05-27. canonical_players table, unaccent extension, players.canonical_player_id FK. 127 canonical records, 0 unlinked rows.
 
 ## Tier 2 — Should fix for a good experience
-- [ ] Invite gate on signup
-- [ ] Season rules editable from admin UI
+- [x] Invite gate on signup — SignUpPage validates invite token against invite_tokens table before allowing registration.
+- [x] Season rules editable from admin UI — AdminSeasonsPage has a full rules editor (reads/writes season_rules table).
 - [x] Success toast/notification system — Toast component + useToast hook; toasts on AdminSeasons, AdminPlayers, AdminScores, Squad, AdminManagers
-- [ ] Player search on players and admin players pages
+- [x] Player search on players and admin players pages — both PlayersPage and AdminPlayersPage have search + filter inputs.
 - [x] Confirmation on destructive admin actions — ConfirmModal on Start Draft, Reopen Draft, and manager merge
-- [ ] Submit squad confirmation
-- [ ] Round marked as final in UI
-- [ ] Admin override points UI
+- [x] Submit squad confirmation — ConfirmModal on SquadPage before final submission.
+- [x] Round marked as final in UI — AdminScoresPage has "Finalise round" action; standings display last_updated_round.
+- [ ] Admin override points UI — score entry form only handles source_points; no separate field to set admin_override_points independently.
 - [x] Show logged-in user identity in SPAL nav — display_name shown next to Sign out button when logged in.
-- [ ] Separate League Table and H2H Cup — the main standings should rank managers by total points only. H2H competition becomes a separate "Head to Head Cup" with its own table ranked by H2H points and W/D/L record. Build as a separate page at /spal/h2h. Update standings page to be points-only. No database changes needed — scoring engine already calculates both.
+- [x] Separate League Table and H2H Cup — StandingsPage ranks by total points only; H2HPage at /h2h has W/D/L record and H2H points table.
 
 ## Tier 3 — Polish
 - [ ] Empty state illustrations
@@ -40,12 +40,12 @@
 - [ ] Draft board slot context improvements
 
 ## Historical Data & Records
-- [ ] Historical season results page
-- [ ] All-time league table
-- [ ] Manager profile pages
-- [ ] Season review pages
-- [ ] All-time top players
-- [ ] Historical draft records
+- [x] Historical season results page — SeasonReviewPage at /history/:year with standings, scores, squad builder, draft board, predos, insights.
+- [x] All-time league table — AllTimePage at /alltime with cumulative manager standings across seasons.
+- [x] Manager profile pages — ManagerProfilePage at /manager/:profileId.
+- [x] Season review pages — SeasonReviewPage (see above).
+- [ ] All-time top players — no player-level all-time records page yet.
+- [x] Historical draft records — draft board section included in SeasonReviewPage.
 
 ## Scoring & Data
 - [ ] Live score updates during matches — final scores only for v1 recommended
@@ -60,8 +60,8 @@
 - [ ] Keep SPAL in step with official game schedule
 
 ## Technical & Performance
-- [ ] Round locking — auto-lock at deadline, copy previous squad if none submitted
-- [ ] Score states — provisional vs final, admin marks round as final
+- [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
+- [x] Score states — provisional vs final; admin marks round as final in AdminScoresPage; standings shows last_updated_round.
 - [ ] Mobile responsive audit and fixes
 - [ ] Loading states and error handling across all pages
 - [ ] Performance — caching, reduce unnecessary fetches
