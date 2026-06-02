@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/Toast'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface SeasonOption { id: number; year: number; status: string }
 interface Season { id: number; year: number }
 
 interface SquadPlayer {
@@ -32,6 +34,9 @@ interface Standing {
   total_points:       number
   rounds_played:      number
   last_updated_round: number | null
+  h2h_wins:           number
+  h2h_draws:          number
+  h2h_losses:         number
 }
 
 interface MySquad {
@@ -73,14 +78,27 @@ function fmtDeadline(iso: string): string {
   }).replace(',', '')
 }
 
+function ordinal(n: number): string {
+  if (n === 1) return '1st'
+  if (n === 2) return '2nd'
+  if (n === 3) return '3rd'
+  return `${n}th`
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const { addToast } = useToast()
 
+  // Season selector
+  const [allSeasons, setAllSeasons]         = useState<SeasonOption[]>([])
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
+  const [activeSeasonId, setActiveSeasonId] = useState<number | null>(null)
+
+  // Page data
   const [loading, setLoading]             = useState(true)
   const [season, setSeason]               = useState<Season | null>(null)
-  const [isFallbackSeason, setIsFallbackSeason] = useState(false)
   const [currentRound, setCurrentRound]   = useState<number | null>(null)
   const [roundDeadline, setRoundDeadline] = useState<string | null>(null)
   const [mySquad, setMySquad]             = useState<MySquad | null>(null)
@@ -92,34 +110,62 @@ export default function DashboardPage() {
   const [standings, setStandings]         = useState<Standing[]>([])
   const [draftComplete, setDraftComplete] = useState(false)
   const [scoresExist, setScoresExist]     = useState(false)
+  const [predoPoints, setPredoPoints]     = useState<number | null>(null)
 
+  // Inline team_name editing
+  const [teamName, setTeamName]           = useState(profile?.team_name ?? '')
+  const [editingTeamName, setEditingTeamName] = useState(false)
+  const [teamNameDraft, setTeamNameDraft] = useState('')
+  const [teamNameSaving, setTeamNameSaving] = useState(false)
+
+  // Sync teamName when profile resolves
+  useEffect(() => {
+    if (profile?.team_name !== undefined) setTeamName(profile.team_name)
+  }, [profile])
+
+  // Load all seasons once when user is ready; default to active or most recent
   useEffect(() => {
     if (!user) return
-    load()
-  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function load() {
-    setLoading(true)
-
-    // ── Active season ─────────────────────────────────────────────────────
-    // Prefer a season explicitly marked active; fall back to the most recent.
-    const { data: seasonRows } = await supabase
+    supabase
       .from('seasons')
       .select('id, year, status')
       .order('year', { ascending: false })
-      .limit(10)
+      .limit(20)
+      .then(({ data }) => {
+        const rows = (data ?? []) as SeasonOption[]
+        setAllSeasons(rows)
+        const active = rows.find(s => s.status === 'active') ?? rows[0]
+        if (active) {
+          setActiveSeasonId(active.id)
+          setSelectedSeasonId(active.id)
+        } else {
+          setLoading(false)
+        }
+      })
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const rows = (seasonRows ?? []) as (Season & { status: string })[]
-    const explicitlyActive = rows.find(s => s.status === 'active')
-    const activeSeason     = explicitlyActive ?? rows[0]
+  // Reload data whenever the selected season changes
+  useEffect(() => {
+    if (!user || selectedSeasonId == null) return
+    load(selectedSeasonId)
+  }, [user, selectedSeasonId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!activeSeason) {
-      setSeason(null)
-      setLoading(false)
-      return
+  async function load(seasonId: number) {
+    setLoading(true)
+
+    const seasonMeta = allSeasons.find(s => s.id === seasonId)
+    if (!seasonMeta) {
+      // allSeasons may not be set yet on first run — fetch inline
+      const { data } = await supabase
+        .from('seasons')
+        .select('id, year')
+        .eq('id', seasonId)
+        .single()
+      if (!data) { setLoading(false); return }
+      setSeason(data as Season)
+    } else {
+      setSeason({ id: seasonMeta.id, year: seasonMeta.year })
     }
-    setSeason(activeSeason)
-    setIsFallbackSeason(!explicitlyActive)
 
     // ── Parallel fetches ──────────────────────────────────────────────────
     const [
@@ -129,46 +175,51 @@ export default function DashboardPage() {
       { data: mySquads },
       { data: draftSessionRow },
       { data: rulesRow },
+      { data: predoRows },
     ] = await Promise.all([
       supabase
         .from('matches')
         .select('round_number, kickoff_at')
-        .eq('season_id', activeSeason.id)
+        .eq('season_id', seasonId)
         .order('round_number')
         .order('kickoff_at'),
       supabase
         .from('draft_picks')
         .select('pick_number, draft_slot, players(display_name, nation, canonical_position)')
-        .eq('season_id', activeSeason.id)
+        .eq('season_id', seasonId)
         .eq('profile_id', user!.id)
         .order('pick_number'),
       supabase
         .from('season_standings')
-        .select('profile_id, total_points, rounds_played, last_updated_round, profiles(display_name, team_name)')
-        .eq('season_id', activeSeason.id)
+        .select('profile_id, total_points, rounds_played, last_updated_round, h2h_wins, h2h_draws, h2h_losses, profiles(display_name, team_name)')
+        .eq('season_id', seasonId)
         .order('total_points', { ascending: false }),
       supabase
         .from('manager_round_squads')
         .select('id, round_number, status, locked_at')
-        .eq('season_id', activeSeason.id)
+        .eq('season_id', seasonId)
         .eq('profile_id', user!.id),
       supabase
         .from('draft_sessions')
         .select('status')
-        .eq('season_id', activeSeason.id)
+        .eq('season_id', seasonId)
         .maybeSingle(),
       supabase
         .from('season_rules')
         .select('rules')
-        .eq('season_id', activeSeason.id)
+        .eq('season_id', seasonId)
         .maybeSingle(),
+      supabase
+        .from('predo_scores')
+        .select('total_points')
+        .eq('season_id', seasonId)
+        .eq('profile_id', user!.id),
     ])
 
     // ── Derive current round ──────────────────────────────────────────────
     const now = new Date()
     const rounds = [...new Set((matchRows ?? []).map(m => m.round_number as number))].sort((a, b) => a - b)
 
-    // First round that still has a future kickoff; fallback to last round.
     let activeRound = rounds[rounds.length - 1] ?? 1
     for (const r of rounds) {
       const kickoffs = (matchRows ?? [])
@@ -179,7 +230,6 @@ export default function DashboardPage() {
     }
     setCurrentRound(activeRound)
 
-    // Round deadline = earliest kickoff in the active round.
     const currentRoundKickoffs = (matchRows ?? [])
       .filter(m => m.round_number === activeRound)
       .map(m => m.kickoff_at as string)
@@ -203,13 +253,18 @@ export default function DashboardPage() {
       total_points:       Number(s.total_points ?? 0),
       rounds_played:      Number(s.rounds_played ?? 0),
       last_updated_round: s.last_updated_round as number | null,
+      h2h_wins:           Number((s as unknown as { h2h_wins: number }).h2h_wins ?? 0),
+      h2h_draws:          Number((s as unknown as { h2h_draws: number }).h2h_draws ?? 0),
+      h2h_losses:         Number((s as unknown as { h2h_losses: number }).h2h_losses ?? 0),
     }))
     setStandings(standingsList)
 
-    // Scores exist if the standings row for the current manager has been
-    // updated at or past the active round.
     const myStanding = standingsList.find(s => s.profile_id === user!.id)
     setScoresExist((myStanding?.last_updated_round ?? 0) >= activeRound && (myStanding?.rounds_played ?? 0) > 0)
+
+    // ── Predo points ──────────────────────────────────────────────────────
+    const predoTotal = (predoRows ?? []).reduce((sum, r) => sum + Number((r as { total_points: number }).total_points ?? 0), 0)
+    setPredoPoints(predoRows && predoRows.length > 0 ? predoTotal : null)
 
     // ── Budget ────────────────────────────────────────────────────────────
     const rules = rulesRow?.rules as Record<string, unknown> | undefined
@@ -229,7 +284,7 @@ export default function DashboardPage() {
         const { data: priceRows } = await supabase
           .from('player_prices')
           .select('player_id, final_price, round_number')
-          .eq('season_id', activeSeason.id)
+          .eq('season_id', seasonId)
           .in('player_id', playerIds)
 
         const basePrices  = new Map<number, number>()
@@ -241,7 +296,7 @@ export default function DashboardPage() {
 
         type RawPlayer = { display_name: string; nation: string; canonical_position: string }
         const full: SquadPlayer[] = (rawSquadPlayers ?? []).map(sp => {
-          const pid = Number(sp.player_id)
+          const pid  = Number(sp.player_id)
           const info = sp.players as unknown as RawPlayer | null
           return {
             player_id:          pid,
@@ -259,15 +314,44 @@ export default function DashboardPage() {
         setSquadPlayers([])
         setBudgetUsed(0)
       }
+    } else {
+      setSquadPlayers([])
+      setBudgetUsed(null)
+      setPlayerCount(0)
     }
 
     setLoading(false)
   }
 
+  // ── Team name editing ──────────────────────────────────────────────────────
+
+  function startEditTeamName() {
+    setTeamNameDraft(teamName)
+    setEditingTeamName(true)
+  }
+
+  async function saveTeamName() {
+    const trimmed = teamNameDraft.trim()
+    setTeamNameSaving(true)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ team_name: trimmed })
+      .eq('id', user!.id)
+    setTeamNameSaving(false)
+    if (error) {
+      addToast('Failed to save team name', 'error')
+    } else {
+      setTeamName(trimmed)
+      setEditingTeamName(false)
+      addToast('Team name saved', 'success')
+    }
+  }
+
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const deadlinePassed = roundDeadline ? new Date(roundDeadline) < new Date() : false
-  const isLocked       = !!mySquad?.locked_at || deadlinePassed
+  const isActiveSeason    = selectedSeasonId === activeSeasonId
+  const deadlinePassed    = roundDeadline ? new Date(roundDeadline) < new Date() : false
+  const isLocked          = !!mySquad?.locked_at || deadlinePassed
 
   const squadStatusKey: 'none' | 'draft' | 'submitted' | 'locked' =
     !mySquad            ? 'none'
@@ -276,9 +360,10 @@ export default function DashboardPage() {
     : 'draft'
 
   const ctaLabel =
-    squadStatusKey === 'locked'    ? 'View Squad'  :
-    squadStatusKey === 'submitted' ? 'Edit Squad'  :
-    squadStatusKey === 'draft'     ? 'Edit Draft'  :
+    !isActiveSeason                     ? 'View Squad'  :
+    squadStatusKey === 'locked'         ? 'View Squad'  :
+    squadStatusKey === 'submitted'      ? 'Edit Squad'  :
+    squadStatusKey === 'draft'          ? 'Edit Draft'  :
     'Submit Squad'
 
   const ctaTo = season && currentRound
@@ -295,7 +380,9 @@ export default function DashboardPage() {
   ]
   const firstUndone = workflowSteps.findIndex(s => !s.done)
 
-  const hasScores = standings.some(s => s.rounds_played > 0)
+  const hasScores  = standings.some(s => s.rounds_played > 0)
+  const myStanding = standings.find(s => s.profile_id === user?.id) ?? null
+  const myPosition = myStanding ? standings.indexOf(myStanding) + 1 : null
 
   // ── Loading / no-season states ─────────────────────────────────────────────
 
@@ -327,6 +414,113 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
 
+      {/* ── Season selector ──────────────────────────────────────────────── */}
+      {allSeasons.length > 1 && (
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-spal-muted">Season</label>
+          <select
+            value={selectedSeasonId ?? ''}
+            onChange={e => setSelectedSeasonId(Number(e.target.value))}
+            className="bg-spal-surface border border-white/10 text-spal-text text-sm rounded px-2.5 py-1 focus:outline-none focus:border-spal-cerulean"
+          >
+            {allSeasons.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.year}{s.status === 'active' ? ' (active)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Profile summary card ─────────────────────────────────────────── */}
+      <div className="bg-spal-surface rounded-lg px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+
+          {/* Identity */}
+          <div>
+            <p className="text-lg font-bold text-spal-yellow">{profile?.display_name ?? '—'}</p>
+            {editingTeamName ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  value={teamNameDraft}
+                  onChange={e => setTeamNameDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveTeamName(); if (e.key === 'Escape') setEditingTeamName(false) }}
+                  className="bg-spal-bg border border-spal-cerulean/50 text-spal-text text-sm rounded px-2 py-1 w-44 focus:outline-none focus:border-spal-cerulean"
+                  placeholder="Team name"
+                  autoFocus
+                  maxLength={60}
+                />
+                <button
+                  onClick={saveTeamName}
+                  disabled={teamNameSaving}
+                  className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors disabled:opacity-50"
+                >
+                  {teamNameSaving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  onClick={() => setEditingTeamName(false)}
+                  className="text-xs text-spal-muted hover:text-spal-text transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-sm text-spal-muted">{teamName || 'No team name set'}</p>
+                <button
+                  onClick={startEditTeamName}
+                  className="text-spal-muted/40 hover:text-spal-muted transition-colors text-xs leading-none"
+                  title="Edit team name"
+                >
+                  ✎
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Stats row */}
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {myPosition && (
+              <div className="text-center">
+                <p className="text-xs text-spal-muted">Position</p>
+                <p className="text-lg font-bold text-spal-yellow">{ordinal(myPosition)}</p>
+              </div>
+            )}
+            {myStanding && (
+              <div className="text-center">
+                <p className="text-xs text-spal-muted">Points</p>
+                <p className="text-lg font-bold text-spal-text tabular-nums">{myStanding.total_points.toFixed(1)}</p>
+              </div>
+            )}
+            {myStanding && myStanding.rounds_played > 0 && (
+              <div className="text-center">
+                <p className="text-xs text-spal-muted">Rounds</p>
+                <p className="text-lg font-bold text-spal-text tabular-nums">{myStanding.rounds_played}</p>
+              </div>
+            )}
+            {myStanding && (myStanding.h2h_wins + myStanding.h2h_draws + myStanding.h2h_losses) > 0 && (
+              <div className="text-center">
+                <p className="text-xs text-spal-muted">H2H</p>
+                <p className="text-sm font-medium tabular-nums mt-1">
+                  <span className="text-emerald-400">{myStanding.h2h_wins}W</span>
+                  {' '}
+                  <span className="text-spal-muted">{myStanding.h2h_draws}D</span>
+                  {' '}
+                  <span className="text-red-400">{myStanding.h2h_losses}L</span>
+                </p>
+              </div>
+            )}
+            {predoPoints !== null && (
+              <div className="text-center">
+                <p className="text-xs text-spal-muted">Predo pts</p>
+                <p className="text-lg font-bold text-spal-text tabular-nums">{predoPoints.toFixed(1)}</p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
       {/* ── 1. Season header ─────────────────────────────────────────────── */}
       <div className="bg-spal-surface rounded-lg px-5 py-4">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -344,12 +538,12 @@ export default function DashboardPage() {
             </span>
           )}
         </div>
-        {isFallbackSeason && (
+        {!isActiveSeason && (
           <p className="text-spal-muted text-xs mt-1">
-            No active season — showing {season.year}
+            Viewing {season.year} — historical data only
           </p>
         )}
-        {roundDeadline && !deadlinePassed && (
+        {roundDeadline && !deadlinePassed && isActiveSeason && (
           <p className="text-spal-muted text-sm mt-1">
             Squad deadline: {fmtDeadline(roundDeadline)}
           </p>
@@ -436,9 +630,11 @@ export default function DashboardPage() {
         {squadPlayers.length === 0 ? (
           <div className="flex items-center gap-3">
             <p className="text-sm text-spal-muted">No squad submitted yet.</p>
-            <Link to={ctaTo} className="text-sm text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
-              Build squad →
-            </Link>
+            {isActiveSeason && (
+              <Link to={ctaTo} className="text-sm text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+                Build squad →
+              </Link>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-white/5">

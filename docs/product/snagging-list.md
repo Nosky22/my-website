@@ -55,6 +55,8 @@
 - [ ] Price updates per round — mechanism to update player prices between rounds via API or manual entry
 
 ## Manager Experience
+- [x] Enhanced homepage for logged-in managers — personalised hub with standings, Chronicle posts, insights preview, quick actions
+- [x] Dashboard season selector + profile summary card with inline team_name editing
 - [ ] Visual workflow indicator — already built on dashboard, continue refining
 - [ ] Display official team sheets to managers before squad deadline
 - [ ] Keep SPAL in step with official game schedule

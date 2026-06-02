@@ -1,6 +1,65 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ClipboardList, Shield, Target } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
+import type { InsightPayload } from '../components/InsightsPanel'
 
-export default function HomePage() {
+interface Season { id: number; year: number }
+
+interface StandingRow {
+  profile_id: string
+  display_name: string
+  total_points: number
+}
+
+interface MyStanding {
+  total_points: number
+  h2h_wins: number
+  h2h_draws: number
+  h2h_losses: number
+  rounds_played: number
+}
+
+interface Post {
+  id: number
+  title: string
+  slug: string
+  body: string
+  created_at: string
+}
+
+function countdown(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now()
+  if (diff <= 0) return 'Passed'
+  const hours = Math.floor(diff / 3_600_000)
+  if (hours < 24) return `${hours}h remaining`
+  const days = Math.floor(hours / 24)
+  const rem = hours % 24
+  return rem > 0 ? `${days}d ${rem}h remaining` : `${days}d remaining`
+}
+
+function ordinal(n: number): string {
+  if (n === 1) return '1st'
+  if (n === 2) return '2nd'
+  if (n === 3) return '3rd'
+  return `${n}th`
+}
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`[^`]+`/g, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+}
+
+// ── Logged-out landing page ────────────────────────────────────────────────────
+
+function LandingPage() {
   return (
     <div className="max-w-xl">
       <h1 className="text-4xl font-bold text-spal-yellow mb-3">
@@ -33,6 +92,416 @@ export default function HomePage() {
           round to score points based on real match performance. At the end of the Six Nations, the
           manager with the most points wins.
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export default function HomePage() {
+  const { user, profile, loading: authLoading } = useAuth()
+
+  const [hubLoading, setHubLoading]     = useState(true)
+  const [season, setSeason]             = useState<Season | null>(null)
+  const [currentRound, setCurrentRound] = useState<number | null>(null)
+  const [deadlineIso, setDeadlineIso]   = useState<string | null>(null)
+  const [myStanding, setMyStanding]     = useState<MyStanding | null>(null)
+  const [myPosition, setMyPosition]     = useState<number | null>(null)
+  const [allStandings, setAllStandings] = useState<StandingRow[]>([])
+  const [trend, setTrend]               = useState<'up' | 'down' | null>(null)
+  const [posts, setPosts]               = useState<Post[]>([])
+  const [insights, setInsights]         = useState<InsightPayload | null>(null)
+  const [insightsRound, setInsightsRound] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (authLoading || !user) return
+    loadHub()
+  }, [authLoading, user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadHub() {
+    setHubLoading(true)
+
+    const { data: seasonData } = await supabase
+      .from('seasons')
+      .select('id, year')
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (!seasonData) { setHubLoading(false); return }
+    setSeason(seasonData)
+
+    const [
+      { data: matchRows },
+      { data: standingsRows },
+      { data: myScoreRows },
+      { data: postRows },
+      { data: insightRow },
+    ] = await Promise.all([
+      supabase
+        .from('matches')
+        .select('round_number, kickoff_at')
+        .eq('season_id', seasonData.id)
+        .order('round_number').order('kickoff_at'),
+
+      supabase
+        .from('season_standings')
+        .select('profile_id, total_points, h2h_wins, h2h_draws, h2h_losses, rounds_played, profiles!profile_id(display_name)')
+        .eq('season_id', seasonData.id)
+        .order('total_points', { ascending: false }),
+
+      supabase
+        .from('manager_match_scores')
+        .select('adjusted_points, matches!match_id(round_number)')
+        .eq('season_id', seasonData.id)
+        .eq('profile_id', user!.id),
+
+      supabase
+        .from('chronicle_posts')
+        .select('id, title, slug, body, created_at')
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(3),
+
+      supabase
+        .from('round_insights')
+        .select('round_number, payload')
+        .eq('season_id', seasonData.id)
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    // Derive current round (first round with a future kickoff; fallback to last)
+    const now = new Date()
+    const allRounds = [...new Set((matchRows ?? []).map(m => m.round_number as number))].sort((a, b) => a - b)
+    let activeRound = allRounds[allRounds.length - 1] ?? 1
+    for (const r of allRounds) {
+      const kickoffs = (matchRows ?? [])
+        .filter(m => m.round_number === r)
+        .map(m => new Date(m.kickoff_at as string))
+        .sort((a, b) => a.getTime() - b.getTime())
+      if (kickoffs[0] && kickoffs[0] > now) { activeRound = r; break }
+    }
+    setCurrentRound(activeRound)
+
+    const roundKickoffs = (matchRows ?? [])
+      .filter(m => m.round_number === activeRound && m.kickoff_at)
+      .map(m => m.kickoff_at as string)
+      .sort()
+    setDeadlineIso(roundKickoffs[0] ?? null)
+
+    // Standings
+    type RawStanding = {
+      profile_id: string
+      total_points: number
+      h2h_wins: number
+      h2h_draws: number
+      h2h_losses: number
+      rounds_played: number
+      profiles: { display_name: string } | null
+    }
+    const standings = (standingsRows ?? []) as unknown as RawStanding[]
+    const standingList: StandingRow[] = standings.map(s => ({
+      profile_id:   s.profile_id,
+      display_name: s.profiles?.display_name ?? 'Unknown',
+      total_points: Number(s.total_points ?? 0),
+    }))
+    setAllStandings(standingList)
+
+    const myIdx = standings.findIndex(s => s.profile_id === user!.id)
+    if (myIdx !== -1) {
+      const myRaw = standings[myIdx]
+      setMyStanding({
+        total_points: Number(myRaw.total_points ?? 0),
+        h2h_wins:     Number(myRaw.h2h_wins ?? 0),
+        h2h_draws:    Number(myRaw.h2h_draws ?? 0),
+        h2h_losses:   Number(myRaw.h2h_losses ?? 0),
+        rounds_played: Number(myRaw.rounds_played ?? 0),
+      })
+      setMyPosition(myIdx + 1)
+    }
+
+    // Trend: sum adjusted_points by round, compare last two
+    type RawScore = { adjusted_points: number; matches: { round_number: number } | null }
+    const byRound = new Map<number, number>()
+    for (const row of (myScoreRows ?? []) as unknown as RawScore[]) {
+      const rn = row.matches?.round_number
+      if (rn != null) byRound.set(rn, (byRound.get(rn) ?? 0) + Number(row.adjusted_points ?? 0))
+    }
+    const scoredRounds = [...byRound.keys()].sort((a, b) => a - b)
+    if (scoredRounds.length >= 2) {
+      const prev = byRound.get(scoredRounds[scoredRounds.length - 2])!
+      const last = byRound.get(scoredRounds[scoredRounds.length - 1])!
+      setTrend(last >= prev ? 'up' : 'down')
+    }
+
+    setPosts((postRows ?? []) as Post[])
+
+    if (insightRow) {
+      setInsights(insightRow.payload as InsightPayload)
+      setInsightsRound(insightRow.round_number as number)
+    }
+
+    setHubLoading(false)
+  }
+
+  // ── Render branch: not yet resolved ───────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) return <LandingPage />
+
+  if (hubLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (!season) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-spal-yellow mb-1">
+          Welcome back, {profile?.display_name ?? 'manager'}
+        </h1>
+        <p className="text-spal-muted text-sm mt-1">No active season at the moment.</p>
+      </div>
+    )
+  }
+
+  const deadlinePassed = deadlineIso ? new Date(deadlineIso) < new Date() : false
+  const hasH2H = myStanding && (myStanding.h2h_wins + myStanding.h2h_draws + myStanding.h2h_losses) > 0
+
+  // ── Logged-in hub ──────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4 max-w-3xl">
+
+      {/* Welcome header */}
+      <div>
+        <h1 className="text-2xl font-bold text-spal-yellow">
+          Welcome back, {profile?.display_name ?? 'manager'}
+        </h1>
+        {profile?.team_name && (
+          <p className="text-spal-muted text-sm mt-0.5">{profile.team_name}</p>
+        )}
+      </div>
+
+      {/* Season at a glance + My position */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        <div className="bg-spal-surface rounded-lg px-5 py-4">
+          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+            {season.year} Season
+          </h2>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-spal-muted">Current round</span>
+              <span className="text-spal-text font-medium">Round {currentRound}</span>
+            </div>
+            {deadlineIso && (
+              <div className="flex justify-between text-sm">
+                <span className="text-spal-muted">Squad deadline</span>
+                <span className={`font-medium tabular-nums ${deadlinePassed ? 'text-spal-muted' : 'text-emerald-400'}`}>
+                  {deadlinePassed ? 'Passed' : countdown(deadlineIso)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {myStanding ? (
+          <div className="bg-spal-surface rounded-lg px-5 py-4">
+            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+              My Position
+            </h2>
+            <div className="flex items-start justify-between">
+              <div className="space-y-1.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-spal-yellow">
+                    {myPosition ? ordinal(myPosition) : '—'}
+                  </span>
+                  {trend && (
+                    <span className={`text-sm font-bold ${trend === 'up' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {trend === 'up' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm">
+                  <span className="text-spal-text font-medium tabular-nums">
+                    {myStanding.total_points.toFixed(1)}
+                  </span>
+                  <span className="text-spal-muted"> pts</span>
+                </div>
+              </div>
+              {hasH2H && (
+                <div className="text-right">
+                  <p className="text-xs text-spal-muted mb-1">H2H</p>
+                  <p className="text-sm tabular-nums">
+                    <span className="text-emerald-400">{myStanding.h2h_wins}W</span>
+                    {' '}
+                    <span className="text-spal-muted">{myStanding.h2h_draws}D</span>
+                    {' '}
+                    <span className="text-red-400">{myStanding.h2h_losses}L</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-spal-surface rounded-lg px-5 py-4 flex items-center">
+            <p className="text-sm text-spal-muted">No scores yet this season.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-3 gap-3">
+        <Link
+          to={season && currentRound ? `/squad?season=${season.id}&round=${currentRound}` : '/squad'}
+          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
+        >
+          <Shield size={18} className="text-spal-cerulean" />
+          <span className="text-sm font-medium text-spal-text">Submit Squad</span>
+        </Link>
+        <Link
+          to="/predos"
+          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
+        >
+          <Target size={18} className="text-spal-cerulean" />
+          <span className="text-sm font-medium text-spal-text">Enter Predos</span>
+        </Link>
+        <Link
+          to={currentRound ? `/teamsheets?round=${currentRound}` : '/teamsheets'}
+          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
+        >
+          <ClipboardList size={18} className="text-spal-cerulean" />
+          <span className="text-sm font-medium text-spal-text">Team Sheets</span>
+        </Link>
+      </div>
+
+      {/* Mini standings + Chronicle/Insights */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+
+        {allStandings.length > 0 && (
+          <div className="bg-spal-surface rounded-lg px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Standings</h2>
+              <Link to="/standings" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+                Full table →
+              </Link>
+            </div>
+            <table className="w-full text-sm">
+              <tbody>
+                {allStandings.map((s, i) => {
+                  const isMe = s.profile_id === user?.id
+                  return (
+                    <tr key={s.profile_id} className={`border-b border-white/5 last:border-0 ${isMe ? 'text-spal-yellow' : ''}`}>
+                      <td className="py-1.5 pr-2 text-spal-muted tabular-nums w-5">{i + 1}</td>
+                      <td className={`py-1.5 pr-2 ${isMe ? 'font-semibold' : 'text-spal-text'}`}>
+                        {s.display_name}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums font-medium">
+                        {s.total_points.toFixed(1)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="space-y-4">
+
+          {posts.length > 0 && (
+            <div className="bg-spal-surface rounded-lg px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Chronicle</h2>
+                <Link to="/chronicle" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+                  All posts →
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {posts.map(post => (
+                  <div key={post.id} className="border-b border-white/5 last:border-0 pb-3 last:pb-0">
+                    <Link
+                      to={`/chronicle/${post.slug}`}
+                      className="text-sm font-medium text-spal-text hover:text-spal-cerulean transition-colors block"
+                    >
+                      {post.title}
+                    </Link>
+                    <p className="text-xs text-spal-muted mt-0.5">
+                      {stripMarkdown(post.body).slice(0, 100)}…
+                    </p>
+                    <p className="text-xs text-spal-muted/60 mt-1">
+                      {new Date(post.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {insights && (
+            <div className="bg-spal-surface rounded-lg px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">
+                  Round {insightsRound} Insights
+                </h2>
+                <Link to="/insights" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+                  Full insights →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {insights.round.highest_scoring_manager && (
+                  <div className="text-sm">
+                    <span className="text-spal-muted">Top manager: </span>
+                    <span className="text-spal-text font-medium">
+                      {insights.round.highest_scoring_manager.name}
+                    </span>
+                    {insights.round.highest_scoring_manager.score != null && (
+                      <span className="text-spal-muted">
+                        {' '}— {insights.round.highest_scoring_manager.score.toFixed(1)} pts
+                      </span>
+                    )}
+                  </div>
+                )}
+                {insights.players.one_that_got_away && (
+                  <div className="text-sm">
+                    <span className="text-spal-muted">One that got away: </span>
+                    <span className="text-spal-text font-medium">
+                      {insights.players.one_that_got_away.name}
+                    </span>
+                    {insights.players.one_that_got_away.points != null && (
+                      <span className="text-spal-muted">
+                        {' '}— {insights.players.one_that_got_away.points.toFixed(1)} pts
+                      </span>
+                    )}
+                  </div>
+                )}
+                {insights.draft.best_value && (
+                  <div className="text-sm">
+                    <span className="text-spal-muted">Best value: </span>
+                    <span className="text-spal-text font-medium">{insights.draft.best_value.name}</span>
+                    <span className="text-spal-muted">
+                      {' '}— {insights.draft.best_value.points_per_star.toFixed(1)} pts/★
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   )
