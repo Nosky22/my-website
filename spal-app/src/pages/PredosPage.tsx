@@ -396,8 +396,9 @@ export default function PredosPage() {
                             <th className="pb-2 pr-4 font-normal">Manager</th>
                             <th className="pb-2 pr-4 font-normal">Pick</th>
                             <th className="pb-2 pr-4 font-normal text-right tabular-nums">Margin</th>
-                            {result && <th className="pb-2 pr-2 font-normal text-right tabular-nums">Win</th>}
-                            {result && <th className="pb-2 font-normal text-right tabular-nums">Margin pts</th>}
+                            {result && <th className="pb-2 pr-2 font-normal text-right tabular-nums sm:hidden">Pts</th>}
+                            {result && <th className="pb-2 pr-2 font-normal text-right tabular-nums hidden sm:table-cell">Win</th>}
+                            {result && <th className="pb-2 font-normal text-right tabular-nums hidden sm:table-cell">Margin pts</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -417,12 +418,17 @@ export default function PredosPage() {
                                   {pred.predicted_winner === 'Draw' ? '—' : pred.predicted_margin}
                                 </td>
                                 {result && (
-                                  <td className={`py-2 pr-2 text-right tabular-nums font-medium ${correct ? 'text-spal-success' : 'text-spal-error'}`}>
+                                  <td className={`py-2 pr-2 text-right tabular-nums font-medium sm:hidden ${correct ? 'text-spal-success' : 'text-spal-error'}`}>
                                     {correct ? '+1' : '−1'}
                                   </td>
                                 )}
                                 {result && (
-                                  <td className="py-2 text-right tabular-nums text-spal-muted text-xs">
+                                  <td className={`py-2 pr-2 text-right tabular-nums font-medium hidden sm:table-cell ${correct ? 'text-spal-success' : 'text-spal-error'}`}>
+                                    {correct ? '+1' : '−1'}
+                                  </td>
+                                )}
+                                {result && (
+                                  <td className="py-2 text-right tabular-nums text-spal-muted text-xs hidden sm:table-cell">
                                     {correct ? '✓' : '—'}
                                   </td>
                                 )}

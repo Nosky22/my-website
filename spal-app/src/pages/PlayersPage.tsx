@@ -305,63 +305,62 @@ export default function PlayersPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <label className="text-sm text-spal-muted">Season</label>
-        <select
-          value={seasonId ?? ''}
-          onChange={e => setSeasonId(Number(e.target.value))}
-          className={selectClass}
-        >
-          {seasons.map(s => <option key={s.id} value={s.id}>{s.year}</option>)}
-        </select>
-
-        <span className="text-white/20">|</span>
-
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search players..."
-          className={`${selectClass} w-44`}
-        />
-
-        <select
-          value={nationFilter}
-          onChange={e => setNationFilter(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">All nations</option>
-          {NATIONS.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-
-        <select
-          value={draftPosFilter}
-          onChange={e => setDraftPosFilter(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">All draft positions</option>
-          {DRAFT_POSITION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-
-        <select
-          value={canonPosFilter}
-          onChange={e => setCanonPosFilter(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">All positions</option>
-          {CANONICAL_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
-        {(searchQuery || nationFilter || draftPosFilter || canonPosFilter) && (
-          <button
-            onClick={() => { setSearchQuery(''); setNationFilter(''); setDraftPosFilter(''); setCanonPosFilter('') }}
-            className="text-xs text-spal-muted hover:text-spal-text transition-colors underline"
+      <div className="space-y-3 mb-6">
+        {/* Row 1: season selector + search */}
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-spal-muted shrink-0">Season</label>
+          <select
+            value={seasonId ?? ''}
+            onChange={e => setSeasonId(Number(e.target.value))}
+            className={selectClass}
           >
-            Clear
-          </button>
-        )}
+            {seasons.map(s => <option key={s.id} value={s.id}>{s.year}</option>)}
+          </select>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search players..."
+            className={`${selectClass} flex-1 min-w-0`}
+          />
+        </div>
 
-        <span className="text-xs text-spal-muted ml-auto">{sorted.length} players</span>
+        {/* Row 2: filters + clear + count */}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={nationFilter}
+            onChange={e => setNationFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">All nations</option>
+            {NATIONS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <select
+            value={draftPosFilter}
+            onChange={e => setDraftPosFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">All draft positions</option>
+            {DRAFT_POSITION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <select
+            value={canonPosFilter}
+            onChange={e => setCanonPosFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">All positions</option>
+            {CANONICAL_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {(searchQuery || nationFilter || draftPosFilter || canonPosFilter) && (
+            <button
+              onClick={() => { setSearchQuery(''); setNationFilter(''); setDraftPosFilter(''); setCanonPosFilter('') }}
+              className="text-xs text-spal-muted hover:text-spal-text transition-colors underline"
+            >
+              Clear
+            </button>
+          )}
+          <span className="text-xs text-spal-muted ml-auto">{sorted.length} players</span>
+        </div>
       </div>
 
       {loading ? (

@@ -126,8 +126,8 @@ export default function H2HPage() {
                 <th className="pb-2 pr-4 font-normal w-8">#</th>
                 <th className="pb-2 pr-6 font-normal">Manager</th>
                 <th className="pb-2 pr-4 font-normal text-right tabular-nums">H2H Pts</th>
-                <th className="pb-2 pr-4 font-normal text-right">W/D/L</th>
-                <th className="pb-2 font-normal text-right tabular-nums">Total Pts</th>
+                <th className="pb-2 pr-4 font-normal text-right hidden sm:table-cell">W/D/L</th>
+                <th className="pb-2 font-normal text-right tabular-nums hidden sm:table-cell">Total Pts</th>
               </tr>
             </thead>
             <tbody>
@@ -145,10 +145,10 @@ export default function H2HPage() {
                     <td className="py-3 pr-4 text-right tabular-nums text-spal-text font-semibold">
                       {row.h2h_points}
                     </td>
-                    <td className="py-3 pr-4 text-right text-spal-muted tabular-nums">
+                    <td className="py-3 pr-4 text-right text-spal-muted tabular-nums hidden sm:table-cell">
                       {row.h2h_wins}W&nbsp;{row.h2h_draws}D&nbsp;{row.h2h_losses}L
                     </td>
-                    <td className="py-3 text-right tabular-nums text-spal-muted">
+                    <td className="py-3 text-right tabular-nums text-spal-muted hidden sm:table-cell">
                       {Number(row.total_points).toFixed(1)}
                     </td>
                   </tr>
