@@ -315,3 +315,123 @@ main {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+/* ============================================================
+   MOBILE NAV
+   Hamburger button and full-screen overlay shown when the
+   desktop nav would overflow (≤ 640px).
+   ============================================================ */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.hamburger-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background-color: var(--text);
+  border-radius: 2px;
+  transition: background-color 0.15s;
+}
+
+.nav-toggle:hover .hamburger-bar {
+  background-color: var(--cerulean-light);
+}
+
+.mobile-nav {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background-color: var(--bg);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mobile-nav.open {
+  display: flex;
+}
+
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.mobile-nav-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--yellow);
+}
+
+.mobile-nav-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.mobile-nav-close:hover {
+  color: var(--text);
+}
+
+.mobile-nav-links {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-nav-links a {
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.mobile-nav-links a:hover {
+  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.mobile-nav-section {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  opacity: 0.5;
+  padding: 0.75rem 1rem 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .site-nav {
+    display: none;
+  }
+
+  .nav-toggle {
+    display: flex;
+  }
+}

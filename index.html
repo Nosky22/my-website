@@ -45,7 +45,35 @@
       </div>
       <a href="cyber.html">Cyber</a>
     </nav>
+
+    <!-- Hamburger — visible only on small screens -->
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
   </header>
+
+  <!-- Mobile full-screen nav overlay -->
+  <div class="mobile-nav" id="mobile-nav" aria-hidden="true">
+    <div class="mobile-nav-header">
+      <span class="mobile-nav-title">Nosky</span>
+      <button class="mobile-nav-close" id="mobile-nav-close" aria-label="Close menu">✕</button>
+    </div>
+    <nav class="mobile-nav-links" aria-label="Mobile navigation">
+      <a href="index.html">Home</a>
+      <span class="mobile-nav-section">SPAL</span>
+      <a href="/spal/standings">View League</a>
+      <a href="/spal/login">Manager Login</a>
+      <a href="games.html">Games</a>
+      <a href="music.html">Music</a>
+      <a href="apps.html">Apps</a>
+      <span class="mobile-nav-section">FPL</span>
+      <a href="fpl.html">Players</a>
+      <a href="fpl-my-team.html">My Team</a>
+      <a href="cyber.html">Cyber</a>
+    </nav>
+  </div>
 
   <!-- =====================
        MAIN CONTENT
