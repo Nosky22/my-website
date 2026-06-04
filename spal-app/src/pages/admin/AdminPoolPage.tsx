@@ -4,6 +4,8 @@ import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { EmptyState } from '../../components/EmptyState'
 import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS, toSearchName } from '../../lib/positions'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -134,6 +136,7 @@ export default function AdminPoolPage() {
   const [poolPlayers, setPoolPlayers]           = useState<PoolPlayer[]>([])
   const [protectedIds, setProtectedIds]         = useState<Set<number>>(new Set())
   const [loading, setLoading]                   = useState(false)
+  const [poolError, setPoolError]               = useState(false)
   const [canonicals, setCanonicals]             = useState<CanonicalPlayer[]>([])
 
   // Add-from-canonical sidebar
@@ -178,6 +181,7 @@ export default function AdminPoolPage() {
   // ── Load pool for selected season ───────────────────────────────────────────
   async function loadPool(seasonId: number) {
     setLoading(true)
+    setPoolError(false)
 
     const [{ data: playerData, error: playerError }, { data: priceData }] = await Promise.all([
       supabase
@@ -192,7 +196,7 @@ export default function AdminPoolPage() {
         .is('round_number', null),
     ])
 
-    if (playerError) { addToast(playerError.message, 'error'); setLoading(false); return }
+    if (playerError) { setPoolError(true); setLoading(false); return }
 
     const priceMap = new Map<number, number>()
     for (const p of priceData ?? []) priceMap.set(p.player_id, p.final_price)
@@ -568,7 +572,9 @@ export default function AdminPoolPage() {
             </div>
 
             {loading ? (
-              <p className="text-spal-muted text-sm">Loading…</p>
+              <LoadingSpinner />
+            ) : poolError ? (
+              <ErrorCard onRetry={() => { if (selectedSeasonId != null) loadPool(selectedSeasonId) }} />
             ) : poolPlayers.length === 0 ? (
               <EmptyState
                 icon={

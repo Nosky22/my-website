@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { POSITION_GROUP, CANONICAL_POSITIONS, NATIONS } from '../../lib/positions'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Season { id: number; year: number }
 interface Player {
@@ -27,6 +29,8 @@ export default function AdminPlayersPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)
   const [players, setPlayers]               = useState<Player[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
+  const [playersError, setPlayersError]     = useState(false)
+  const [playersRetryKey, setPlayersRetryKey] = useState(0)
   const [form, setForm]                     = useState(EMPTY_FORM)
   const [submitting, setSubmitting]         = useState(false)
   const [formError, setFormError]           = useState<string | null>(null)
@@ -58,17 +62,18 @@ export default function AdminPlayersPage() {
   useEffect(() => {
     if (selectedSeasonId == null) return
     setLoadingPlayers(true)
+    setPlayersError(false)
     supabase
       .from('players')
       .select('id, display_name, nation, canonical_position, position_group, active')
       .eq('season_id', selectedSeasonId)
       .order('display_name')
       .then(({ data, error }) => {
-        if (error) console.error(error)
+        if (error) { setPlayersError(true); setLoadingPlayers(false); return }
         setPlayers(data ?? [])
         setLoadingPlayers(false)
       })
-  }, [selectedSeasonId])
+  }, [selectedSeasonId, playersRetryKey])
 
   // Base prices (round_number IS NULL) — reload when season changes
   useEffect(() => {
@@ -322,7 +327,9 @@ export default function AdminPlayersPage() {
           </div>
 
           {loadingPlayers ? (
-            <p className="text-spal-muted text-sm">Loading…</p>
+            <LoadingSpinner />
+          ) : playersError ? (
+            <ErrorCard onRetry={() => setPlayersRetryKey(k => k + 1)} />
           ) : players.length === 0 ? (
             <p className="text-spal-muted text-sm">No players for this season.</p>
           ) : (

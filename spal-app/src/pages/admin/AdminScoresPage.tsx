@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Season { id: number; year: number }
 interface Match  { id: number; home_nation: string; away_nation: string }
@@ -85,6 +87,7 @@ export default function AdminScoresPage() {
   const [roundScored, setRoundScored] = useState(false)
   const [roundFinal, setRoundFinal] = useState(false)
   const [loadingRound, setLoadingRound] = useState(false)
+  const [roundError, setRoundError] = useState(false)
 
   // ── Score entry form ─────────────────────────────────────────────
   const [form, setForm]                   = useState<ScoreForm>(EMPTY_FORM)
@@ -160,6 +163,7 @@ export default function AdminScoresPage() {
 
   async function loadRound() {
     setLoadingRound(true)
+    setRoundError(false)
     setCalcResult(null)
     setRoundFinal(false)
     setLockResult(null); setLockError(null)
@@ -202,6 +206,10 @@ export default function AdminScoresPage() {
         .eq('round_number', selectedRound!)
         .neq('status', 'locked'),
     ])
+
+    if (scoresRes.error || mdRes.error || mmsRes.error || squadsRes.error) {
+      setRoundError(true); setLoadingRound(false); return
+    }
 
     setScores((scoresRes.data ?? []) as unknown as ScoreRow[])
     setMatchdays(mdRes.data ?? [])
@@ -639,7 +647,9 @@ export default function AdminScoresPage() {
       {selectedRound == null ? (
         <p className="text-spal-muted text-sm">Select a round to view and edit scores.</p>
       ) : loadingRound ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : roundError ? (
+        <ErrorCard onRetry={loadRound} />
       ) : matches.length === 0 ? (
         <p className="text-spal-muted text-sm">
           No matches found for round {selectedRound}. Add them via the Seasons page.

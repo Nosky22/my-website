@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { EmptyState } from '../../components/EmptyState'
 import { toSearchName } from '../../lib/positions'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -159,6 +161,7 @@ export default function AdminTeamSheetsPage() {
   const [squadMap, setSquadMap] = useState<Map<string, SquadPlayer[]>>(new Map())
   const [pool, setPool]         = useState<PoolPlayer[]>([])
   const [loading, setLoading]   = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     supabase
@@ -190,12 +193,15 @@ export default function AdminTeamSheetsPage() {
 
   async function loadRound(seasonId: number, round: number) {
     setLoading(true)
-    const { data: matchData } = await supabase
+    setLoadError(false)
+    const { data: matchData, error: matchError } = await supabase
       .from('matches')
       .select('id, home_nation, away_nation, kickoff_at')
       .eq('season_id', seasonId)
       .eq('round_number', round)
       .order('kickoff_at')
+
+    if (matchError) { setLoadError(true); setLoading(false); return }
 
     const newMatches = (matchData ?? []) as Match[]
     setMatches(newMatches)
@@ -320,7 +326,9 @@ export default function AdminTeamSheetsPage() {
 
       {tab === 'manual' && (
         loading ? (
-          <p className="text-spal-muted text-sm">Loading…</p>
+          <LoadingSpinner />
+        ) : loadError ? (
+          <ErrorCard onRetry={() => { if (selectedSeasonId != null) loadRound(selectedSeasonId, selectedRound) }} />
         ) : matches.length === 0 ? (
           <EmptyState
             icon={

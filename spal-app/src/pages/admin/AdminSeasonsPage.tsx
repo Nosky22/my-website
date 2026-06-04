@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Season {
   id: number
@@ -41,6 +43,7 @@ export default function AdminSeasonsPage() {
   const { addToast } = useToast()
   const [seasons, setSeasons]       = useState<Season[]>([])
   const [loading, setLoading]       = useState(true)
+  const [seasonsError, setSeasonsError] = useState(false)
   const [form, setForm]             = useState({ year: new Date().getFullYear(), status: 'setup' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -51,6 +54,7 @@ export default function AdminSeasonsPage() {
   const [rulesForm, setRulesForm]           = useState<RulesForm>(DEFAULT_RULES)
   const [rulesExtra, setRulesExtra]         = useState<Record<string, unknown>>({})
   const [rulesLoading, setRulesLoading]     = useState(false)
+  const [rulesError, setRulesError]         = useState(false)
   const [rulesSaving, setRulesSaving]       = useState(false)
 
   useEffect(() => { fetchSeasons() }, [])
@@ -66,11 +70,12 @@ export default function AdminSeasonsPage() {
 
   async function fetchSeasons() {
     setLoading(true)
+    setSeasonsError(false)
     const { data, error } = await supabase
       .from('seasons')
       .select('id, year, status, created_at')
       .order('year', { ascending: false })
-    if (error) console.error(error)
+    if (error) { setSeasonsError(true); setLoading(false); return }
     setSeasons(data ?? [])
     setLoading(false)
   }
@@ -127,11 +132,13 @@ export default function AdminSeasonsPage() {
 
   async function fetchRules(seasonId: number) {
     setRulesLoading(true)
-    const { data } = await supabase
+    setRulesError(false)
+    const { data, error: fetchError } = await supabase
       .from('season_rules')
       .select('rules')
       .eq('season_id', seasonId)
       .maybeSingle()
+    if (fetchError) { setRulesError(true); setRulesLoading(false); return }
     const blob = (data?.rules ?? {}) as Record<string, unknown>
 
     // Boolean fields need explicit undefined check — `false ?? default` would
@@ -213,7 +220,9 @@ export default function AdminSeasonsPage() {
       </section>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : seasonsError ? (
+        <ErrorCard onRetry={fetchSeasons} />
       ) : seasons.length === 0 ? (
         <p className="text-spal-muted text-sm">No seasons yet.</p>
       ) : (
@@ -273,7 +282,9 @@ export default function AdminSeasonsPage() {
         </div>
 
         {rulesLoading ? (
-          <p className="text-spal-muted text-sm">Loading…</p>
+          <LoadingSpinner />
+        ) : rulesError ? (
+          <ErrorCard onRetry={() => { if (rulesSeasonId != null) fetchRules(rulesSeasonId) }} />
         ) : (
           <form onSubmit={handleSaveRules} className="max-w-lg space-y-7">
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Season      { id: number; year: number }
 interface OrderItem   { profile_id: string; display_name: string; pick_position: number | '' }
@@ -75,6 +77,10 @@ export default function AdminDraftPage() {
   const [savingSlots, setSavingSlots] = useState(false)
   const [slotsSaved, setSlotsSaved]   = useState(false)
 
+  // ── Page loading/error ────────────────────────────────────────────
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState(false)
+
   // ── Load seasons ──────────────────────────────────────────────────
   useEffect(() => {
     supabase.from('seasons').select('id, year').order('year', { ascending: false })
@@ -94,6 +100,8 @@ export default function AdminDraftPage() {
   }, [seasonId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadSeasonData() {
+    setLoading(true)
+    setError(false)
     setOrderError(null); setOrderSaved(false)
     setSessionError(null); setSlotsSaved(false)
 
@@ -106,6 +114,10 @@ export default function AdminDraftPage() {
         .maybeSingle(),
       supabase.from('season_rules').select('rules').eq('season_id', seasonId!).maybeSingle(),
     ])
+
+    if (profilesRes.error || orderRes.error || sessionRes.error || rulesRes.error) {
+      setError(true); setLoading(false); return
+    }
 
     const profiles = profilesRes.data ?? []
     const positionByProfile = new Map(
@@ -130,6 +142,7 @@ export default function AdminDraftPage() {
       weakest_nation: typeof blob.slot_weakest_nation_enabled  === 'boolean' ? blob.slot_weakest_nation_enabled  : true,
       bench:          typeof blob.slot_bench_enabled           === 'boolean' ? blob.slot_bench_enabled           : false,
     })
+    setLoading(false)
   }
 
   // ── Draft order handlers ──────────────────────────────────────────
@@ -273,6 +286,11 @@ export default function AdminDraftPage() {
         </select>
       </div>
 
+      {loading ? (
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={loadSeasonData} />
+      ) : (
       <div className="space-y-6 max-w-xl">
 
         {/* ── Draft Order ──────────────────────────────────────── */}
@@ -435,6 +453,7 @@ export default function AdminDraftPage() {
         </section>
 
       </div>
+      )}
     </div>
   )
 }

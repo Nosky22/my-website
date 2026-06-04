@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { useAuth } from '../../hooks/useAuth'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Profile {
   id: string
@@ -79,7 +81,7 @@ export default function AdminManagersPage() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [authMeta, setAuthMeta] = useState<Record<string, AuthMeta>>({})
   const [loading, setLoading]   = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [error, setError]       = useState(false)
 
   // Link Account side-panel state
   const [activePlaceholder, setActivePlaceholder] = useState<Profile | null>(null)
@@ -104,6 +106,7 @@ export default function AdminManagersPage() {
   // Invite tokens
   const [tokens, setTokens]           = useState<InviteToken[]>([])
   const [tokensLoading, setTokensLoading] = useState(true)
+  const [tokensError, setTokensError] = useState(false)
   const [generating, setGenerating]   = useState(false)
   const [newToken, setNewToken]       = useState<string | null>(null)
   const [revokingId, setRevokingId]   = useState<number | null>(null)
@@ -112,7 +115,7 @@ export default function AdminManagersPage() {
 
   async function load() {
     setLoading(true)
-    setLoadError(null)
+    setError(false)
 
     const [profilesRes, metaRes] = await Promise.all([
       supabase.from('profiles').select('id, email, display_name, team_name, is_admin, created_at').order('display_name'),
@@ -120,7 +123,7 @@ export default function AdminManagersPage() {
     ])
 
     if (profilesRes.error) {
-      setLoadError(profilesRes.error.message)
+      setError(true)
       setLoading(false)
       return
     }
@@ -140,10 +143,12 @@ export default function AdminManagersPage() {
 
   async function loadTokens() {
     setTokensLoading(true)
-    const { data } = await supabase
+    setTokensError(false)
+    const { data, error: fetchError } = await supabase
       .from('invite_tokens')
       .select('id, token, created_at, claimed_by, profiles!claimed_by(display_name)')
       .order('created_at', { ascending: false })
+    if (fetchError) { setTokensError(true); setTokensLoading(false); return }
     type Raw = { id: number; token: string; created_at: string; claimed_by: string | null; profiles: { display_name: string } | null }
     setTokens((data ?? []).map((r: unknown) => {
       const t = r as Raw
@@ -277,14 +282,10 @@ export default function AdminManagersPage() {
       <div className="flex-1 min-w-0">
         <h1 className="text-xl font-bold text-spal-yellow mb-4">Managers</h1>
 
-        {loadError && (
-          <p className="text-spal-error text-sm mb-4">{loadError}</p>
-        )}
-
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
-          </div>
+          <LoadingSpinner />
+        ) : error ? (
+          <ErrorCard onRetry={load} />
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
@@ -400,7 +401,9 @@ export default function AdminManagersPage() {
 
           {/* Token list */}
           {tokensLoading ? (
-            <p className="text-spal-muted text-sm">Loading…</p>
+            <LoadingSpinner />
+          ) : tokensError ? (
+            <ErrorCard onRetry={loadTokens} />
           ) : tokens.length === 0 ? (
             <p className="text-spal-muted text-sm">No invite tokens yet.</p>
           ) : (
