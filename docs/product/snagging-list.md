@@ -68,6 +68,6 @@
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
 - [x] Score states — provisional vs final; admin marks round as final in AdminScoresPage; standings shows last_updated_round.
-- [ ] Mobile responsive audit and fixes
-- [ ] Loading states and error handling across all pages
+- [x] Mobile responsive audit and fixes
+- [x] Loading states and error handling across all pages
 - [ ] Performance — caching, reduce unnecessary fetches
