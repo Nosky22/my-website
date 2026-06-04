@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -27,6 +29,8 @@ export default function StandingsPage() {
   const [standingRows, setStandingRows] = useState<StandingRow[]>([])
   const [draftRows, setDraftRows]       = useState<DraftRow[]>([])
   const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState(false)
+  const [retryKey, setRetryKey]         = useState(0)
 
   useEffect(() => {
     supabase
@@ -43,6 +47,7 @@ export default function StandingsPage() {
   useEffect(() => {
     if (seasonId == null) return
     setLoading(true)
+    setError(false)
     setStandingRows([])
     setDraftRows([])
 
@@ -58,6 +63,7 @@ export default function StandingsPage() {
         .select('profile_id, pick_number, profiles!profile_id(display_name)')
         .eq('season_id', seasonId),
     ]).then(([standingsRes, picksRes]) => {
+      if (standingsRes.error || picksRes.error) { setError(true); setLoading(false); return }
       type RawStanding = {
         profile_id: string
         rounds_played: number
@@ -91,7 +97,7 @@ export default function StandingsPage() {
 
       setLoading(false)
     })
-  }, [seasonId])
+  }, [seasonId, retryKey])
 
   const lastRound = standingRows.reduce<number | null>((acc, r) => {
     if (r.last_updated_round == null) return acc
@@ -114,7 +120,9 @@ export default function StandingsPage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : (
         <>
           {/* ── Score standings ──────────────────────────────────────────── */}

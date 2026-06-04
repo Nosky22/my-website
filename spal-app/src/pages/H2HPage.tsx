@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -23,6 +25,8 @@ export default function H2HPage() {
   const [rows, setRows]           = useState<H2HRow[]>([])
   const [hasFixtures, setHasFixtures] = useState(true)
   const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState(false)
+  const [retryKey, setRetryKey]   = useState(0)
 
   useEffect(() => {
     supabase
@@ -39,6 +43,7 @@ export default function H2HPage() {
   useEffect(() => {
     if (seasonId == null) return
     setLoading(true)
+    setError(false)
     setRows([])
 
     Promise.all([
@@ -55,6 +60,7 @@ export default function H2HPage() {
         .eq('season_id', seasonId)
         .limit(1),
     ]).then(([standingsRes, fixturesRes]) => {
+      if (standingsRes.error || fixturesRes.error) { setError(true); setLoading(false); return }
       type RawStanding = {
         profile_id: string
         h2h_points: number
@@ -80,7 +86,7 @@ export default function H2HPage() {
       setHasFixtures((fixturesRes.data ?? []).length > 0)
       setLoading(false)
     })
-  }, [seasonId])
+  }, [seasonId, retryKey])
 
   const lastRound = rows.reduce<number | null>((acc, r) => {
     if (r.last_updated_round == null) return acc
@@ -106,7 +112,9 @@ export default function H2HPage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : !hasFixtures || rows.length === 0 ? (
         <EmptyState
           icon={

@@ -7,6 +7,7 @@ import NationBadge from '../components/NationBadge'
 import SquadPlayerPicker from '../components/SquadPlayerPicker'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { EmptyState } from '../components/EmptyState'
+import ErrorCard from '../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -197,6 +198,7 @@ export default function SquadPage() {
   const [squadStatus, setSquadStatus]           = useState<string>('draft')
   const [locked, setLocked]                     = useState(false)
   const [loading, setLoading]                   = useState(true)
+  const [error, setError]                       = useState(false)
   const [saving, setSaving]                     = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [pickerSlotKey, setPickerSlotKey]       = useState<string | null>(null)
@@ -258,13 +260,14 @@ export default function SquadPage() {
     seasonId: number, round: number, cancelled: boolean
   ) => {
     if (!user) return
+    setError(false)
 
     const [
-      { data: rulesRow },
-      { data: playerRows },
-      { data: priceRows },
-      { data: pickRows },
-      { data: squadRow },
+      { data: rulesRow, error: e1 },
+      { data: playerRows, error: e2 },
+      { data: priceRows, error: e3 },
+      { data: pickRows, error: e4 },
+      { data: squadRow, error: e5 },
       { data: prevSquadRow },
     ] = await Promise.all([
       supabase.from('season_rules').select('rules').eq('season_id', seasonId).single(),
@@ -278,6 +281,7 @@ export default function SquadPage() {
     ])
 
     if (cancelled) return
+    if (e1 || e2 || e3 || e4 || e5) { setError(true); return }
 
     // Parse rules
     const r = rulesRow?.rules as Record<string, unknown> | undefined
@@ -529,6 +533,14 @@ export default function SquadPage() {
         <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
       </div>
     )
+  }
+
+  if (error) {
+    return <ErrorCard onRetry={() => {
+      setError(false)
+      setLoading(true)
+      loadRoundData(selectedSeasonId!, selectedRound, false).finally(() => setLoading(false))
+    }} />
   }
 
   const filledCount = slots.filter(s => s.player !== null).length

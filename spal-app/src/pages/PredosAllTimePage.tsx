@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface ScoreRow {
   profile_id: string
@@ -31,17 +33,21 @@ export default function PredosAllTimePage() {
   const [scores, setScores]     = useState<ScoreRow[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
+    setError(false)
     Promise.all([
       supabase.from('predo_scores').select('profile_id, season_id, round_number, total_points, winning_team_points, margin_points'),
       supabase.from('profiles').select('id, display_name').order('display_name'),
     ]).then(([scoresRes, profilesRes]) => {
+      if (scoresRes.error || profilesRes.error) { setError(true); setLoading(false); return }
       setScores((scoresRes.data ?? []) as ScoreRow[])
       setProfiles((profilesRes.data ?? []) as Profile[])
       setLoading(false)
     })
-  }, [])
+  }, [retryKey])
 
   const nameMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -84,7 +90,9 @@ export default function PredosAllTimePage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={

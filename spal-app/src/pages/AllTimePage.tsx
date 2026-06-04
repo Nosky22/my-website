@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface RawStanding {
   season_id: number
@@ -25,8 +27,11 @@ interface AllTimeRow {
 export default function AllTimePage() {
   const [rows, setRows]     = useState<AllTimeRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]   = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
+    setError(false)
     Promise.all([
       supabase
         .from('season_standings')
@@ -35,6 +40,7 @@ export default function AllTimePage() {
         .from('predo_scores')
         .select('profile_id, total_points'),
     ]).then(([standingsRes, predoRes]) => {
+        if (standingsRes.error || predoRes.error) { setError(true); setLoading(false); return }
         const standings = (standingsRes.data ?? []) as unknown as RawStanding[]
         // Build predo totals: profile_id → sum of total_points
         const predoTotals = new Map<string, number>()
@@ -97,7 +103,7 @@ export default function AllTimePage() {
         setRows(allTime)
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   // Separate winner(s) for glory row
   const mostWins = useMemo(() => Math.max(0, ...rows.map(r => r.seasons_won)), [rows])
@@ -113,7 +119,9 @@ export default function AllTimePage() {
       <p className="text-spal-muted text-sm mb-8">Aggregated across all seasons in the database.</p>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={

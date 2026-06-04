@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
 import InsightsPanel, { type InsightPayload } from '../components/InsightsPanel'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +86,8 @@ export default function SeasonReviewPage() {
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [loading, setLoading]               = useState(true)
   const [notFound, setNotFound]             = useState(false)
+  const [error, setError]                   = useState(false)
+  const [retryKey, setRetryKey]             = useState(0)
   const [seasonYear, setSeasonYear]         = useState<number | null>(null)
   const [seasonId, setSeasonId]             = useState<number | null>(null)
 
@@ -93,14 +97,16 @@ export default function SeasonReviewPage() {
     if (isNaN(yearNum)) { setNotFound(true); setLoading(false); return }
 
     async function load() {
+      setError(false)
       // 1. Resolve season
-      const { data: seasonRow } = await supabase
+      const { data: seasonRow, error: seasonError } = await supabase
         .from('seasons')
         .select('id, year')
         .eq('year', yearNum)
         .in('status', ['historical', 'complete'])
         .maybeSingle()
 
+      if (seasonError) { setError(true); setLoading(false); return }
       if (!seasonRow) { setNotFound(true); setLoading(false); return }
       const seasonId: number = seasonRow.id
       setSeasonYear(seasonRow.year)
@@ -141,6 +147,10 @@ export default function SeasonReviewPage() {
           .select('profile_id, total_points, profiles!profile_id(display_name)')
           .eq('season_id', seasonId),
       ])
+
+      if (standingsRes.error || picksRes.error || scoresRes.error || matchScoresRes.error || pricesRes.error || predoRes.error) {
+        setError(true); setLoading(false); return
+      }
 
       // Standings
       type RawStanding = { profile_id: string; total_points: number; rounds_played: number; profiles: { display_name: string } | null }
@@ -223,7 +233,7 @@ export default function SeasonReviewPage() {
     }
 
     load()
-  }, [year])
+  }, [year, retryKey])
 
   // ── Load insights for selected round ──────────────────────────────────────
   useEffect(() => {
@@ -328,7 +338,9 @@ export default function SeasonReviewPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (loading) return <p className="text-spal-muted text-sm">Loading…</p>
+  if (loading) return <LoadingSpinner />
+
+  if (error) return <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
 
   if (notFound) {
     return (

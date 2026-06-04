@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface RawScore {
   player_id: number
@@ -32,14 +34,18 @@ const POSITIONS = [
 export default function PlayersAllTimePage() {
   const [rows, setRows]       = useState<PlayerAllTime[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const [nation, setNation]   = useState('')
   const [position, setPosition] = useState('')
 
   useEffect(() => {
+    setError(false)
     supabase
       .from('player_match_scores')
       .select('player_id, season_id, final_points, matches!match_id(round_number), players!player_id(display_name, nation, canonical_position)')
-      .then(({ data }) => {
+      .then(({ data, error: fetchError }) => {
+        if (fetchError) { setError(true); setLoading(false); return }
         const scores = (data ?? []) as unknown as RawScore[]
 
         // Aggregate per player
@@ -95,7 +101,7 @@ export default function PlayersAllTimePage() {
         setRows(result)
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   const visible = useMemo(() => rows.filter(r =>
     (!nation   || r.nation   === nation) &&
@@ -135,7 +141,9 @@ export default function PlayersAllTimePage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : visible.length === 0 ? (
         <EmptyState
           icon={

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season {
   id: number
@@ -27,15 +29,19 @@ interface SeasonCard {
 export default function HistoryPage() {
   const [cards, setCards]     = useState<SeasonCard[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     async function load() {
-      const { data: seasonData } = await supabase
+      setError(false)
+      const { data: seasonData, error: seasonError } = await supabase
         .from('seasons')
         .select('id, year, status')
         .in('status', ['historical', 'complete'])
         .order('year', { ascending: false })
 
+      if (seasonError) { setError(true); setLoading(false); return }
       const seasons = (seasonData ?? []) as Season[]
       if (seasons.length === 0) { setLoading(false); return }
 
@@ -52,6 +58,7 @@ export default function HistoryPage() {
           .in('season_id', seasonIds),
       ])
 
+      if (standingRes.error || predoRes.error) { setError(true); setLoading(false); return }
       const standings = (standingRes.data ?? []) as unknown as StandingRow[]
 
       // Group standings by season_id
@@ -101,7 +108,7 @@ export default function HistoryPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [retryKey])
 
   return (
     <div>
@@ -109,7 +116,9 @@ export default function HistoryPage() {
       <p className="text-spal-muted text-sm mb-8">Past seasons and all-time records.</p>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : cards.length === 0 ? (
         <EmptyState
           icon={

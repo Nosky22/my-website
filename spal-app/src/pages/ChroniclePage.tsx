@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Post {
   id: number
@@ -15,14 +17,18 @@ interface Post {
 export default function ChroniclePage() {
   const [posts, setPosts]     = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
+    setError(false)
     supabase
       .from('chronicle_posts')
       .select('id, slug, title, body, published_at, profiles!author_id(display_name)')
       .eq('published', true)
       .order('published_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error: fetchError }) => {
+        if (fetchError) { setError(true); setLoading(false); return }
         type Raw = { id: number; slug: string; title: string; body: string; published_at: string | null; profiles: { display_name: string } | null }
         setPosts(
           ((data ?? []) as unknown as Raw[]).map(p => ({
@@ -36,7 +42,7 @@ export default function ChroniclePage() {
         )
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   function excerpt(body: string): string {
     const stripped = body.replace(/[#*`>_\[\]()]/g, '').trim()
@@ -49,7 +55,9 @@ export default function ChroniclePage() {
       <p className="text-spal-muted text-sm mb-8">News and commentary from the league.</p>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : posts.length === 0 ? (
         <EmptyState
           icon={

@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../components/Toast'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import ErrorCard from '../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export default function DashboardPage() {
 
   // Page data
   const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState(false)
   const [season, setSeason]               = useState<Season | null>(null)
   const [currentRound, setCurrentRound]   = useState<number | null>(null)
   const [roundDeadline, setRoundDeadline] = useState<string | null>(null)
@@ -152,6 +154,7 @@ export default function DashboardPage() {
 
   async function load(seasonId: number) {
     setLoading(true)
+    setError(false)
 
     const seasonMeta = allSeasons.find(s => s.id === seasonId)
     if (!seasonMeta) {
@@ -169,13 +172,13 @@ export default function DashboardPage() {
 
     // ── Parallel fetches ──────────────────────────────────────────────────
     const [
-      { data: matchRows },
-      { data: pickRows },
-      { data: standingsRows },
-      { data: mySquads },
-      { data: draftSessionRow },
-      { data: rulesRow },
-      { data: predoRows },
+      { data: matchRows, error: err1 },
+      { data: pickRows, error: err2 },
+      { data: standingsRows, error: err3 },
+      { data: mySquads, error: err4 },
+      { data: draftSessionRow, error: err5 },
+      { data: rulesRow, error: err6 },
+      { data: predoRows, error: err7 },
     ] = await Promise.all([
       supabase
         .from('matches')
@@ -215,6 +218,8 @@ export default function DashboardPage() {
         .eq('season_id', seasonId)
         .eq('profile_id', user!.id),
     ])
+
+    if (err1 || err2 || err3 || err4 || err5 || err6 || err7) { setError(true); setLoading(false); return }
 
     // ── Derive current round ──────────────────────────────────────────────
     const now = new Date()
@@ -392,6 +397,10 @@ export default function DashboardPage() {
         <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
       </div>
     )
+  }
+
+  if (error) {
+    return <ErrorCard onRetry={() => { if (selectedSeasonId != null) load(selectedSeasonId) }} />
   }
 
   if (!season) {

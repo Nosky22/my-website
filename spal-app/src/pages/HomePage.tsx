@@ -4,6 +4,8 @@ import { ClipboardList, Shield, Target } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import type { InsightPayload } from '../components/InsightsPanel'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -103,6 +105,7 @@ export default function HomePage() {
   const { user, profile, loading: authLoading } = useAuth()
 
   const [hubLoading, setHubLoading]     = useState(true)
+  const [error, setError]               = useState(false)
   const [season, setSeason]             = useState<Season | null>(null)
   const [currentRound, setCurrentRound] = useState<number | null>(null)
   const [deadlineIso, setDeadlineIso]   = useState<string | null>(null)
@@ -121,22 +124,24 @@ export default function HomePage() {
 
   async function loadHub() {
     setHubLoading(true)
+    setError(false)
 
-    const { data: seasonData } = await supabase
+    const { data: seasonData, error: seasonError } = await supabase
       .from('seasons')
       .select('id, year')
       .eq('status', 'active')
       .maybeSingle()
 
+    if (seasonError) { setError(true); setHubLoading(false); return }
     if (!seasonData) { setHubLoading(false); return }
     setSeason(seasonData)
 
     const [
-      { data: matchRows },
-      { data: standingsRows },
-      { data: myScoreRows },
-      { data: postRows },
-      { data: insightRow },
+      { data: matchRows, error: err1 },
+      { data: standingsRows, error: err2 },
+      { data: myScoreRows, error: err3 },
+      { data: postRows, error: err4 },
+      { data: insightRow, error: err5 },
     ] = await Promise.all([
       supabase
         .from('matches')
@@ -171,6 +176,8 @@ export default function HomePage() {
         .limit(1)
         .maybeSingle(),
     ])
+
+    if (err1 || err2 || err3 || err4 || err5) { setError(true); setHubLoading(false); return }
 
     // Derive current round (first round with a future kickoff; fallback to last)
     const now = new Date()
@@ -247,23 +254,13 @@ export default function HomePage() {
   }
 
   // ── Render branch: not yet resolved ───────────────────────────────────────
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
-      </div>
-    )
-  }
+  if (authLoading) return <LoadingSpinner />
 
   if (!user) return <LandingPage />
 
-  if (hubLoading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-6 h-6 rounded-full border-2 border-spal-cerulean border-t-transparent animate-spin" />
-      </div>
-    )
-  }
+  if (hubLoading) return <LoadingSpinner />
+
+  if (error) return <ErrorCard onRetry={loadHub} />
 
   if (!season) {
     return (

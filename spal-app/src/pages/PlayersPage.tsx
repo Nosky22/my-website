@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 interface Player {
@@ -54,6 +56,8 @@ export default function PlayersPage() {
   const [priceMap, setPriceMap]   = useState<Map<number, number>>(new Map())
   const [ownership, setOwnership] = useState<{ counts: Map<number, number>; total: number; round: number | null } | null>(null)
   const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState(false)
+  const [retryKey, setRetryKey]   = useState(0)
 
   const [searchQuery, setSearchQuery]   = useState('')
   const [nationFilter, setNationFilter] = useState('')
@@ -78,6 +82,7 @@ export default function PlayersPage() {
   useEffect(() => {
     if (seasonId == null) return
     setLoading(true)
+    setError(false)
     Promise.all([
       supabase
         .from('players')
@@ -98,6 +103,7 @@ export default function PlayersPage() {
         .eq('season_id', seasonId)
         .is('round_number', null),
     ]).then(([playersRes, picksRes, scoresRes, pricesRes]) => {
+      if (playersRes.error || picksRes.error || scoresRes.error || pricesRes.error) { setError(true); setLoading(false); return }
       setPlayers(playersRes.data ?? [])
 
       const draftMap = new Map<number, string>()
@@ -131,7 +137,7 @@ export default function PlayersPage() {
 
       setLoading(false)
     })
-  }, [seasonId])
+  }, [seasonId, retryKey])
 
   // Ownership: authenticated-only (manager_round_squads has authenticated-only RLS)
   useEffect(() => {
@@ -364,7 +370,9 @@ export default function PlayersPage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : sorted.length === 0 ? (
         <EmptyState
           icon={

@@ -4,6 +4,8 @@ import { marked } from 'marked'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Post {
   id: number
@@ -31,6 +33,7 @@ export default function ChroniclePostPage() {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [error, setError]       = useState(false)
 
   // Comment form state
   const [commentBody, setCommentBody]       = useState('')
@@ -41,13 +44,16 @@ export default function ChroniclePostPage() {
   const [pendingDelete, setPendingDelete]   = useState<number | null>(null)
 
   async function loadPost(s: string) {
-    const { data: postData } = await supabase
+    setLoading(true)
+    setError(false)
+    const { data: postData, error: fetchError } = await supabase
       .from('chronicle_posts')
       .select('id, title, body, published_at, profiles!author_id(display_name)')
       .eq('slug', s)
       .eq('published', true)
       .maybeSingle()
 
+    if (fetchError) { setError(true); setLoading(false); return }
     if (!postData) { setNotFound(true); setLoading(false); return }
 
     type RawPost = typeof postData & { profiles: { display_name: string } | null }
@@ -130,7 +136,9 @@ export default function ChroniclePostPage() {
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
-  if (loading) return <p className="text-spal-muted text-sm">Loading…</p>
+  if (loading) return <LoadingSpinner />
+
+  if (error) return <ErrorCard onRetry={() => { if (slug) loadPost(slug) }} />
 
   if (notFound) {
     return (

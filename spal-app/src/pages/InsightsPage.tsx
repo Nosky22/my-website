@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import InsightsPanel, { type InsightPayload } from '../components/InsightsPanel'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -19,20 +21,24 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true)
   const [roundLoading, setRoundLoading] = useState(false)
   const [noSeason, setNoSeason] = useState(false)
+  const [error, setError]       = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   // Load the active season
   useEffect(() => {
+    setError(false)
     supabase
       .from('seasons')
       .select('id, year')
       .eq('status', 'active')
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error: fetchError }) => {
+        if (fetchError) { setError(true); setLoading(false); return }
         if (!data) { setNoSeason(true); setLoading(false); return }
         setSeason(data as Season)
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   // Load insights when round is selected
   useEffect(() => {
@@ -56,7 +62,9 @@ export default function InsightsPage() {
       })
   }, [season, round])
 
-  if (loading) return <p className="text-spal-muted text-sm">Loading…</p>
+  if (loading) return <LoadingSpinner />
+
+  if (error) return <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
 
   if (noSeason) {
     return (

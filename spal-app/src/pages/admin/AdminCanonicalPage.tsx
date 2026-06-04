@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { POSITION_GROUP, CANONICAL_POSITIONS as POSITIONS, NATIONS, toSearchName } from '../../lib/positions'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface CanonicalPlayer {
   id: number
@@ -19,6 +21,7 @@ export default function AdminCanonicalPage() {
   const { addToast } = useToast()
   const [players, setPlayers]     = useState<CanonicalPlayer[]>([])
   const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(false)
 
   const [form, setForm]           = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
@@ -35,11 +38,12 @@ export default function AdminCanonicalPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
 
   async function load() {
-    const { data, error } = await supabase
+    setError(false)
+    const { data, error: fetchError } = await supabase
       .from('canonical_players')
       .select('id, display_name, search_name, nation, canonical_position')
       .order('display_name')
-    if (error) { addToast(error.message, 'error'); return }
+    if (fetchError) { setError(true); setLoading(false); return }
     setPlayers(data ?? [])
     setLoading(false)
   }
@@ -194,7 +198,9 @@ export default function AdminCanonicalPage() {
           </div>
 
           {loading ? (
-            <p className="text-spal-muted text-sm">Loading…</p>
+            <LoadingSpinner />
+          ) : error ? (
+            <ErrorCard onRetry={load} />
           ) : (
             <table className="w-full text-sm">
               <thead>

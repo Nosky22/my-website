@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,18 +61,22 @@ export default function ManagerProfilePage() {
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([])
   const [loading, setLoading]           = useState(true)
   const [notFound, setNotFound]         = useState(false)
+  const [error, setError]               = useState(false)
+  const [retryKey, setRetryKey]         = useState(0)
 
   useEffect(() => {
     if (!profileId) return
 
     async function load() {
+      setError(false)
       // 1. Profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, display_name, team_name')
         .eq('id', profileId)
         .maybeSingle()
 
+      if (profileError) { setError(true); setLoading(false); return }
       if (!profileData) { setNotFound(true); setLoading(false); return }
       setProfile(profileData as Profile)
 
@@ -153,7 +159,7 @@ export default function ManagerProfilePage() {
     }
 
     load()
-  }, [profileId])
+  }, [profileId, retryKey])
 
   // All-time summary stats
   const allTimeStats = useMemo(() => {
@@ -179,7 +185,9 @@ export default function ManagerProfilePage() {
     return order.map(y => byYear.get(y)!)
   }, [draftedPlayers])
 
-  if (loading) return <p className="text-spal-muted text-sm">Loading…</p>
+  if (loading) return <LoadingSpinner />
+
+  if (error) return <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
 
   if (notFound || !profile) {
     return (

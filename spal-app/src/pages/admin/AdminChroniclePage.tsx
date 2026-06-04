@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import ErrorCard from '../../components/ErrorCard'
 
 interface Post {
   id: number
@@ -42,6 +44,7 @@ export default function AdminChroniclePage() {
 
   const [posts, setPosts]           = useState<Post[]>([])
   const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(false)
   const [mode, setMode]             = useState<FormMode | null>(null)
   const [editingId, setEditingId]   = useState<number | null>(null)
   const [form, setForm]             = useState<PostForm>(EMPTY_FORM)
@@ -51,10 +54,13 @@ export default function AdminChroniclePage() {
   const [pendingDelete, setPendingDelete] = useState<Post | null>(null)
 
   async function loadPosts() {
-    const { data } = await supabase
+    setError(false)
+    const { data, error: fetchError } = await supabase
       .from('chronicle_posts')
       .select('id, slug, title, body, published, published_at, created_at, profiles!author_id(display_name)')
       .order('created_at', { ascending: false })
+
+    if (fetchError) { setError(true); setLoading(false); return }
 
     type Raw = { id: number; slug: string; title: string; body: string; published: boolean; published_at: string | null; created_at: string; profiles: { display_name: string } | null }
     setPosts(
@@ -263,7 +269,9 @@ export default function AdminChroniclePage() {
 
       {/* Post list */}
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={loadPosts} />
       ) : posts.length === 0 ? (
         <p className="text-spal-muted text-sm">No posts yet.</p>
       ) : (

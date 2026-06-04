@@ -6,6 +6,7 @@ import { useDraftPicks } from '../hooks/useDraftPicks'
 import DraftRoomAdminBar from '../components/DraftRoomAdminBar'
 import PickPanel from '../components/PickPanel'
 import NationBadge from '../components/NationBadge'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 interface Season { id: number; year: number }
 interface DraftOrderEntry {
@@ -171,7 +172,7 @@ export default function DraftRoomPage() {
       )}
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
       ) : !session ? (
         <p className="text-spal-muted text-sm">No draft session found for this season.</p>
       ) : managerCount === 0 ? (

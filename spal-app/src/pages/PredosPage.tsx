@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,7 @@ export default function PredosPage() {
   const [scores, setScores]           = useState<PredoScore[]>([])
   const [profiles, setProfiles]       = useState<Profile[]>([])
   const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState(false)
 
   // Form state: matchId → { winner, margin }
   const [formState, setFormState]   = useState<Record<number, { winner: string; margin: string }>>({})
@@ -95,15 +98,17 @@ export default function PredosPage() {
 
   async function loadRound(sid: number, r: number) {
     setLoading(true)
+    setError(false)
     setSaveMsg(null)
 
-    const { data: matchData } = await supabase
+    const { data: matchData, error: matchError } = await supabase
       .from('matches')
       .select('id, home_nation, away_nation, kickoff_at')
       .eq('season_id', sid)
       .eq('round_number', r)
       .order('kickoff_at')
 
+    if (matchError) { setError(true); setLoading(false); return }
     const matchList = (matchData ?? []) as Match[]
     setMatches(matchList)
 
@@ -282,7 +287,9 @@ export default function PredosPage() {
       {round == null ? (
         <p className="text-spal-muted text-sm">Select a round to see predictions.</p>
       ) : loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => { if (seasonId != null && round != null) loadRound(seasonId, round) }} />
       ) : matches.length === 0 ? (
         <p className="text-spal-muted text-sm">No matches found for this round.</p>
       ) : (

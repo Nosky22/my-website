@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 
@@ -64,6 +66,7 @@ export default function TeamSheetsPage() {
   const [squadMap, setSquadMap]             = useState<Map<string, PublicSquadPlayer[]>>(new Map())
   const [draftOwnerMap, setDraftOwnerMap]   = useState<Map<number, string[]>>(new Map())
   const [loading, setLoading]               = useState(true)
+  const [error, setError]                   = useState(false)
 
   // Sync selectedRound when ?round=N param changes (e.g. nav sub-link clicks)
   const roundParam = searchParams.get('round')
@@ -121,6 +124,7 @@ export default function TeamSheetsPage() {
 
   async function loadRound(seasonId: number, round: number) {
     setLoading(true)
+    setError(false)
 
     const roundMatches = allMatches.filter(m => m.round_number === round)
     if (roundMatches.length === 0) {
@@ -146,11 +150,12 @@ export default function TeamSheetsPage() {
 
   async function loadSquadsForMatches(matches: Match[]) {
     const matchIds = matches.map(m => m.id)
-    const { data: mdData } = await supabase
+    const { data: mdData, error: squadError } = await supabase
       .from('matchday_squads')
       .select('match_id, status, player_id, players!player_id(display_name, nation, canonical_position)')
       .in('match_id', matchIds)
 
+    if (squadError) { setError(true); setLoading(false); return }
     const map = new Map<string, PublicSquadPlayer[]>()
     for (const m of matches) map.set(m.id, [])
 
@@ -241,7 +246,9 @@ export default function TeamSheetsPage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => { if (activeSeason) loadRound(activeSeason.id, selectedRound) }} />
       ) : roundMatches.length === 0 ? (
         <EmptyState
           icon={

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import NationBadge from '../components/NationBadge'
 import { EmptyState } from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
 interface Pick {
@@ -46,6 +48,8 @@ export default function DraftPage() {
   const [seasonId, setSeasonId] = useState<number | null>(null)
   const [groups, setGroups] = useState<ManagerGroup[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     supabase
@@ -62,6 +66,7 @@ export default function DraftPage() {
   useEffect(() => {
     if (seasonId == null) return
     setLoading(true)
+    setError(false)
     supabase
       .from('draft_picks')
       .select(
@@ -69,7 +74,8 @@ export default function DraftPage() {
       )
       .eq('season_id', seasonId)
       .order('pick_number')
-      .then(({ data }) => {
+      .then(({ data, error: fetchError }) => {
+        if (fetchError) { setError(true); setLoading(false); return }
         const picks = (data ?? []) as unknown as Pick[]
 
         const byManager = new Map<string, Pick[]>()
@@ -86,7 +92,7 @@ export default function DraftPage() {
         )
         setLoading(false)
       })
-  }, [seasonId])
+  }, [seasonId, retryKey])
 
   return (
     <div>
@@ -104,7 +110,9 @@ export default function DraftPage() {
       </div>
 
       {loading ? (
-        <p className="text-spal-muted text-sm">Loading…</p>
+        <LoadingSpinner />
+      ) : error ? (
+        <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : groups.length === 0 ? (
         <EmptyState
           icon={
