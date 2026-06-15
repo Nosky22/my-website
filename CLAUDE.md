@@ -93,5 +93,5 @@ npm run build
 - Prefer editing existing files over creating new ones when extending a feature.
 - Don't introduce abstractions until the same pattern appears at least three times.
 - No frameworks, libraries, or dependencies added without explicit discussion.
-- Commit often with clear messages.
+- Commit often with clear messages. Do not add Co-Authored-By trailers to commit messages.
 - Read `CLAUDE.md` and relevant docs before starting any task.
