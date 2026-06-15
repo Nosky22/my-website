@@ -328,6 +328,32 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `023_seasons_cascade_delete.sql`
+**Applied:** 2026-06-15
+**Status:** Applied successfully — all 30 CASCADE constraints verified by query
+
+**Changes:** Changed 24 FK constraints from `NO ACTION` to `ON DELETE CASCADE`:
+
+- **21 direct children of `seasons.id`:** `admin_overrides`, `audit_log`, `draft_order`, `draft_picks`, `draft_sessions`, `fixture_group_members`, `fixture_groups`, `import_runs`, `league_penalties`, `legacy_import_files`, `manager_match_scores`, `manager_round_squads`, `matches`, `player_match_scores`, `player_prices`, `players`, `predo_predictions`, `predo_scores`, `round_insights`, `season_rules`, `season_standings`
+- **5 indirect children** (no direct `season_id` FK): `matchday_squads` (via `matches`), `predo_results` (via `matches`), `data_quality_issues` and `raw_import_payloads` (via `import_runs`), `legacy_import_sheets` (via `legacy_import_files`)
+
+**Effect:** `DELETE FROM seasons WHERE year = X` now cascades cleanly through all dependent tables. **No data modified. Fully reversible** (constraints can be recreated as NO ACTION).
+
+---
+
+### `20260615105216_reset_season_progress.sql`
+**Applied:** 2026-06-15
+**Status:** Applied successfully — function and grants verified by query
+
+**Functions created:**
+- `reset_season_progress(p_season_id bigint) RETURNS jsonb` — security definer; admin-only (`is_admin()` check raises exception if not admin); deletes all season progress data (squads, predictions, scores, standings, insights) while preserving structural setup (draft, player pool, fixtures, team sheets, rules). Returns a jsonb row-count summary per deleted table. REVOKE from PUBLIC; GRANT EXECUTE to `authenticated`.
+
+**UI change:** Added "Reset progress" button to each season row in `/admin/seasons`. Clicking opens a confirmation modal listing what will be deleted (squads, scores, predictions, standings, insights) vs kept (draft picks, player pool, fixtures, team sheets, rules), with explicit year in the heading.
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.

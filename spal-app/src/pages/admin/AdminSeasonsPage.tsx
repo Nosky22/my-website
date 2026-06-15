@@ -49,6 +49,10 @@ export default function AdminSeasonsPage() {
   const [error, setError]           = useState<string | null>(null)
   const [changingStatus, setChangingStatus] = useState<number | null>(null)
 
+  // Reset season progress
+  const [resetTarget, setResetTarget] = useState<Season | null>(null)
+  const [resetting, setResetting]     = useState(false)
+
   // Rules editor
   const [rulesSeasonId, setRulesSeasonId]   = useState<number | null>(null)
   const [rulesForm, setRulesForm]           = useState<RulesForm>(DEFAULT_RULES)
@@ -128,6 +132,23 @@ export default function AdminSeasonsPage() {
     await fetchSeasons()
     setForm({ year: new Date().getFullYear(), status: 'setup' })
     setSubmitting(false)
+  }
+
+  async function handleResetProgress() {
+    if (!resetTarget) return
+    setResetting(true)
+    const { data, error } = await supabase.rpc('reset_season_progress', { p_season_id: resetTarget.id })
+    if (error) {
+      addToast(`Reset failed: ${error.message}`, 'error')
+    } else {
+      const counts = data as Record<string, number>
+      const summary = Object.entries(counts)
+        .map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`)
+        .join(', ')
+      addToast(`${resetTarget.year} progress reset — deleted: ${summary}`, 'success')
+    }
+    setResetting(false)
+    setResetTarget(null)
   }
 
   async function fetchRules(seasonId: number) {
@@ -233,6 +254,7 @@ export default function AdminSeasonsPage() {
               <th className="pb-2 pr-8 font-normal">Status</th>
               <th className="pb-2 pr-8 font-normal">Created</th>
               <th className="pb-2 font-normal" />
+              <th className="pb-2 font-normal" />
             </tr>
           </thead>
           <tbody>
@@ -247,7 +269,7 @@ export default function AdminSeasonsPage() {
                 <td className="py-2 pr-8 text-spal-muted">
                   {new Date(s.created_at).toLocaleDateString()}
                 </td>
-                <td className="py-2">
+                <td className="py-2 pr-6">
                   <select
                     value={s.status}
                     disabled={changingStatus !== null}
@@ -258,6 +280,15 @@ export default function AdminSeasonsPage() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
+                </td>
+                <td className="py-2">
+                  <button
+                    onClick={() => setResetTarget(s)}
+                    disabled={resetting}
+                    className="text-xs text-spal-error border border-spal-error/40 rounded px-2 py-1 hover:bg-spal-error/10 disabled:opacity-40 transition-colors"
+                  >
+                    Reset progress
+                  </button>
                 </td>
               </tr>
             ))}
@@ -396,6 +427,64 @@ export default function AdminSeasonsPage() {
         )}
       </section>
 
+      {/* ── Reset Season Progress modal ──────────────────────────────── */}
+      {resetTarget && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-spal-surface rounded-lg max-w-md w-full p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-spal-error mb-1">
+              Reset {resetTarget.year} season progress?
+            </h2>
+            <p className="text-spal-muted text-sm mb-5">
+              This is irreversible. All scored and submitted data for the {resetTarget.year} season will be permanently deleted.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div>
+                <p className="text-xs font-semibold text-spal-error uppercase tracking-wider mb-2">Will be deleted</p>
+                <ul className="space-y-1 text-spal-muted">
+                  <li>Manager round squads</li>
+                  <li>Squad player selections</li>
+                  <li>Predo predictions</li>
+                  <li>Predo scores</li>
+                  <li>Predo results</li>
+                  <li>Manager match scores</li>
+                  <li>Player match scores</li>
+                  <li>Season standings</li>
+                  <li>Round insights</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-spal-success uppercase tracking-wider mb-2">Will be kept</p>
+                <ul className="space-y-1 text-spal-muted">
+                  <li>Draft picks</li>
+                  <li>Draft order</li>
+                  <li>Player pool</li>
+                  <li>Fixtures (matches)</li>
+                  <li>Team sheets</li>
+                  <li>Season rules</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setResetTarget(null)}
+                disabled={resetting}
+                className="text-sm text-spal-muted border border-white/10 rounded px-4 py-1.5 hover:border-white/30 disabled:opacity-40 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetProgress}
+                disabled={resetting}
+                className="text-sm bg-spal-error text-white rounded px-4 py-1.5 hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {resetting ? 'Resetting…' : `Yes, reset ${resetTarget.year}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
