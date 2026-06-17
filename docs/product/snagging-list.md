@@ -60,6 +60,7 @@
 - [ ] Visual workflow indicator — already built on dashboard, continue refining
 - [ ] Display official team sheets to managers before squad deadline
 - [ ] Keep SPAL in step with official game schedule
+- [ ] Squad builder draft picks panel — currently the player picker shows undrafted players plus the logged-in manager's own drafted players, but they're not visually distinguished. Add a separate "My Draft Picks" panel or section to the side of the squad builder (or within the picker) showing the manager's own drafted players clearly, so they can quickly identify and select from their pre-drafted players versus browsing the wider undrafted pool. Consider a tabbed or sectioned view: "My Picks" vs "Available Players".
 
 ## Admin Management
 - [ ] Admin Predos management — ability to edit, reset, and delete predo predictions and results. Reset predo scores for a round. View all manager predictions before the deadline (admin bypass).
