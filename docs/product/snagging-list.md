@@ -67,6 +67,9 @@
 ## Admin Management
 - [ ] Admin Predos management — ability to edit, reset, and delete predo predictions and results. Reset predo scores for a round. View all manager predictions before the deadline (admin bypass).
 - [ ] Admin Chronicle management improvements — ability to edit and delete comments (admin moderation), pin posts, manage post order, insights embed syntax in post body.
+- [ ] Admin round deadline management — admin can reopen a round deadline by pushing the kickoff_at forward for matches in that round. Add a simple "Adjust deadline" control to the admin scores page for each round.
+- [ ] Admin squad override — admin can manually input or edit a squad on behalf of a manager after the deadline has passed, bypassing the deadline check. Should require a reason and be logged in audit_log. Available in admin teamsheets or admin scores page.
+- [ ] Admin predo override — admin can manually input predo predictions on behalf of a manager after the deadline has passed, bypassing the deadline check. Same audit requirement as squad override.
 
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
