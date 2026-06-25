@@ -28,6 +28,8 @@ interface CalcScore    { profile_id: string; round_score: number }
 interface CalcResult   { round_number: number; managers_scored: number; scores: CalcScore[] }
 interface ProfileInfo  { display_name: string; team_name: string }
 interface LockSummary  { alreadyLocked: boolean; locked?: number; copied?: number; empty?: number; error?: string }
+type StepStatus = 'idle' | 'running' | 'done' | 'error'
+interface PipelineStep { label: string; status: StepStatus; detail?: string }
 interface ManagerOption { id: string; display_name: string }
 interface PenaltyRow   { id: number; profile_id: string; penalty_type: string; description: string; points_adjustment: number; created_by: string }
 interface PenaltyForm  { profileId: string; penaltyType: string; description: string; points: string }
@@ -122,6 +124,10 @@ export default function AdminScoresPage() {
   // ── Generate insights ────────────────────────────────────────────
   const [generatingInsights, setGeneratingInsights] = useState(false)
   const [insightsMsg, setInsightsMsg]               = useState<string | null>(null)
+
+  // ── Close round pipeline ─────────────────────────────────────────
+  const [pipeline, setPipeline]           = useState<PipelineStep[] | null>(null)
+  const [pipelineRunning, setPipelineRunning] = useState(false)
 
   // ── Predo results ─────────────────────────────────────────────
   const [predoResults, setPredoResults]       = useState<PredoResultRow[]>([])
@@ -604,6 +610,111 @@ export default function AdminScoresPage() {
     addToast(`Insights generated for round ${result.round_number}`, 'success')
   }
 
+  // ── Close round pipeline ─────────────────────────────────────────
+  async function handleCloseRound() {
+    if (selectedSeasonId == null || selectedRound == null) return
+
+    const steps: PipelineStep[] = [
+      'Lock squads', 'Calculate scores', 'Calculate predos', 'Generate insights', 'Mark as final',
+    ].map(label => ({ label, status: 'idle' as StepStatus }))
+
+    const update = (i: number, patch: Partial<PipelineStep>) => {
+      steps[i] = { ...steps[i], ...patch }
+      setPipeline([...steps])
+    }
+
+    setPipelineRunning(true)
+    setPipeline([...steps])
+
+    // Step 0: Lock squads
+    update(0, { status: 'running' })
+    try {
+      const jwt = session?.access_token ?? ''
+      const res = await fetch('/.netlify/functions/lock-squads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+        body: JSON.stringify({ season_id: selectedSeasonId, round_number: selectedRound }),
+      })
+      const lockData = await res.json() as LockSummary | { error?: string }
+      if (!res.ok) {
+        update(0, { status: 'error', detail: ('error' in lockData && lockData.error) ? lockData.error : `HTTP ${res.status}` })
+        setPipelineRunning(false); return
+      }
+      const lr = lockData as LockSummary
+      update(0, { status: 'done', detail: lr.alreadyLocked ? 'Already locked' : `${lr.locked ?? 0} locked, ${lr.copied ?? 0} copied` })
+    } catch (err) {
+      update(0, { status: 'error', detail: err instanceof Error ? err.message : 'Network error' })
+      setPipelineRunning(false); return
+    }
+
+    // Step 1: Calculate scores
+    update(1, { status: 'running' })
+    const { data: calcData, error: calcErr } = await supabase.functions.invoke('score-round', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+    if (calcErr) {
+      let msg = calcErr.message
+      try {
+        const ctx = (calcErr as unknown as { context?: Response }).context
+        if (ctx) { const b = await ctx.json(); msg = b.error ?? b.message ?? msg }
+      } catch { /* use original message */ }
+      update(1, { status: 'error', detail: msg })
+      setPipelineRunning(false); return
+    }
+    const cr = calcData as CalcResult
+    update(1, { status: 'done', detail: `${cr.managers_scored} manager${cr.managers_scored !== 1 ? 's' : ''} scored` })
+
+    // Step 2: Calculate predos
+    update(2, { status: 'running' })
+    const { data: predoData, error: predoErr } = await supabase.functions.invoke('score-predos', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+    if (predoErr) {
+      let msg = predoErr.message
+      try {
+        const ctx = (predoErr as unknown as { context?: Response }).context
+        if (ctx) { const b = await ctx.json(); msg = b.error ?? b.message ?? msg }
+      } catch { /* use original message */ }
+      update(2, { status: 'error', detail: msg })
+      setPipelineRunning(false); return
+    }
+    const pr = predoData as PredoCalcResult
+    update(2, { status: 'done', detail: `${pr.managers_scored} manager${pr.managers_scored !== 1 ? 's' : ''} scored` })
+
+    // Step 3: Generate insights
+    update(3, { status: 'running' })
+    const { data: insightData, error: insightErr } = await supabase.functions.invoke('generate-insights', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+      headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+    })
+    if (insightErr) {
+      update(3, { status: 'error', detail: insightErr.message })
+      setPipelineRunning(false); return
+    }
+    const ir = insightData as { round_number: number }
+    update(3, { status: 'done', detail: `Round ${ir.round_number} insights ready` })
+
+    // Step 4: Mark as final
+    update(4, { status: 'running' })
+    const pipelineMatchIds = matches.map(m => m.id)
+    const [mmsRes, standingsRes] = await Promise.all([
+      supabase.from('manager_match_scores').update({ status: 'final' }).in('match_id', pipelineMatchIds),
+      supabase.from('season_standings').update({ last_updated_round: selectedRound }).eq('season_id', selectedSeasonId),
+    ])
+    if (mmsRes.error || standingsRes.error) {
+      update(4, { status: 'error', detail: mmsRes.error?.message ?? standingsRes.error?.message ?? 'DB error' })
+      setPipelineRunning(false); return
+    }
+    update(4, { status: 'done', detail: 'Round finalised' })
+
+    setPipelineRunning(false)
+    setRoundFinal(true)
+    setRoundScored(true)
+    setSquadsNeedLock(false)
+    addToast(`Round ${selectedRound} closed`, 'success')
+    loadRound()
+  }
+
   // ── Render ───────────────────────────────────────────────────────
   return (
     <div>
@@ -659,6 +770,50 @@ export default function AdminScoresPage() {
 
           {/* Left: match panels + calculate */}
           <div className="flex-1 min-w-0 space-y-4">
+
+            {/* Close round pipeline */}
+            <section className="bg-spal-surface rounded p-5 border border-spal-cerulean/20">
+              <div className="flex items-center justify-between mb-3 gap-4">
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-spal-text">Close round</h2>
+                  <p className="text-xs text-spal-muted mt-0.5">
+                    Full pipeline: lock squads → calculate scores → predo scores → insights → finalise.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseRound}
+                  disabled={pipelineRunning || roundFinal}
+                  className={`${submitClass} px-5 shrink-0`}
+                >
+                  {pipelineRunning ? 'Running…' : roundFinal ? 'Round final' : 'Close round'}
+                </button>
+              </div>
+
+              {pipeline && (
+                <div className="space-y-1.5 border-t border-white/10 pt-3">
+                  {pipeline.map((step, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-sm">
+                      {step.status === 'done'    && <span className="text-spal-success text-base leading-none shrink-0">✓</span>}
+                      {step.status === 'running' && <span className="text-spal-cerulean text-base leading-none shrink-0 animate-pulse">●</span>}
+                      {step.status === 'error'   && <span className="text-spal-error text-base leading-none shrink-0">✗</span>}
+                      {step.status === 'idle'    && <span className="text-spal-muted text-base leading-none shrink-0">○</span>}
+                      <span className={
+                        step.status === 'done'    ? 'text-spal-text'     :
+                        step.status === 'running' ? 'text-spal-cerulean' :
+                        step.status === 'error'   ? 'text-spal-error'    :
+                                                    'text-spal-muted'
+                      }>
+                        {step.label}
+                      </span>
+                      {step.detail && (
+                        <span className="text-xs text-spal-muted">{step.detail}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             {matches.map(match => {
               const rowList = (scoresByMatch.get(match.id) ?? [])
                 .slice()
