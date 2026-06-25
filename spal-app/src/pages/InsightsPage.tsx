@@ -24,7 +24,7 @@ export default function InsightsPage() {
   const [error, setError]       = useState(false)
   const [retryKey, setRetryKey] = useState(0)
 
-  // Load the active season
+  // Load the active season, then auto-select the latest round with insights
   useEffect(() => {
     setError(false)
     supabase
@@ -32,10 +32,20 @@ export default function InsightsPage() {
       .select('id, year')
       .eq('status', 'active')
       .maybeSingle()
-      .then(({ data, error: fetchError }) => {
+      .then(async ({ data, error: fetchError }) => {
         if (fetchError) { setError(true); setLoading(false); return }
         if (!data) { setNoSeason(true); setLoading(false); return }
         setSeason(data as Season)
+        // Pick the latest round that has generated insights
+        const { data: insightRows } = await supabase
+          .from('round_insights')
+          .select('round_number')
+          .eq('season_id', (data as Season).id)
+          .order('round_number', { ascending: false })
+          .limit(1)
+        if (insightRows && insightRows.length > 0) {
+          setRound(insightRows[0].round_number as number)
+        }
         setLoading(false)
       })
   }, [retryKey])

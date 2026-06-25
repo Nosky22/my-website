@@ -76,13 +76,39 @@ export default function PredosPage() {
   const [saveMsg, setSaveMsg]       = useState<string | null>(null)
   const [rulesOpen, setRulesOpen]   = useState(false)
 
-  // ── Load seasons ──────────────────────────────────────────────
+  // ── Load seasons, default to active, auto-select current round ────
   useEffect(() => {
-    supabase.from('seasons').select('id, year').order('year', { ascending: false })
-      .then(({ data }) => {
-        const list = data ?? []
+    supabase
+      .from('seasons')
+      .select('id, year, status')
+      .order('year', { ascending: false })
+      .then(async ({ data }) => {
+        const list = (data ?? []) as (Season & { status: string })[]
         setSeasons(list)
-        if (list.length) setSeasonId(list[0].id)
+        const preferred = list.find(s => s.status === 'active') ?? list[0]
+        if (!preferred) return
+        setSeasonId(preferred.id)
+
+        // Derive current round from kickoffs for the preferred season
+        const { data: matchRows } = await supabase
+          .from('matches')
+          .select('round_number, kickoff_at')
+          .eq('season_id', preferred.id)
+          .order('round_number')
+          .order('kickoff_at')
+
+        if (!matchRows?.length) return
+        const now = new Date()
+        const allRounds = [...new Set(matchRows.map(m => m.round_number as number))].sort((a, b) => a - b)
+        let activeR = allRounds[allRounds.length - 1]
+        for (const r of allRounds) {
+          const kickoffs = matchRows
+            .filter(m => m.round_number === r)
+            .map(m => new Date(m.kickoff_at as string))
+            .sort((a, b) => a.getTime() - b.getTime())
+          if (kickoffs[0] && kickoffs[0] > now) { activeR = r; break }
+        }
+        setRound(activeR)
       })
   }, [])
 

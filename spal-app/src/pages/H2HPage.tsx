@@ -31,12 +31,13 @@ export default function H2HPage() {
   useEffect(() => {
     supabase
       .from('seasons')
-      .select('id, year')
+      .select('id, year, status')
       .order('year', { ascending: false })
       .then(({ data }) => {
-        const list = data ?? []
+        const list = (data ?? []) as (Season & { status: string })[]
         setSeasons(list)
-        if (list.length > 0) setSeasonId(list[0].id)
+        const preferred = list.find(s => s.status === 'active') ?? list[0]
+        if (preferred) setSeasonId(preferred.id)
       })
   }, [])
 
