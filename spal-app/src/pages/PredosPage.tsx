@@ -399,7 +399,54 @@ export default function PredosPage() {
           {/* ── Phase B / C: after deadline — predictions grid ─── */}
           {deadlinePassed && (
             <section className="space-y-4">
-              <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Predictions</h2>
+
+              {/* Locked-state banner with own predictions read-only */}
+              {user && (() => {
+                const ownPreds = predictions.filter(p => p.profile_id === user.id)
+                return ownPreds.length > 0 ? (
+                  <div className="bg-spal-surface border border-spal-cerulean/20 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-spal-cerulean/15 text-spal-cerulean">
+                        Predictions locked
+                      </span>
+                      <span className="text-xs text-spal-muted">Your submitted predictions for Round {round}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {matches.map(match => {
+                        const pred = ownPreds.find(p => p.match_id === match.id)
+                        const result = resultMap.get(match.id)
+                        const correct = result && pred && pred.predicted_winner === result.actual_winner
+                        return (
+                          <div key={match.id} className="flex items-center gap-3 text-sm flex-wrap">
+                            <span className="text-spal-muted w-36 shrink-0">{match.home_nation} vs {match.away_nation}</span>
+                            {pred ? (
+                              <>
+                                <span className="text-spal-text font-medium">{pred.predicted_winner}</span>
+                                {pred.predicted_winner !== 'Draw' && (
+                                  <span className="text-spal-muted">+{pred.predicted_margin}</span>
+                                )}
+                                {result && (
+                                  <span className={`text-xs font-medium ${correct ? 'text-spal-success' : 'text-red-400'}`}>
+                                    {correct ? '✓ Correct' : '✗ Wrong'}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-spal-muted text-xs italic">No prediction submitted</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-spal-surface border border-white/10 rounded-lg p-4">
+                    <p className="text-sm text-spal-muted">You didn't submit predictions for this round.</p>
+                  </div>
+                )
+              })()}
+
+              <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">All predictions</h2>
               {matches.map(match => {
                 const result   = resultMap.get(match.id)
                 const matchPreds = (predsByMatch.get(match.id) ?? [])
