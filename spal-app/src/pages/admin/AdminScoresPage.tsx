@@ -7,7 +7,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import ErrorCard from '../../components/ErrorCard'
 
 interface Season { id: number; year: number }
-interface Match  { id: number; home_nation: string; away_nation: string }
+interface Match  { id: number; home_nation: string; away_nation: string; kickoff_at: string | null }
 interface PredoResultRow  { match_id: number; actual_winner: string; actual_margin: number }
 interface PredoResultForm { winner: string; margin: string }
 interface PredoCalcScore  { profile_id: string; winning_team_points: number; margin_points: number; total_points: number }
@@ -129,6 +129,14 @@ export default function AdminScoresPage() {
   const [pipeline, setPipeline]           = useState<PipelineStep[] | null>(null)
   const [pipelineRunning, setPipelineRunning] = useState(false)
 
+  // ── Kickoff management ───────────────────────────────────────────
+  const [kickoffEdits, setKickoffEdits]         = useState<Record<number, string>>({})
+  const [kickoffOriginals, setKickoffOriginals] = useState<Record<number, string>>({})
+  const [savingKickoffs, setSavingKickoffs]     = useState(false)
+  const [shiftHours, setShiftHours]             = useState('')
+  const [kickoffReason, setKickoffReason]       = useState('Kickoff adjustment')
+  const [kickoffMsg, setKickoffMsg]             = useState<string | null>(null)
+
   // ── Predo results ─────────────────────────────────────────────
   const [predoResults, setPredoResults]       = useState<PredoResultRow[]>([])
   const [predoForms, setPredoForms]           = useState<Record<number, PredoResultForm>>({})
@@ -162,6 +170,7 @@ export default function AdminScoresPage() {
       setSquadsNeedLock(false); setLockResult(null); setLockError(null)
       setPenalties([])
       setPredoResults([]); setPredoForms({}); setPredoCalcResult(null); setPredoSaveMsg(null)
+      setKickoffEdits({}); setKickoffOriginals({}); setKickoffMsg(null)
       return
     }
     loadRound()
@@ -193,7 +202,16 @@ export default function AdminScoresPage() {
       return acc == null || m.kickoff_at < acc ? m.kickoff_at : acc
     }, null)
 
-    setMatches(matchData.map(m => ({ id: m.id, home_nation: m.home_nation, away_nation: m.away_nation })))
+    setMatches(matchData.map(m => ({ id: m.id, home_nation: m.home_nation, away_nation: m.away_nation, kickoff_at: m.kickoff_at as string | null })))
+
+    // Populate kickoff editors
+    const edits: Record<number, string> = {}
+    for (const m of matchData) {
+      edits[m.id] = m.kickoff_at ? fmtDtLocal(new Date(m.kickoff_at as string)) : ''
+    }
+    setKickoffEdits(edits)
+    setKickoffOriginals({ ...edits })
+    setKickoffMsg(null)
 
     const matchIds = matchData.map(m => m.id)
     const [scoresRes, mdRes, mmsRes, squadsRes] = await Promise.all([
@@ -610,6 +628,56 @@ export default function AdminScoresPage() {
     addToast(`Insights generated for round ${result.round_number}`, 'success')
   }
 
+  // ── Kickoff management ───────────────────────────────────────────
+  async function handleSaveKickoffs() {
+    if (!user || selectedSeasonId == null || selectedRound == null) return
+    setSavingKickoffs(true); setKickoffMsg(null)
+    const reason = kickoffReason.trim() || 'Kickoff adjustment'
+    let changed = 0
+
+    for (const match of matches) {
+      const editVal = kickoffEdits[match.id]
+      if (!editVal || editVal === kickoffOriginals[match.id]) continue
+      changed++
+      const newIso = new Date(editVal).toISOString()
+      const { error } = await supabase.from('matches').update({ kickoff_at: newIso }).eq('id', match.id)
+      if (!error) {
+        await supabase.from('admin_overrides').insert({
+          season_id:   selectedSeasonId,
+          entity_type: 'match',
+          entity_id:   String(match.id),
+          field_name:  'kickoff_at',
+          old_value:   match.kickoff_at,
+          new_value:   newIso,
+          reason,
+          created_by:  user.id,
+        })
+      }
+    }
+
+    setSavingKickoffs(false)
+    if (changed === 0) {
+      setKickoffMsg('No changes to save.')
+    } else {
+      setKickoffMsg(`${changed} kickoff${changed !== 1 ? 's' : ''} updated.`)
+      loadRound()
+    }
+  }
+
+  function handleShiftKickoffs() {
+    const hours = parseFloat(shiftHours)
+    if (isNaN(hours)) return
+    const ms = hours * 3600 * 1000
+    setKickoffEdits(prev => {
+      const next: Record<number, string> = {}
+      for (const [id, val] of Object.entries(prev)) {
+        if (!val) { next[Number(id)] = val; continue }
+        next[Number(id)] = fmtDtLocal(new Date(new Date(val).getTime() + ms))
+      }
+      return next
+    })
+  }
+
   // ── Close round pipeline ─────────────────────────────────────────
   async function handleCloseRound() {
     if (selectedSeasonId == null || selectedRound == null) return
@@ -811,6 +879,69 @@ export default function AdminScoresPage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </section>
+
+            {/* Kickoff times */}
+            <section className="bg-spal-surface rounded p-5">
+              <h2 className="font-semibold text-spal-text mb-1">Kickoff times</h2>
+              <p className="text-xs text-spal-muted mb-4">
+                The earliest kickoff is the squad submission deadline. Changes are audited.
+              </p>
+
+              <div className="space-y-2.5 mb-4">
+                {matches.map(m => (
+                  <div key={m.id} className="flex items-center gap-3 flex-wrap">
+                    <span className="text-sm text-spal-text w-44 shrink-0">{m.home_nation} vs {m.away_nation}</span>
+                    <input
+                      type="datetime-local"
+                      value={kickoffEdits[m.id] ?? ''}
+                      onChange={e => setKickoffEdits(prev => ({ ...prev, [m.id]: e.target.value }))}
+                      className={`${inputClass} w-auto`}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap border-t border-white/10 pt-4 mb-4">
+                <span className="text-xs text-spal-muted">Shift all by</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={shiftHours}
+                  onChange={e => setShiftHours(e.target.value)}
+                  placeholder="hours (e.g. −6)"
+                  className={`${inputClass} w-32`}
+                />
+                <button
+                  type="button"
+                  onClick={handleShiftKickoffs}
+                  className="text-xs text-spal-cerulean border border-spal-cerulean/30 rounded px-3 py-1.5 hover:bg-spal-cerulean/10 transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap border-t border-white/10 pt-4">
+                <input
+                  type="text"
+                  value={kickoffReason}
+                  onChange={e => setKickoffReason(e.target.value)}
+                  placeholder="Reason for change…"
+                  className={`${inputClass} flex-1 min-w-40`}
+                />
+                <button
+                  onClick={handleSaveKickoffs}
+                  disabled={savingKickoffs}
+                  className={`${submitClass} px-5 shrink-0`}
+                >
+                  {savingKickoffs ? 'Saving…' : 'Save kickoffs'}
+                </button>
+              </div>
+              {kickoffMsg && (
+                <p className={`text-xs mt-2 ${kickoffMsg.includes('updated') ? 'text-spal-success' : 'text-spal-muted'}`}>
+                  {kickoffMsg}
+                </p>
               )}
             </section>
 
@@ -1466,6 +1597,11 @@ export default function AdminScoresPage() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+function fmtDtLocal(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd']
