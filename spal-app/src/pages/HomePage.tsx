@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, Shield, Target } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Shield, Target } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import type { InsightPayload } from '../components/InsightsPanel'
@@ -29,6 +29,14 @@ interface Post {
   slug: string
   body: string
   created_at: string
+}
+
+// Status item shown in the action items panel
+interface ActionItem {
+  key: string
+  label: string
+  done: boolean
+  cta?: { label: string; to: string }
 }
 
 function countdown(iso: string): string {
@@ -116,6 +124,11 @@ export default function HomePage() {
   const [posts, setPosts]               = useState<Post[]>([])
   const [insights, setInsights]         = useState<InsightPayload | null>(null)
   const [insightsRound, setInsightsRound] = useState<number | null>(null)
+  // Action items state
+  const [squadStatus, setSquadStatus]         = useState<'none' | 'draft' | 'submitted' | 'locked'>('none')
+  const [predosSubmitted, setPredosSubmitted] = useState(false)
+  const [teamSheetsAvail, setTeamSheetsAvail] = useState(false)
+  const [roundScored, setRoundScored]         = useState(false)
 
   useEffect(() => {
     if (authLoading || !user) return
@@ -178,6 +191,80 @@ export default function HomePage() {
     ])
 
     if (err1 || err2 || err3 || err4 || err5) { setError(true); setHubLoading(false); return }
+
+    // Derive current round early (needed for action item fetches below)
+    const nowForRound = new Date()
+    const allRoundsEarly = [...new Set((matchRows ?? []).map(m => m.round_number as number))].sort((a, b) => a - b)
+    let activeRoundEarly = allRoundsEarly[allRoundsEarly.length - 1] ?? 1
+    for (const r of allRoundsEarly) {
+      const ko = (matchRows ?? [])
+        .filter(m => m.round_number === r)
+        .map(m => new Date(m.kickoff_at as string))
+        .sort((a, b) => a.getTime() - b.getTime())
+      if (ko[0] && ko[0] > nowForRound) { activeRoundEarly = r; break }
+    }
+    const roundMatchIds = (matchRows ?? [])
+      .filter(m => m.round_number === activeRoundEarly)
+      .map(m => (m as unknown as { id?: number }).id)
+      .filter((id): id is number => id != null)
+
+    // Fetch the round's match IDs (with id column) to check action items
+    const { data: roundMatchRows } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('season_id', seasonData.id)
+      .eq('round_number', activeRoundEarly)
+
+    const roundIds = (roundMatchRows ?? []).map(m => m.id as number)
+    void roundMatchIds // not used further
+
+    const [
+      { data: mySquadRow },
+      { data: myPredoRows },
+      { data: tsRows },
+      { data: scoredRows },
+    ] = await Promise.all([
+      supabase
+        .from('manager_round_squads')
+        .select('id, status, locked_at')
+        .eq('season_id', seasonData.id)
+        .eq('profile_id', user!.id)
+        .eq('round_number', activeRoundEarly)
+        .maybeSingle(),
+      roundIds.length > 0
+        ? supabase
+            .from('predo_predictions')
+            .select('id')
+            .eq('profile_id', user!.id)
+            .in('match_id', roundIds)
+            .limit(1)
+        : Promise.resolve({ data: [] }),
+      roundIds.length > 0
+        ? supabase
+            .from('matchday_squads')
+            .select('id')
+            .in('match_id', roundIds)
+            .limit(1)
+        : Promise.resolve({ data: [] }),
+      roundIds.length > 0
+        ? supabase
+            .from('manager_match_scores')
+            .select('id')
+            .in('match_id', roundIds)
+            .limit(1)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const sq = mySquadRow as { status: string; locked_at: string | null } | null
+    const sqStatus: 'none' | 'draft' | 'submitted' | 'locked' =
+      !sq           ? 'none'
+      : sq.locked_at ? 'locked'
+      : sq.status === 'submitted' ? 'submitted'
+      : 'draft'
+    setSquadStatus(sqStatus)
+    setPredosSubmitted((myPredoRows?.length ?? 0) > 0)
+    setTeamSheetsAvail((tsRows?.length ?? 0) > 0)
+    setRoundScored((scoredRows?.length ?? 0) > 0)
 
     // Derive current round (first round with a future kickoff; fallback to last)
     const now = new Date()
@@ -276,6 +363,48 @@ export default function HomePage() {
   const deadlinePassed = deadlineIso ? new Date(deadlineIso) < new Date() : false
   const hasH2H = myStanding && (myStanding.h2h_wins + myStanding.h2h_draws + myStanding.h2h_losses) > 0
 
+  // Build action items for the current round
+  const squadDone = squadStatus === 'submitted' || squadStatus === 'locked'
+  const actionItems: ActionItem[] = [
+    {
+      key: 'squad',
+      label: squadStatus === 'locked'    ? 'Squad locked in'
+           : squadStatus === 'submitted' ? 'Squad submitted'
+           : squadStatus === 'draft'     ? 'Squad started (not yet submitted)'
+           : 'Submit your squad',
+      done: squadDone,
+      cta: !squadDone
+        ? { label: squadStatus === 'draft' ? 'Finish squad' : 'Build squad', to: season && currentRound ? `/squad?season=${season.id}&round=${currentRound}` : '/squad' }
+        : undefined,
+    },
+    {
+      key: 'predos',
+      label: predosSubmitted ? 'Predictions submitted' : 'Enter your predictions',
+      done: predosSubmitted || deadlinePassed,
+      cta: !predosSubmitted && !deadlinePassed
+        ? { label: 'Enter predos', to: '/predos' }
+        : undefined,
+    },
+    {
+      key: 'teamsheets',
+      label: teamSheetsAvail ? 'Team sheets available' : 'Team sheets not yet available',
+      done: teamSheetsAvail,
+      cta: teamSheetsAvail
+        ? { label: 'View team sheets', to: currentRound ? `/teamsheets?round=${currentRound}` : '/teamsheets' }
+        : undefined,
+    },
+    {
+      key: 'results',
+      label: roundScored ? 'Round results available' : 'Round results pending',
+      done: roundScored,
+      cta: roundScored
+        ? { label: 'View standings', to: '/standings' }
+        : undefined,
+    },
+  ]
+  // Only show pending items (plus a summary tick if everything is done)
+  const pendingItems = actionItems.filter(a => !a.done || a.cta)
+
   // ── Logged-in hub ──────────────────────────────────────────────────────────
   return (
     <div className="space-y-4 max-w-3xl">
@@ -355,6 +484,55 @@ export default function HomePage() {
           <div className="bg-spal-surface rounded-lg px-5 py-4 flex items-center">
             <p className="text-sm text-spal-muted">No scores yet this season.</p>
           </div>
+        )}
+      </div>
+
+      {/* Action items panel */}
+      <div className="bg-spal-surface rounded-lg px-5 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">
+            Round {currentRound} — this round
+          </h2>
+          {deadlineIso && !deadlinePassed && (
+            <span className="text-xs text-emerald-400 font-medium tabular-nums">
+              {countdown(deadlineIso)} until lock
+            </span>
+          )}
+          {deadlinePassed && (
+            <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-spal-muted font-medium">
+              Deadline passed
+            </span>
+          )}
+        </div>
+
+        {pendingItems.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-emerald-400">
+            <CheckCircle2 size={16} />
+            <span>All done for this round</span>
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {actionItems.map(item => (
+              <li key={item.key} className="flex items-center gap-3">
+                {item.done ? (
+                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                ) : (
+                  <div className="w-4 h-4 rounded-full border border-spal-cerulean shrink-0" />
+                )}
+                <span className={`text-sm flex-1 ${item.done ? 'text-spal-muted line-through decoration-white/20' : 'text-spal-text'}`}>
+                  {item.label}
+                </span>
+                {item.cta && (
+                  <Link
+                    to={item.cta.to}
+                    className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors whitespace-nowrap font-medium"
+                  >
+                    {item.cta.label} →
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
