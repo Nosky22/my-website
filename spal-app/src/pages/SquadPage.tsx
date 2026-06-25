@@ -194,6 +194,7 @@ export default function SquadPage() {
   const [rounds, setRounds]                     = useState<number[]>([])
   const [rules, setRules]                       = useState<SeasonRules | null>(null)
   const [allPlayers, setAllPlayers]             = useState<PlayerWithPrice[]>([])
+  const [myDraftedPlayerIds, setMyDraftedPlayerIds] = useState<Set<number>>(new Set())
   const [slots, setSlots]                       = useState<SquadSlot[]>(makeEmptySlots())
   const [squadStatus, setSquadStatus]           = useState<string>('draft')
   const [locked, setLocked]                     = useState(false)
@@ -307,6 +308,12 @@ export default function SquadPage() {
         .filter(p => p.profile_id !== user.id)
         .map(p => Number(p.player_id))
     )
+    const myDraftedIds = new Set(
+      (pickRows ?? [])
+        .filter(p => p.profile_id === user.id)
+        .map(p => Number(p.player_id))
+    )
+    setMyDraftedPlayerIds(myDraftedIds)
 
     const players: PlayerWithPrice[] = (playerRows ?? [])
       .filter(p => !otherManagerPickIds.has(p.id))
@@ -735,6 +742,7 @@ export default function SquadPage() {
           eligiblePositions={pickerSlot.eligiblePositions}
           availablePlayers={allPlayers}
           alreadySelected={alreadySelected}
+          myDraftedPlayerIds={myDraftedPlayerIds}
           onSelect={player => handleSelect(pickerSlot.key, player)}
           onClose={() => setPickerSlotKey(null)}
         />

@@ -7,6 +7,7 @@ interface Props {
   eligiblePositions: string[]   // empty array = any position (supersub)
   availablePlayers: PlayerWithPrice[]
   alreadySelected: Set<number>  // player IDs elsewhere in the squad
+  myDraftedPlayerIds?: Set<number>
   onSelect: (player: PlayerWithPrice) => void
   onClose: () => void
 }
@@ -14,10 +15,13 @@ interface Props {
 const NATIONS = ['England', 'Ireland', 'Scotland', 'Wales', 'France', 'Italy']
 
 export default function SquadPlayerPicker({
-  slotLabel, eligiblePositions, availablePlayers, alreadySelected, onSelect, onClose,
+  slotLabel, eligiblePositions, availablePlayers, alreadySelected, myDraftedPlayerIds,
+  onSelect, onClose,
 }: Props) {
-  const [search, setSearch]           = useState('')
+  const [search, setSearch]             = useState('')
   const [nationFilter, setNationFilter] = useState('')
+  const hasDraftPicks = myDraftedPlayerIds != null && myDraftedPlayerIds.size > 0
+  const [tab, setTab] = useState<'myPicks' | 'all'>(hasDraftPicks ? 'myPicks' : 'all')
 
   const filtered = useMemo(() => {
     return availablePlayers.filter(p => {
@@ -28,6 +32,13 @@ export default function SquadPlayerPicker({
       return true
     })
   }, [availablePlayers, alreadySelected, eligiblePositions, nationFilter, search])
+
+  const displayedPlayers = useMemo(() => {
+    if (tab === 'myPicks' && myDraftedPlayerIds) {
+      return filtered.filter(p => myDraftedPlayerIds.has(p.id))
+    }
+    return filtered
+  }, [filtered, tab, myDraftedPlayerIds])
 
   return (
     <div
@@ -48,6 +59,24 @@ export default function SquadPlayerPicker({
           </h3>
           <button onClick={onClose} className="text-xl leading-none text-spal-muted hover:text-spal-text">×</button>
         </div>
+
+        {/* Tabs */}
+        {hasDraftPicks && (
+          <div className="flex border-b border-white/10">
+            <button
+              onClick={() => setTab('myPicks')}
+              className={tabClass(tab === 'myPicks')}
+            >
+              My Picks
+            </button>
+            <button
+              onClick={() => setTab('all')}
+              className={tabClass(tab === 'all')}
+            >
+              All Available
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-2 px-4 py-3 border-b border-white/5">
@@ -71,10 +100,10 @@ export default function SquadPlayerPicker({
 
         {/* Player list */}
         <div className="overflow-y-auto flex-1 divide-y divide-white/5">
-          {filtered.length === 0 ? (
+          {displayedPlayers.length === 0 ? (
             <p className="text-spal-muted text-sm text-center py-8">No players match</p>
           ) : (
-            filtered.map(player => (
+            displayedPlayers.map(player => (
               <button
                 key={player.id}
                 onClick={() => onSelect(player)}
@@ -93,4 +122,12 @@ export default function SquadPlayerPicker({
       </div>
     </div>
   )
+}
+
+function tabClass(active: boolean) {
+  return `flex-1 py-2 text-xs font-medium transition-colors border-b-2 ${
+    active
+      ? 'border-spal-cerulean text-spal-cerulean'
+      : 'border-transparent text-spal-muted hover:text-spal-text'
+  }`
 }
