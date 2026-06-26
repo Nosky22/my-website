@@ -42,7 +42,7 @@
 ## Historical Data & Records
 - [x] Historical season results page — SeasonReviewPage at /history/:year with standings, scores, squad builder, draft board, predos, insights.
 - [x] All-time league table — AllTimePage at /alltime with cumulative manager standings across seasons.
-- [x] Manager profile pages — ManagerProfilePage at /manager/:profileId.
+- [x] Manager profile pages — ManagerProfilePage at /manager/:profileId; enhanced with H2H record vs each opponent, best single round score, per-season predo points column, favourite nation, and most-drafted player.
 - [x] Season review pages — SeasonReviewPage (see above).
 - [x] All-time top players — PlayersAllTimePage at /players/alltime; total pts, seasons, avg/season, best round; nation + position filters; linked from PlayersPage and AllTimePage; Top Players in nav.
 - [x] Historical draft records — draft board section included in SeasonReviewPage.
@@ -62,8 +62,8 @@
 - [ ] Keep SPAL in step with official game schedule
 - [x] Squad builder draft picks panel — player picker opens on a "My Picks" tab showing the manager's own drafted players eligible for the slot; "All Available" tab gives access to the full pool.
 - [x] Comprehensive status indicators on Home/Dashboard — action items panel on logged-in homepage: squad submitted, predos entered, team sheets available, round scored; pending items shown with CTA links; completed items shown with tick.
-- [x] Predos page UX improvements — (1) defaults to active season and current live round on load; (2) locked-state banner after deadline showing manager's own submitted predictions read-only with correct/wrong indicators once results are in.
-- [ ] Standings page — add per-round score columns and H2H points to the league table, so managers can see the breakdown across the season at a glance. Make all columns sortable. Consider a toggle between a summary view (total points, H2H points, rounds played) and an expanded view showing individual round scores.
+- [x] Predos page UX improvements — (1) defaults to active season and current live round on load; (2) locked-state banner after deadline showing manager's own submitted predictions read-only with correct/wrong indicators once results are in; (3) My Predictions History section for logged-in managers: per-round breakdown with pick vs actual result, correct/wrong indicator, round score, and season total.
+- [x] Standings page per-round breakdown — toggle between Summary and Round by Round views; Round by Round shows R1–Rn columns; highest score each round highlighted in gold; unscored rounds show —.
 - [x] Consistent season/round defaults across all pages — StandingsPage, H2HPage, InsightsPage, PredosPage all updated to prefer active season and current round on load.
 - [ ] "Add to squad" from Team Sheets page — allow a logged-in manager to add a player directly to their current (unsubmitted) squad from the /spal/teamsheets page, without navigating to the squad builder separately. Show which players are already in the manager's current squad for the active round (visual indicator next to each player on the team sheet). "Add to squad" button/icon next to eligible players not yet in the squad. Respect existing squad validation rules (budget, position slots, nation cap, draft ownership) — clicking add should either succeed or show why it can't (e.g. "Budget exceeded" or "No Centre slots remaining"). Should not be available once the squad is locked. Consider whether this needs a slot-selection step (since a position like Centre might map to multiple squad slots) or can auto-assign to the first eligible empty slot.
 
