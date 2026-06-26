@@ -20,7 +20,7 @@ export interface PlayerWithPrice {
   effective_price: number
 }
 
-interface SquadSlot {
+export interface SquadSlot {
   key: string
   label: string
   eligiblePositions: string[]   // empty = any (supersub)
@@ -40,7 +40,7 @@ interface Season { id: number; year: number; status: string }
 
 // ── Slot configuration ────────────────────────────────────────────────────────
 
-const SLOT_CONFIG: Omit<SquadSlot, 'player' | 'isCaptain'>[] = [
+export const SLOT_CONFIG: Omit<SquadSlot, 'player' | 'isCaptain'>[] = [
   { key: 'prop1',     label: 'Prop',       eligiblePositions: ['Prop'],                 role: 'starter'  },
   { key: 'prop2',     label: 'Prop',       eligiblePositions: ['Prop'],                 role: 'starter'  },
   { key: 'hooker',    label: 'Hooker',     eligiblePositions: ['Hooker'],               role: 'starter'  },
@@ -67,7 +67,7 @@ const GROUP_LABELS: { label: string; keys: string[] }[] = [
   { label: 'Supersub',    keys: ['supersub'] },
 ]
 
-function makeEmptySlots(): SquadSlot[] {
+export function makeEmptySlots(): SquadSlot[] {
   return SLOT_CONFIG.map(cfg => ({ ...cfg, player: null, isCaptain: false }))
 }
 
