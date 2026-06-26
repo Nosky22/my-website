@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, ClipboardList, Shield, Target } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import type { InsightPayload } from '../components/InsightsPanel'
@@ -8,20 +8,6 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
-
-interface StandingRow {
-  profile_id: string
-  display_name: string
-  total_points: number
-}
-
-interface MyStanding {
-  total_points: number
-  h2h_wins: number
-  h2h_draws: number
-  h2h_losses: number
-  rounds_played: number
-}
 
 interface Post {
   id: number
@@ -31,7 +17,6 @@ interface Post {
   created_at: string
 }
 
-// Status item shown in the action items panel
 interface ActionItem {
   key: string
   label: string
@@ -47,13 +32,6 @@ function countdown(iso: string): string {
   const days = Math.floor(hours / 24)
   const rem = hours % 24
   return rem > 0 ? `${days}d ${rem}h remaining` : `${days}d remaining`
-}
-
-function ordinal(n: number): string {
-  if (n === 1) return '1st'
-  if (n === 2) return '2nd'
-  if (n === 3) return '3rd'
-  return `${n}th`
 }
 
 function stripMarkdown(text: string): string {
@@ -107,6 +85,22 @@ function LandingPage() {
   )
 }
 
+// ── Simple nav card used for League and More groups ───────────────────────────
+
+function NavCard({ to, label, desc }: { to: string; label: string; desc: string }) {
+  return (
+    <Link
+      to={to}
+      className="block p-4 bg-spal-surface rounded-lg border border-white/5 hover:border-spal-cerulean/30 transition-colors group"
+    >
+      <p className="text-sm font-medium text-spal-text group-hover:text-spal-cerulean transition-colors">
+        {label}
+      </p>
+      <p className="text-xs text-spal-muted mt-0.5">{desc}</p>
+    </Link>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -117,14 +111,9 @@ export default function HomePage() {
   const [season, setSeason]             = useState<Season | null>(null)
   const [currentRound, setCurrentRound] = useState<number | null>(null)
   const [deadlineIso, setDeadlineIso]   = useState<string | null>(null)
-  const [myStanding, setMyStanding]     = useState<MyStanding | null>(null)
-  const [myPosition, setMyPosition]     = useState<number | null>(null)
-  const [allStandings, setAllStandings] = useState<StandingRow[]>([])
-  const [trend, setTrend]               = useState<'up' | 'down' | null>(null)
   const [posts, setPosts]               = useState<Post[]>([])
   const [insights, setInsights]         = useState<InsightPayload | null>(null)
   const [insightsRound, setInsightsRound] = useState<number | null>(null)
-  // Action items state
   const [squadStatus, setSquadStatus]         = useState<'none' | 'draft' | 'submitted' | 'locked'>('none')
   const [predosSubmitted, setPredosSubmitted] = useState(false)
   const [teamSheetsAvail, setTeamSheetsAvail] = useState(false)
@@ -151,28 +140,14 @@ export default function HomePage() {
 
     const [
       { data: matchRows, error: err1 },
-      { data: standingsRows, error: err2 },
-      { data: myScoreRows, error: err3 },
-      { data: postRows, error: err4 },
-      { data: insightRow, error: err5 },
+      { data: postRows, error: err2 },
+      { data: insightRow, error: err3 },
     ] = await Promise.all([
       supabase
         .from('matches')
         .select('round_number, kickoff_at')
         .eq('season_id', seasonData.id)
         .order('round_number').order('kickoff_at'),
-
-      supabase
-        .from('season_standings')
-        .select('profile_id, total_points, h2h_wins, h2h_draws, h2h_losses, rounds_played, profiles!profile_id(display_name)')
-        .eq('season_id', seasonData.id)
-        .order('total_points', { ascending: false }),
-
-      supabase
-        .from('manager_match_scores')
-        .select('adjusted_points, matches!match_id(round_number)')
-        .eq('season_id', seasonData.id)
-        .eq('profile_id', user!.id),
 
       supabase
         .from('chronicle_posts')
@@ -190,83 +165,9 @@ export default function HomePage() {
         .maybeSingle(),
     ])
 
-    if (err1 || err2 || err3 || err4 || err5) { setError(true); setHubLoading(false); return }
+    if (err1 || err2 || err3) { setError(true); setHubLoading(false); return }
 
-    // Derive current round early (needed for action item fetches below)
-    const nowForRound = new Date()
-    const allRoundsEarly = [...new Set((matchRows ?? []).map(m => m.round_number as number))].sort((a, b) => a - b)
-    let activeRoundEarly = allRoundsEarly[allRoundsEarly.length - 1] ?? 1
-    for (const r of allRoundsEarly) {
-      const ko = (matchRows ?? [])
-        .filter(m => m.round_number === r)
-        .map(m => new Date(m.kickoff_at as string))
-        .sort((a, b) => a.getTime() - b.getTime())
-      if (ko[0] && ko[0] > nowForRound) { activeRoundEarly = r; break }
-    }
-    const roundMatchIds = (matchRows ?? [])
-      .filter(m => m.round_number === activeRoundEarly)
-      .map(m => (m as unknown as { id?: number }).id)
-      .filter((id): id is number => id != null)
-
-    // Fetch the round's match IDs (with id column) to check action items
-    const { data: roundMatchRows } = await supabase
-      .from('matches')
-      .select('id')
-      .eq('season_id', seasonData.id)
-      .eq('round_number', activeRoundEarly)
-
-    const roundIds = (roundMatchRows ?? []).map(m => m.id as number)
-    void roundMatchIds // not used further
-
-    const [
-      { data: mySquadRow },
-      { data: myPredoRows },
-      { data: tsRows },
-      { data: scoredRows },
-    ] = await Promise.all([
-      supabase
-        .from('manager_round_squads')
-        .select('id, status, locked_at')
-        .eq('season_id', seasonData.id)
-        .eq('profile_id', user!.id)
-        .eq('round_number', activeRoundEarly)
-        .maybeSingle(),
-      roundIds.length > 0
-        ? supabase
-            .from('predo_predictions')
-            .select('id')
-            .eq('profile_id', user!.id)
-            .in('match_id', roundIds)
-            .limit(1)
-        : Promise.resolve({ data: [] }),
-      roundIds.length > 0
-        ? supabase
-            .from('matchday_squads')
-            .select('id')
-            .in('match_id', roundIds)
-            .limit(1)
-        : Promise.resolve({ data: [] }),
-      roundIds.length > 0
-        ? supabase
-            .from('manager_match_scores')
-            .select('id')
-            .in('match_id', roundIds)
-            .limit(1)
-        : Promise.resolve({ data: [] }),
-    ])
-
-    const sq = mySquadRow as { status: string; locked_at: string | null } | null
-    const sqStatus: 'none' | 'draft' | 'submitted' | 'locked' =
-      !sq           ? 'none'
-      : sq.locked_at ? 'locked'
-      : sq.status === 'submitted' ? 'submitted'
-      : 'draft'
-    setSquadStatus(sqStatus)
-    setPredosSubmitted((myPredoRows?.length ?? 0) > 0)
-    setTeamSheetsAvail((tsRows?.length ?? 0) > 0)
-    setRoundScored((scoredRows?.length ?? 0) > 0)
-
-    // Derive current round (first round with a future kickoff; fallback to last)
+    // Derive current round
     const now = new Date()
     const allRounds = [...new Set((matchRows ?? []).map(m => m.round_number as number))].sort((a, b) => a - b)
     let activeRound = allRounds[allRounds.length - 1] ?? 1
@@ -285,53 +186,50 @@ export default function HomePage() {
       .sort()
     setDeadlineIso(roundKickoffs[0] ?? null)
 
-    // Standings
-    type RawStanding = {
-      profile_id: string
-      total_points: number
-      h2h_wins: number
-      h2h_draws: number
-      h2h_losses: number
-      rounds_played: number
-      profiles: { display_name: string } | null
-    }
-    const standings = (standingsRows ?? []) as unknown as RawStanding[]
-    const standingList: StandingRow[] = standings.map(s => ({
-      profile_id:   s.profile_id,
-      display_name: s.profiles?.display_name ?? 'Unknown',
-      total_points: Number(s.total_points ?? 0),
-    }))
-    setAllStandings(standingList)
+    // Fetch round match IDs for action item checks
+    const { data: roundMatchRows } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('season_id', seasonData.id)
+      .eq('round_number', activeRound)
+    const roundIds = (roundMatchRows ?? []).map(m => m.id as number)
 
-    const myIdx = standings.findIndex(s => s.profile_id === user!.id)
-    if (myIdx !== -1) {
-      const myRaw = standings[myIdx]
-      setMyStanding({
-        total_points: Number(myRaw.total_points ?? 0),
-        h2h_wins:     Number(myRaw.h2h_wins ?? 0),
-        h2h_draws:    Number(myRaw.h2h_draws ?? 0),
-        h2h_losses:   Number(myRaw.h2h_losses ?? 0),
-        rounds_played: Number(myRaw.rounds_played ?? 0),
-      })
-      setMyPosition(myIdx + 1)
-    }
+    const [
+      { data: mySquadRow },
+      { data: myPredoRows },
+      { data: tsRows },
+      { data: scoredRows },
+    ] = await Promise.all([
+      supabase
+        .from('manager_round_squads')
+        .select('id, status, locked_at')
+        .eq('season_id', seasonData.id)
+        .eq('profile_id', user!.id)
+        .eq('round_number', activeRound)
+        .maybeSingle(),
+      roundIds.length > 0
+        ? supabase.from('predo_predictions').select('id').eq('profile_id', user!.id).in('match_id', roundIds).limit(1)
+        : Promise.resolve({ data: [] }),
+      roundIds.length > 0
+        ? supabase.from('matchday_squads').select('id').in('match_id', roundIds).limit(1)
+        : Promise.resolve({ data: [] }),
+      roundIds.length > 0
+        ? supabase.from('manager_match_scores').select('id').in('match_id', roundIds).limit(1)
+        : Promise.resolve({ data: [] }),
+    ])
 
-    // Trend: sum adjusted_points by round, compare last two
-    type RawScore = { adjusted_points: number; matches: { round_number: number } | null }
-    const byRound = new Map<number, number>()
-    for (const row of (myScoreRows ?? []) as unknown as RawScore[]) {
-      const rn = row.matches?.round_number
-      if (rn != null) byRound.set(rn, (byRound.get(rn) ?? 0) + Number(row.adjusted_points ?? 0))
-    }
-    const scoredRounds = [...byRound.keys()].sort((a, b) => a - b)
-    if (scoredRounds.length >= 2) {
-      const prev = byRound.get(scoredRounds[scoredRounds.length - 2])!
-      const last = byRound.get(scoredRounds[scoredRounds.length - 1])!
-      setTrend(last >= prev ? 'up' : 'down')
-    }
+    const sq = mySquadRow as { status: string; locked_at: string | null } | null
+    const sqStatus: 'none' | 'draft' | 'submitted' | 'locked' =
+      !sq            ? 'none'
+      : sq.locked_at ? 'locked'
+      : sq.status === 'submitted' ? 'submitted'
+      : 'draft'
+    setSquadStatus(sqStatus)
+    setPredosSubmitted((myPredoRows?.length ?? 0) > 0)
+    setTeamSheetsAvail((tsRows?.length ?? 0) > 0)
+    setRoundScored((scoredRows?.length ?? 0) > 0)
 
     setPosts((postRows ?? []) as Post[])
-
     if (insightRow) {
       setInsights(insightRow.payload as InsightPayload)
       setInsightsRound(insightRow.round_number as number)
@@ -340,13 +238,9 @@ export default function HomePage() {
     setHubLoading(false)
   }
 
-  // ── Render branch: not yet resolved ───────────────────────────────────────
   if (authLoading) return <LoadingSpinner />
-
   if (!user) return <LandingPage />
-
   if (hubLoading) return <LoadingSpinner />
-
   if (error) return <ErrorCard onRetry={loadHub} />
 
   if (!season) {
@@ -361,10 +255,8 @@ export default function HomePage() {
   }
 
   const deadlinePassed = deadlineIso ? new Date(deadlineIso) < new Date() : false
-  const hasH2H = myStanding && (myStanding.h2h_wins + myStanding.h2h_draws + myStanding.h2h_losses) > 0
-
-  // Build action items for the current round
   const squadDone = squadStatus === 'submitted' || squadStatus === 'locked'
+
   const actionItems: ActionItem[] = [
     {
       key: 'squad',
@@ -374,16 +266,14 @@ export default function HomePage() {
            : 'Submit your squad',
       done: squadDone,
       cta: !squadDone
-        ? { label: squadStatus === 'draft' ? 'Finish squad' : 'Build squad', to: season && currentRound ? `/squad?season=${season.id}&round=${currentRound}` : '/squad' }
+        ? { label: squadStatus === 'draft' ? 'Finish squad' : 'Build squad', to: `/squad?season=${season.id}&round=${currentRound}` }
         : undefined,
     },
     {
       key: 'predos',
       label: predosSubmitted ? 'Predictions submitted' : 'Enter your predictions',
       done: predosSubmitted || deadlinePassed,
-      cta: !predosSubmitted && !deadlinePassed
-        ? { label: 'Enter predos', to: '/predos' }
-        : undefined,
+      cta: !predosSubmitted && !deadlinePassed ? { label: 'Enter predos', to: '/predos' } : undefined,
     },
     {
       key: 'teamsheets',
@@ -397,19 +287,17 @@ export default function HomePage() {
       key: 'results',
       label: roundScored ? 'Round results available' : 'Round results pending',
       done: roundScored,
-      cta: roundScored
-        ? { label: 'View standings', to: '/standings' }
-        : undefined,
+      cta: roundScored ? { label: 'View standings', to: '/standings' } : undefined,
     },
   ]
-  // Only show pending items (plus a summary tick if everything is done)
   const pendingItems = actionItems.filter(a => !a.done || a.cta)
 
-  // ── Logged-in hub ──────────────────────────────────────────────────────────
-  return (
-    <div className="space-y-4 max-w-3xl">
+  const squadTo = `/squad?season=${season.id}&round=${currentRound}`
 
-      {/* Welcome header */}
+  return (
+    <div className="space-y-6 max-w-3xl">
+
+      {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold text-spal-yellow">
           Welcome back, {profile?.display_name ?? 'manager'}
@@ -419,71 +307,20 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Season at a glance + My position */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        <div className="bg-spal-surface rounded-lg px-5 py-4">
-          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
-            {season.year} Season
-          </h2>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-spal-muted">Current round</span>
-              <span className="text-spal-text font-medium">Round {currentRound}</span>
-            </div>
-            {deadlineIso && (
-              <div className="flex justify-between text-sm">
-                <span className="text-spal-muted">Squad deadline</span>
-                <span className={`font-medium tabular-nums ${deadlinePassed ? 'text-spal-muted' : 'text-emerald-400'}`}>
-                  {deadlinePassed ? 'Passed' : countdown(deadlineIso)}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {myStanding ? (
-          <div className="bg-spal-surface rounded-lg px-5 py-4">
-            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
-              My Position
-            </h2>
-            <div className="flex items-start justify-between">
-              <div className="space-y-1.5">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-spal-yellow">
-                    {myPosition ? ordinal(myPosition) : '—'}
-                  </span>
-                  {trend && (
-                    <span className={`text-sm font-bold ${trend === 'up' ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {trend === 'up' ? '↑' : '↓'}
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm">
-                  <span className="text-spal-text font-medium tabular-nums">
-                    {myStanding.total_points.toFixed(1)}
-                  </span>
-                  <span className="text-spal-muted"> pts</span>
-                </div>
-              </div>
-              {hasH2H && (
-                <div className="text-right">
-                  <p className="text-xs text-spal-muted mb-1">H2H</p>
-                  <p className="text-sm tabular-nums">
-                    <span className="text-emerald-400">{myStanding.h2h_wins}W</span>
-                    {' '}
-                    <span className="text-spal-muted">{myStanding.h2h_draws}D</span>
-                    {' '}
-                    <span className="text-red-400">{myStanding.h2h_losses}L</span>
-                  </p>
-                </div>
-              )}
-            </div>
+      {/* Season at a glance */}
+      <div className="bg-spal-surface rounded-lg px-5 py-4">
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
+          {season.year} Season · Round {currentRound}
+        </h2>
+        {deadlineIso ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-spal-muted">Squad deadline</span>
+            <span className={`font-medium tabular-nums ${deadlinePassed ? 'text-spal-muted' : 'text-emerald-400'}`}>
+              {deadlinePassed ? 'Passed' : countdown(deadlineIso)}
+            </span>
           </div>
         ) : (
-          <div className="bg-spal-surface rounded-lg px-5 py-4 flex items-center">
-            <p className="text-sm text-spal-muted">No scores yet this season.</p>
-          </div>
+          <p className="text-sm text-spal-muted">No kickoff times set yet.</p>
         )}
       </div>
 
@@ -491,7 +328,7 @@ export default function HomePage() {
       <div className="bg-spal-surface rounded-lg px-5 py-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">
-            Round {currentRound} — this round
+            Round {currentRound} — status
           </h2>
           {deadlineIso && !deadlinePassed && (
             <span className="text-xs text-emerald-400 font-medium tabular-nums">
@@ -504,7 +341,6 @@ export default function HomePage() {
             </span>
           )}
         </div>
-
         {pendingItems.length === 0 ? (
           <div className="flex items-center gap-2 text-sm text-emerald-400">
             <CheckCircle2 size={16} />
@@ -536,64 +372,101 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <Link
-          to={season && currentRound ? `/squad?season=${season.id}&round=${currentRound}` : '/squad'}
-          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
-        >
-          <Shield size={18} className="text-spal-cerulean" />
-          <span className="text-sm font-medium text-spal-text">Submit Squad</span>
-        </Link>
-        <Link
-          to="/predos"
-          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
-        >
-          <Target size={18} className="text-spal-cerulean" />
-          <span className="text-sm font-medium text-spal-text">Enter Predos</span>
-        </Link>
-        <Link
-          to={currentRound ? `/teamsheets?round=${currentRound}` : '/teamsheets'}
-          className="flex flex-col items-center gap-2 bg-spal-surface rounded-lg px-3 py-4 text-center border border-white/5 hover:border-spal-cerulean/40 transition-colors"
-        >
-          <ClipboardList size={18} className="text-spal-cerulean" />
-          <span className="text-sm font-medium text-spal-text">Team Sheets</span>
-        </Link>
+      {/* ── Quick links: This Round ────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">This Round</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+          {/* Squad */}
+          <Link
+            to={squadTo}
+            className="block p-4 bg-spal-surface rounded-lg border border-white/5 hover:border-spal-cerulean/30 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <span className="text-sm font-medium text-spal-text group-hover:text-spal-cerulean transition-colors">
+                {squadDone ? 'View Squad' : squadStatus === 'draft' ? 'Edit Squad' : 'Submit Squad'}
+              </span>
+              {squadStatus === 'locked' && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-spal-muted shrink-0">Locked</span>
+              )}
+              {squadStatus === 'submitted' && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">Submitted ✓</span>
+              )}
+              {squadStatus === 'draft' && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 shrink-0">Draft saved</span>
+              )}
+              {squadStatus === 'none' && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-spal-cerulean/15 text-spal-cerulean shrink-0">To do</span>
+              )}
+            </div>
+            <p className="text-xs text-spal-muted">Build your starting XV for Round {currentRound}</p>
+          </Link>
+
+          {/* Predos */}
+          <Link
+            to="/predos"
+            className="block p-4 bg-spal-surface rounded-lg border border-white/5 hover:border-spal-cerulean/30 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <span className="text-sm font-medium text-spal-text group-hover:text-spal-cerulean transition-colors">
+                Enter Predos
+              </span>
+              {predosSubmitted ? (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">Submitted ✓</span>
+              ) : deadlinePassed ? (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-spal-muted shrink-0">Closed</span>
+              ) : (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-spal-cerulean/15 text-spal-cerulean shrink-0">To do</span>
+              )}
+            </div>
+            <p className="text-xs text-spal-muted">Predict this round's results</p>
+          </Link>
+
+          {/* Team Sheets */}
+          <Link
+            to={currentRound ? `/teamsheets?round=${currentRound}` : '/teamsheets'}
+            className="block p-4 bg-spal-surface rounded-lg border border-white/5 hover:border-spal-cerulean/30 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <span className="text-sm font-medium text-spal-text group-hover:text-spal-cerulean transition-colors">
+                Team Sheets
+              </span>
+              {teamSheetsAvail ? (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">Available ✓</span>
+              ) : (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-spal-muted shrink-0">Not yet</span>
+              )}
+            </div>
+            <p className="text-xs text-spal-muted">See who's playing for each nation</p>
+          </Link>
+
+        </div>
       </div>
 
-      {/* Mini standings + Chronicle/Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+      {/* ── Quick links: League ────────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">League</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <NavCard to="/standings" label="Standings" desc="Season league table" />
+          <NavCard to="/h2h"       label="H2H Cup"   desc="Head-to-head results" />
+          <NavCard to="/players"   label="Players"   desc="Player pool and prices" />
+        </div>
+      </div>
 
-        {allStandings.length > 0 && (
-          <div className="bg-spal-surface rounded-lg px-5 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">Standings</h2>
-              <Link to="/standings" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
-                Full table →
-              </Link>
-            </div>
-            <table className="w-full text-sm">
-              <tbody>
-                {allStandings.map((s, i) => {
-                  const isMe = s.profile_id === user?.id
-                  return (
-                    <tr key={s.profile_id} className={`border-b border-white/5 last:border-0 ${isMe ? 'text-spal-yellow' : ''}`}>
-                      <td className="py-1.5 pr-2 text-spal-muted tabular-nums w-5">{i + 1}</td>
-                      <td className={`py-1.5 pr-2 ${isMe ? 'font-semibold' : 'text-spal-text'}`}>
-                        {s.display_name}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums font-medium">
-                        {s.total_points.toFixed(1)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* ── Quick links: More ──────────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">More</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <NavCard to="/draft"     label="Draft Board" desc="Full draft order" />
+          <NavCard to="/history"   label="History"     desc="Previous seasons" />
+          <NavCard to="/chronicle" label="Chronicle"   desc="League posts" />
+          <NavCard to="/insights"  label="Insights"    desc="Round highlights" />
+        </div>
+      </div>
 
-        <div className="space-y-4">
+      {/* ── Chronicle & Insights ──────────────────────────────────────────── */}
+      {(posts.length > 0 || insights) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
 
           {posts.length > 0 && (
             <div className="bg-spal-surface rounded-lg px-5 py-4">
@@ -677,7 +550,7 @@ export default function HomePage() {
           )}
 
         </div>
-      </div>
+      )}
     </div>
   )
 }
