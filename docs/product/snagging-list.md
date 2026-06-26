@@ -68,12 +68,12 @@
 - [ ] "Add to squad" from Team Sheets page — allow a logged-in manager to add a player directly to their current (unsubmitted) squad from the /spal/teamsheets page, without navigating to the squad builder separately. Show which players are already in the manager's current squad for the active round (visual indicator next to each player on the team sheet). "Add to squad" button/icon next to eligible players not yet in the squad. Respect existing squad validation rules (budget, position slots, nation cap, draft ownership) — clicking add should either succeed or show why it can't (e.g. "Budget exceeded" or "No Centre slots remaining"). Should not be available once the squad is locked. Consider whether this needs a slot-selection step (since a position like Centre might map to multiple squad slots) or can auto-assign to the first eligible empty slot.
 
 ## Admin Management
-- [ ] Admin Predos management — ability to edit, reset, and delete predo predictions and results. Reset predo scores for a round. View all manager predictions before the deadline (admin bypass).
+- [x] Admin Predos management — /admin/predos: view all manager predictions for any round (admin bypasses deadline), per-row edit/delete/add, highlight managers with no predos, reset predo scores for a round with confirmation.
 - [ ] Admin Chronicle management improvements — ability to edit and delete comments (admin moderation), pin posts, manage post order, insights embed syntax in post body.
 - [x] Admin scores page — "Close round" one-click pipeline: lock squads → calculate scores → calculate predo scores → generate insights → mark as final, with live step-by-step progress indicators; stops and shows error if any step fails.
 - [x] Admin round deadline management — "Kickoff times" section on scores page with datetime inputs per match, shift-all-by-N-hours convenience control, and reason field; each change audited in admin_overrides.
-- [ ] Admin squad override — admin can manually input or edit a squad on behalf of a manager after the deadline has passed, bypassing the deadline check. Should require a reason and be logged in audit_log. Available in admin teamsheets or admin scores page.
-- [ ] Admin predo override — admin can manually input predo predictions on behalf of a manager after the deadline has passed, bypassing the deadline check. Same audit requirement as squad override.
+- [x] Admin squad override — /admin/squad-override: select season + round + manager, edit their full 16-slot squad (bypasses deadline), saves as submitted. Audit logged to audit_log.
+- [x] Admin predo override — on the same /admin/squad-override page: edit or add predo predictions on behalf of a manager, bypassing deadline. Edits write to admin_overrides; new entries write to audit_log.
 
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
