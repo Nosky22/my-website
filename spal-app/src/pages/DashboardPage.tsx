@@ -110,9 +110,11 @@ export default function DashboardPage() {
   const [squadPlayers, setSquadPlayers]   = useState<SquadPlayer[]>([])
   const [draftPicks, setDraftPicks]       = useState<DraftPick[]>([])
   const [standings, setStandings]         = useState<Standing[]>([])
-  const [draftComplete, setDraftComplete] = useState(false)
-  const [scoresExist, setScoresExist]     = useState(false)
-  const [predoPoints, setPredoPoints]     = useState<number | null>(null)
+  const [draftComplete, setDraftComplete]   = useState(false)
+  const [scoresExist, setScoresExist]       = useState(false)
+  const [predoPoints, setPredoPoints]       = useState<number | null>(null)
+  const [predosEntered, setPredosEntered]   = useState(false)
+  const [teamSheetsAvail, setTeamSheetsAvail] = useState(false)
 
   // Inline team_name editing
   const [teamName, setTeamName]           = useState(profile?.team_name ?? '')
@@ -182,7 +184,7 @@ export default function DashboardPage() {
     ] = await Promise.all([
       supabase
         .from('matches')
-        .select('round_number, kickoff_at')
+        .select('id, round_number, kickoff_at')
         .eq('season_id', seasonId)
         .order('round_number')
         .order('kickoff_at'),
@@ -240,6 +242,23 @@ export default function DashboardPage() {
       .map(m => m.kickoff_at as string)
       .sort()
     setRoundDeadline(currentRoundKickoffs[0] ?? null)
+
+    // ── Action item checks for current round ─────────────────────────────
+    const roundIds = (matchRows ?? [])
+      .filter(m => (m as unknown as { round_number: number }).round_number === activeRound)
+      .map(m => (m as unknown as { id: number }).id)
+      .filter((id): id is number => id != null)
+
+    const [{ data: predoCheckRows }, { data: tsCheckRows }] = await Promise.all([
+      roundIds.length > 0
+        ? supabase.from('predo_predictions').select('id').eq('profile_id', user!.id).in('match_id', roundIds).limit(1)
+        : Promise.resolve({ data: [] }),
+      roundIds.length > 0
+        ? supabase.from('matchday_squads').select('id').in('match_id', roundIds).limit(1)
+        : Promise.resolve({ data: [] }),
+    ])
+    setPredosEntered((predoCheckRows?.length ?? 0) > 0)
+    setTeamSheetsAvail((tsCheckRows?.length ?? 0) > 0)
 
     // ── My squad for current round ────────────────────────────────────────
     const myCurrentSquad = ((mySquads ?? []) as MySquad[]).find(s => (s as unknown as { round_number: number }).round_number === activeRound) ?? null
@@ -378,14 +397,14 @@ export default function DashboardPage() {
   const squadSubmitted = squadStatusKey === 'submitted' || squadStatusKey === 'locked'
 
   const workflowSteps = [
-    { label: 'Draft complete',    done: draftComplete  },
-    { label: 'Squad submitted',   done: squadSubmitted },
-    { label: 'Round locked',      done: isLocked       },
-    { label: 'Scores calculated', done: scoresExist    },
+    { label: 'Draft complete',    done: draftComplete   },
+    { label: 'Squad submitted',   done: squadSubmitted  },
+    { label: 'Predos entered',    done: predosEntered   },
+    { label: 'Round locked',      done: isLocked        },
+    { label: 'Scores calculated', done: scoresExist     },
   ]
   const firstUndone = workflowSteps.findIndex(s => !s.done)
 
-  const hasScores  = standings.some(s => s.rounds_played > 0)
   const myStanding = standings.find(s => s.profile_id === user?.id) ?? null
   const myPosition = myStanding ? standings.indexOf(myStanding) + 1 : null
 
@@ -630,6 +649,60 @@ export default function DashboardPage() {
 
       </div>
 
+      {/* ── Predos + Team sheets status cards (active season only) ─────── */}
+      {isActiveSeason && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          <div className="bg-spal-surface rounded-lg px-5 py-4">
+            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">
+              Predos — Round {currentRound}
+            </h2>
+            <div className="flex items-center justify-between">
+              {predosEntered ? (
+                <span className="text-sm text-emerald-400 font-medium">Predictions submitted ✓</span>
+              ) : deadlinePassed ? (
+                <span className="text-sm text-spal-muted">Deadline passed</span>
+              ) : (
+                <span className="text-sm text-spal-muted">Not yet entered</span>
+              )}
+              <Link
+                to="/predos"
+                className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors font-medium"
+              >
+                {predosEntered ? 'View' : 'Enter now'} →
+              </Link>
+            </div>
+            {roundDeadline && !deadlinePassed && (
+              <p className="text-xs text-spal-muted mt-2">
+                Deadline: {fmtDeadline(roundDeadline)}
+              </p>
+            )}
+          </div>
+
+          <div className="bg-spal-surface rounded-lg px-5 py-4">
+            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">
+              Team Sheets — Round {currentRound}
+            </h2>
+            <div className="flex items-center justify-between">
+              {teamSheetsAvail ? (
+                <span className="text-sm text-emerald-400 font-medium">Team sheets available ✓</span>
+              ) : (
+                <span className="text-sm text-spal-muted">Not yet available</span>
+              )}
+              {teamSheetsAvail && (
+                <Link
+                  to={currentRound ? `/teamsheets?round=${currentRound}` : '/teamsheets'}
+                  className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors font-medium"
+                >
+                  View →
+                </Link>
+              )}
+            </div>
+          </div>
+
+        </div>
+      )}
+
       {/* ── My Squad grid ────────────────────────────────────────────────── */}
       <div className="bg-spal-surface rounded-lg px-5 py-4">
         <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">
@@ -680,81 +753,43 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── 3 + 4. Draft picks + Standings ───────────────────────────────── */}
-      <div className="flex flex-col md:flex-row gap-4 items-start">
-
-        {/* Draft picks */}
-        <div className="flex-1 bg-spal-surface rounded-lg px-5 py-4">
-          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">My Picks</h2>
-          {draftPicks.length === 0 ? (
-            <p className="text-spal-muted text-sm">No picks yet.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-white/5">
-                  <th className="pb-2 pr-3 text-spal-muted font-medium w-6">#</th>
-                  <th className="pb-2 pr-3 text-spal-muted font-medium">Player</th>
-                  <th className="pb-2 pr-3 text-spal-muted font-medium">Position</th>
-                  <th className="pb-2 text-spal-muted font-medium">Slot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draftPicks.map(pick => (
-                  <tr key={pick.pick_number} className="border-b border-white/5 last:border-0">
-                    <td className="py-2 pr-3 text-spal-muted tabular-nums">{pick.pick_number}</td>
-                    <td className="py-2 pr-3">
-                      <div className="flex items-center gap-2">
-                        {pick.players && <NationBadge nation={pick.players.nation} />}
-                        <span className="text-spal-text">{pick.players?.display_name ?? '—'}</span>
-                      </div>
-                    </td>
-                    <td className="py-2 pr-3 text-spal-muted">{pick.players?.canonical_position ?? '—'}</td>
-                    <td className="py-2 text-spal-muted">{fmtSlot(pick.draft_slot)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+      {/* ── My Draft Picks ───────────────────────────────────────────────── */}
+      <div className="bg-spal-surface rounded-lg px-5 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide">My Picks</h2>
+          <Link to="/standings" className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+            Standings →
+          </Link>
         </div>
-
-        {/* Standings */}
-        <div className="flex-1 bg-spal-surface rounded-lg px-5 py-4">
-          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-3">Standings</h2>
-          {standings.length === 0 ? (
-            <p className="text-spal-muted text-sm">No standings yet.</p>
-          ) : !hasScores ? (
-            <p className="text-spal-muted text-sm">Scores pending.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-white/5">
-                  <th className="pb-2 pr-2 text-spal-muted font-medium w-6">#</th>
-                  <th className="pb-2 pr-2 text-spal-muted font-medium">Manager</th>
-                  <th className="pb-2 text-spal-muted font-medium text-right">Pts</th>
+        {draftPicks.length === 0 ? (
+          <p className="text-spal-muted text-sm">No picks yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b border-white/5">
+                <th className="pb-2 pr-3 text-spal-muted font-medium w-6">#</th>
+                <th className="pb-2 pr-3 text-spal-muted font-medium">Player</th>
+                <th className="pb-2 pr-3 text-spal-muted font-medium">Position</th>
+                <th className="pb-2 text-spal-muted font-medium">Slot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draftPicks.map(pick => (
+                <tr key={pick.pick_number} className="border-b border-white/5 last:border-0">
+                  <td className="py-2 pr-3 text-spal-muted tabular-nums">{pick.pick_number}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex items-center gap-2">
+                      {pick.players && <NationBadge nation={pick.players.nation} />}
+                      <span className="text-spal-text">{pick.players?.display_name ?? '—'}</span>
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3 text-spal-muted">{pick.players?.canonical_position ?? '—'}</td>
+                  <td className="py-2 text-spal-muted">{fmtSlot(pick.draft_slot)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {standings.map((s, i) => {
-                  const isMe = s.profile_id === user?.id
-                  return (
-                    <tr
-                      key={s.profile_id}
-                      className={`border-b border-white/5 last:border-0 ${isMe ? 'text-spal-yellow' : ''}`}
-                    >
-                      <td className="py-2 pr-2 text-spal-muted tabular-nums">{i + 1}</td>
-                      <td className="py-2 pr-2">
-                        <div className={isMe ? 'font-semibold' : 'text-spal-text'}>{s.display_name}</div>
-                        <div className="text-xs text-spal-muted">{s.team_name}</div>
-                      </td>
-                      <td className="py-2 text-right tabular-nums font-medium">{s.total_points}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
