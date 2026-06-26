@@ -22,12 +22,17 @@ interface DraftRow {
   firstPickNumber: number
 }
 
+type View = 'summary' | 'rounds'
+
 export default function StandingsPage() {
   const { user } = useAuth()
   const [seasons, setSeasons]           = useState<Season[]>([])
   const [seasonId, setSeasonId]         = useState<number | null>(null)
   const [standingRows, setStandingRows] = useState<StandingRow[]>([])
   const [draftRows, setDraftRows]       = useState<DraftRow[]>([])
+  const [roundScores, setRoundScores]   = useState<Map<string, Map<number, number>>>(new Map())
+  const [allRounds, setAllRounds]       = useState<number[]>([])
+  const [view, setView]                 = useState<View>('summary')
   const [loading, setLoading]           = useState(false)
   const [error, setError]               = useState(false)
   const [retryKey, setRetryKey]         = useState(0)
@@ -51,20 +56,34 @@ export default function StandingsPage() {
     setError(false)
     setStandingRows([])
     setDraftRows([])
+    setRoundScores(new Map())
+    setAllRounds([])
 
-    Promise.all([
-      supabase
-        .from('season_standings')
-        .select('profile_id, rounds_played, total_points, last_updated_round, profiles!profile_id(display_name)')
-        .eq('season_id', seasonId)
-        .order('total_points', { ascending: false }),
+    async function load() {
+      const [standingsRes, picksRes, scoreRes] = await Promise.all([
+        supabase
+          .from('season_standings')
+          .select('profile_id, rounds_played, total_points, last_updated_round, profiles!profile_id(display_name)')
+          .eq('season_id', seasonId!)
+          .order('total_points', { ascending: false }),
 
-      supabase
-        .from('draft_picks')
-        .select('profile_id, pick_number, profiles!profile_id(display_name)')
-        .eq('season_id', seasonId),
-    ]).then(([standingsRes, picksRes]) => {
-      if (standingsRes.error || picksRes.error) { setError(true); setLoading(false); return }
+        supabase
+          .from('draft_picks')
+          .select('profile_id, pick_number, profiles!profile_id(display_name)')
+          .eq('season_id', seasonId!),
+
+        supabase
+          .from('manager_match_scores')
+          .select('profile_id, final_points, matches!match_id(round_number)')
+          .eq('season_id', seasonId!),
+      ])
+
+      if (standingsRes.error || picksRes.error || scoreRes.error) {
+        setError(true)
+        setLoading(false)
+        return
+      }
+
       type RawStanding = {
         profile_id: string
         rounds_played: number
@@ -96,8 +115,25 @@ export default function StandingsPage() {
           .sort((a, b) => a.firstPickNumber - b.firstPickNumber)
       )
 
+      type RawScore = { profile_id: string; final_points: number; matches: { round_number: number } | null }
+      const scores = (scoreRes.data ?? []) as unknown as RawScore[]
+      const roundMap = new Map<string, Map<number, number>>()
+      const roundSet = new Set<number>()
+      for (const s of scores) {
+        const rn = s.matches?.round_number
+        if (rn == null) continue
+        roundSet.add(rn)
+        if (!roundMap.has(s.profile_id)) roundMap.set(s.profile_id, new Map())
+        const byRound = roundMap.get(s.profile_id)!
+        byRound.set(rn, (byRound.get(rn) ?? 0) + s.final_points)
+      }
+      setRoundScores(roundMap)
+      setAllRounds(Array.from(roundSet).sort((a, b) => a - b))
+
       setLoading(false)
-    })
+    }
+
+    load()
   }, [seasonId, retryKey])
 
   const lastRound = standingRows.reduce<number | null>((acc, r) => {
@@ -105,19 +141,47 @@ export default function StandingsPage() {
     return acc == null ? r.last_updated_round : Math.max(acc, r.last_updated_round)
   }, null)
 
+  // Per-round maximum scores for gold highlight
+  const maxByRound = new Map<number, number>()
+  for (const rn of allRounds) {
+    let max = -Infinity
+    for (const byRound of roundScores.values()) {
+      const v = byRound.get(rn)
+      if (v != null && v > max) max = v
+    }
+    if (max > -Infinity) maxByRound.set(rn, max)
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-spal-yellow mb-6">Standings</h1>
 
-      <div className="flex items-center gap-3 mb-8">
-        <label className="text-sm text-spal-muted">Season</label>
-        <select
-          value={seasonId ?? ''}
-          onChange={e => setSeasonId(Number(e.target.value))}
-          className={selectClass}
-        >
-          {seasons.map(s => <option key={s.id} value={s.id}>{s.year}</option>)}
-        </select>
+      <div className="flex items-center gap-4 mb-8 flex-wrap">
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-spal-muted">Season</label>
+          <select
+            value={seasonId ?? ''}
+            onChange={e => setSeasonId(Number(e.target.value))}
+            className={selectClass}
+          >
+            {seasons.map(s => <option key={s.id} value={s.id}>{s.year}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1 ml-auto">
+          <button
+            onClick={() => setView('summary')}
+            className={`px-3 py-1 rounded text-sm transition-colors ${view === 'summary' ? 'bg-spal-cerulean/20 text-spal-cerulean' : 'text-spal-muted hover:text-spal-text'}`}
+          >
+            Summary
+          </button>
+          <button
+            onClick={() => setView('rounds')}
+            className={`px-3 py-1 rounded text-sm transition-colors ${view === 'rounds' ? 'bg-spal-cerulean/20 text-spal-cerulean' : 'text-spal-muted hover:text-spal-text'}`}
+          >
+            Round by Round
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -126,7 +190,6 @@ export default function StandingsPage() {
         <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : (
         <>
-          {/* ── Score standings ──────────────────────────────────────────── */}
           {standingRows.length === 0 ? (
             <div className="mb-10">
               <EmptyState
@@ -139,7 +202,7 @@ export default function StandingsPage() {
                 body="Scores will appear here after the first round is calculated"
               />
             </div>
-          ) : (
+          ) : view === 'summary' ? (
             <div className="mb-10">
               <table className="w-full text-sm">
                 <thead>
@@ -180,9 +243,63 @@ export default function StandingsPage() {
                 <p className="text-xs text-spal-muted mt-3">Last updated: Round {lastRound}</p>
               )}
             </div>
+          ) : (
+            // Round-by-round view
+            <div className="mb-10 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-spal-muted border-b border-white/10">
+                    <th className="pb-2 pr-6 font-normal">Manager</th>
+                    {allRounds.map(rn => (
+                      <th key={rn} className="pb-2 pr-4 font-normal text-right tabular-nums">R{rn}</th>
+                    ))}
+                    <th className="pb-2 font-normal text-right tabular-nums">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standingRows.map(row => {
+                    const isMe = user?.id === row.profile_id
+                    const byRound = roundScores.get(row.profile_id)
+                    return (
+                      <tr
+                        key={row.profile_id}
+                        className={`border-b border-white/5 ${isMe ? 'bg-spal-cerulean/10' : ''}`}
+                      >
+                        <td className={`py-3 pr-6 font-medium ${isMe ? 'text-spal-cerulean' : 'text-spal-text'}`}>
+                          <Link to={`/manager/${row.profile_id}`} className="hover:text-spal-cerulean transition-colors">
+                            {row.display_name}
+                          </Link>
+                          {isMe && <span className="ml-1 text-xs opacity-60">you</span>}
+                        </td>
+                        {allRounds.map(rn => {
+                          const pts = byRound?.get(rn)
+                          const isGold = pts != null && pts === maxByRound.get(rn)
+                          return (
+                            <td
+                              key={rn}
+                              className={`py-3 pr-4 text-right tabular-nums ${
+                                isGold ? 'text-spal-yellow font-semibold' : 'text-spal-text'
+                              }`}
+                            >
+                              {pts != null ? pts.toFixed(1) : <span className="text-spal-muted">—</span>}
+                            </td>
+                          )
+                        })}
+                        <td className="py-3 text-right tabular-nums text-spal-text font-medium">
+                          {Number(row.total_points).toFixed(1)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {lastRound != null && (
+                <p className="text-xs text-spal-muted mt-3">Last updated: Round {lastRound}</p>
+              )}
+            </div>
           )}
 
-          {/* ── Draft order ──────────────────────────────────────────────── */}
+          {/* Draft order */}
           {draftRows.length > 0 && (
             <div>
               <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider mb-3">
