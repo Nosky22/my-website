@@ -16,6 +16,7 @@ import AdminPoolPage from './pages/admin/AdminPoolPage'
 import AdminScoresPage from './pages/admin/AdminScoresPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AdminChroniclePage from './pages/admin/AdminChroniclePage'
+import AdminPredosPage from './pages/admin/AdminPredosPage'
 import DashboardPage from './pages/DashboardPage'
 import DraftPage from './pages/DraftPage'
 import DraftRoomPage from './pages/DraftRoomPage'
@@ -96,6 +97,7 @@ export default function App() {
                 <Route path="imports"  element={<AdminImportsPage />} />
                 <Route path="settings"   element={<AdminSettingsPage />} />
                 <Route path="chronicle" element={<AdminChroniclePage />} />
+                <Route path="predos"    element={<AdminPredosPage />} />
               </Route>
             </Route>
 

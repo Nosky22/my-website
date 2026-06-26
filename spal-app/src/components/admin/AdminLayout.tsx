@@ -9,6 +9,7 @@ const adminLinks = [
   { to: '/admin/teamsheets', label: 'Team Sheets', end: false },
   { to: '/admin/draft',      label: 'Draft',       end: false },
   { to: '/admin/scores',    label: 'Scores',    end: false },
+  { to: '/admin/predos',    label: 'Predos',    end: false },
   { to: '/admin/managers',  label: 'Managers',  end: false },
   { to: '/admin/imports',   label: 'Imports',   end: false },
   { to: '/admin/chronicle', label: 'Chronicle', end: false },
