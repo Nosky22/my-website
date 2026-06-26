@@ -34,6 +34,21 @@ interface PredoScore {
 
 interface Profile { id: string; display_name: string }
 
+interface HistoryMatch {
+  matchId: number
+  homeNation: string
+  awayNation: string
+  myPrediction: { winner: string; margin: number } | null
+  result: { winner: string; margin: number } | null
+  correct: boolean | null
+}
+
+interface HistoryRound {
+  round: number
+  matches: HistoryMatch[]
+  myScore: { winPts: number; marginPts: number; total: number } | null
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const ROUNDS = [1, 2, 3, 4, 5] as const
@@ -75,6 +90,11 @@ export default function PredosPage() {
   const [saving, setSaving]         = useState(false)
   const [saveMsg, setSaveMsg]       = useState<string | null>(null)
   const [rulesOpen, setRulesOpen]   = useState(false)
+
+  // My full-season history (logged-in only)
+  const [myHistory, setMyHistory]             = useState<HistoryRound[]>([])
+  const [historyLoading, setHistoryLoading]   = useState(false)
+  const [seasonPredoTotal, setSeasonPredoTotal] = useState<number | null>(null)
 
   // ── Load seasons, default to active, auto-select current round ────
   useEffect(() => {
@@ -121,6 +141,81 @@ export default function PredosPage() {
     setLoading(true)
     loadRound(seasonId, round)
   }, [seasonId, round]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load full-season prediction history (logged-in only) ──────
+  useEffect(() => {
+    if (seasonId == null || !user) { setMyHistory([]); setSeasonPredoTotal(null); return }
+
+    async function loadHistory() {
+      setHistoryLoading(true)
+
+      const { data: allMatchData } = await supabase
+        .from('matches')
+        .select('id, round_number, home_nation, away_nation')
+        .eq('season_id', seasonId!)
+        .order('round_number')
+        .order('kickoff_at')
+
+      const allMatches = (allMatchData ?? []) as (Match & { round_number: number })[]
+      if (!allMatches.length) { setMyHistory([]); setHistoryLoading(false); return }
+
+      const allMatchIds = allMatches.map(m => m.id)
+
+      const [predsRes, resRes, scoresRes] = await Promise.all([
+        supabase
+          .from('predo_predictions')
+          .select('match_id, predicted_winner, predicted_margin')
+          .eq('profile_id', user!.id)
+          .in('match_id', allMatchIds),
+        supabase
+          .from('predo_results')
+          .select('match_id, actual_winner, actual_margin')
+          .in('match_id', allMatchIds),
+        supabase
+          .from('predo_scores')
+          .select('round_number, winning_team_points, margin_points, total_points')
+          .eq('season_id', seasonId!)
+          .eq('profile_id', user!.id),
+      ])
+
+      const predMap = new Map<number, { winner: string; margin: number }>()
+      for (const p of (predsRes.data ?? []) as { match_id: number; predicted_winner: string; predicted_margin: number }[]) {
+        predMap.set(p.match_id, { winner: p.predicted_winner, margin: p.predicted_margin })
+      }
+
+      const resMap = new Map<number, { winner: string; margin: number }>()
+      for (const r of (resRes.data ?? []) as { match_id: number; actual_winner: string; actual_margin: number }[]) {
+        resMap.set(r.match_id, { winner: r.actual_winner, margin: r.actual_margin })
+      }
+
+      const scoreMap = new Map<number, { winPts: number; marginPts: number; total: number }>()
+      let total = 0
+      for (const s of (scoresRes.data ?? []) as { round_number: number; winning_team_points: number; margin_points: number; total_points: number }[]) {
+        scoreMap.set(s.round_number, { winPts: Number(s.winning_team_points), marginPts: Number(s.margin_points), total: Number(s.total_points) })
+        total += Number(s.total_points)
+      }
+
+      const roundNums = Array.from(new Set(allMatches.map(m => m.round_number))).sort((a, b) => a - b)
+      const history: HistoryRound[] = roundNums.map(r => ({
+        round: r,
+        matches: allMatches
+          .filter(m => m.round_number === r)
+          .map(m => {
+            const pred   = predMap.get(m.id) ?? null
+            const result = resMap.get(m.id) ?? null
+            const correct = pred && result ? pred.winner === result.winner : null
+            return { matchId: m.id, homeNation: m.home_nation, awayNation: m.away_nation, myPrediction: pred, result, correct }
+          }),
+        myScore: scoreMap.get(r) ?? null,
+      }))
+
+      setMyHistory(history)
+      setSeasonPredoTotal(total > 0 ? total : null)
+      setHistoryLoading(false)
+    }
+
+    loadHistory()
+  }, [seasonId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadRound(sid: number, r: number) {
     setLoading(true)
@@ -601,6 +696,85 @@ export default function PredosPage() {
 
         </div>
       )}
+      {/* My Predictions History */}
+      {user && (
+        <section className="space-y-4">
+          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wider">My predictions history</h2>
+          {historyLoading ? (
+            <LoadingSpinner />
+          ) : myHistory.length === 0 ? (
+            <p className="text-spal-muted text-sm">No prediction history yet for this season.</p>
+          ) : (
+            <>
+              {myHistory.map(hr => (
+                <div key={hr.round} className="bg-spal-surface border border-white/5 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-spal-text">Round {hr.round}</span>
+                    {hr.myScore != null ? (
+                      <span className="text-xs text-spal-muted tabular-nums">
+                        {fmt(hr.myScore.total)} pts
+                        <span className="hidden sm:inline text-spal-muted/60">
+                          {' '}(win {fmt(hr.myScore.winPts)} + margin {fmt(hr.myScore.marginPts)})
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-spal-muted">Not scored</span>
+                    )}
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-spal-muted border-b border-white/10">
+                        <th className="pb-1.5 pr-4 font-normal">Match</th>
+                        <th className="pb-1.5 pr-4 font-normal">My pick</th>
+                        <th className="pb-1.5 pr-4 font-normal hidden sm:table-cell">Result</th>
+                        <th className="pb-1.5 font-normal text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {hr.matches.map(m => (
+                        <tr key={m.matchId} className="border-b border-white/5 last:border-0">
+                          <td className="py-2 pr-4 text-spal-muted text-xs">
+                            {m.homeNation} vs {m.awayNation}
+                          </td>
+                          <td className="py-2 pr-4 text-spal-text text-sm">
+                            {m.myPrediction
+                              ? <>
+                                  {m.myPrediction.winner}
+                                  {m.myPrediction.winner !== 'Draw' && (
+                                    <span className="text-spal-muted ml-1 text-xs">+{m.myPrediction.margin}</span>
+                                  )}
+                                </>
+                              : <span className="text-spal-muted text-xs italic">No prediction</span>
+                            }
+                          </td>
+                          <td className="py-2 pr-4 text-spal-muted text-xs hidden sm:table-cell">
+                            {m.result
+                              ? m.result.winner === 'Draw' ? 'Draw' : `${m.result.winner} +${m.result.margin}`
+                              : '—'
+                            }
+                          </td>
+                          <td className="py-2 text-right text-xs font-medium">
+                            {m.correct === true  && <span className="text-spal-success">✓</span>}
+                            {m.correct === false && <span className="text-red-400">✗</span>}
+                            {m.correct === null  && <span className="text-spal-muted">—</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+              {seasonPredoTotal != null && (
+                <div className="flex items-center justify-between px-4 py-3 bg-spal-surface border border-white/5 rounded-lg">
+                  <span className="text-sm text-spal-muted">Season total</span>
+                  <span className="text-sm font-bold text-spal-yellow tabular-nums">{fmt(seasonPredoTotal)} pts</span>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
     </div>
   )
 }
