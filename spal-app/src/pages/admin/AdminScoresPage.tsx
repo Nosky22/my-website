@@ -180,12 +180,12 @@ export default function AdminScoresPage() {
     loadRound()
   }, [selectedSeasonId, selectedRound]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function loadRound() {
+  async function loadRound(preserveRecalcNeeded = false) {
     setLoadingRound(true)
     setRoundError(false)
     setCalcResult(null)
     setRoundFinal(false)
-    setRecalcNeeded(false)
+    if (!preserveRecalcNeeded) setRecalcNeeded(false)
     setLockResult(null); setLockError(null)
 
     const { data: matchData } = await supabase
@@ -422,7 +422,7 @@ export default function AdminScoresPage() {
 
     if (roundFinal) setRecalcNeeded(true)
     setSaveSuccess(true); setSaving(false)
-    loadRound()
+    loadRound(roundFinal)
   }
 
   // ── Lock squads ──────────────────────────────────────────────────
