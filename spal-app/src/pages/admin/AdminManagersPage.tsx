@@ -110,6 +110,7 @@ export default function AdminManagersPage() {
   const [generating, setGenerating]   = useState(false)
   const [newToken, setNewToken]       = useState<string | null>(null)
   const [revokingId, setRevokingId]   = useState<number | null>(null)
+  const [copyingFor, setCopyingFor]   = useState<string | null>(null)
 
   // ── Load profiles + auth metadata ────────────────────────────────────────
 
@@ -185,6 +186,24 @@ export default function AdminManagersPage() {
     addToast('Token revoked', 'success')
     await loadTokens()
     setRevokingId(null)
+  }
+
+  async function handleCopyInviteLink(profileId: string) {
+    if (!user || copyingFor) return
+    setCopyingFor(profileId)
+    let token: string
+    const unclaimed = tokens.find(t => !t.claimed_by)
+    if (unclaimed) {
+      token = unclaimed.token
+    } else {
+      token = makeToken()
+      const { error } = await supabase.from('invite_tokens').insert({ token, created_by: user.id })
+      if (error) { addToast(error.message, 'error'); setCopyingFor(null); return }
+      await loadTokens()
+    }
+    await copyToClipboard(inviteUrl(token))
+    addToast('Invite link copied', 'success')
+    setCopyingFor(null)
   }
 
   // ── Search for real accounts ──────────────────────────────────────────────
@@ -334,12 +353,21 @@ export default function AdminManagersPage() {
                     </td>
                     <td className="py-2.5 text-right">
                       {placeholder && (
-                        <button
-                          onClick={() => openLink(p)}
-                          className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors"
-                        >
-                          Link account
-                        </button>
+                        <div className="flex items-center gap-3 justify-end">
+                          <button
+                            onClick={() => handleCopyInviteLink(p.id)}
+                            disabled={!!copyingFor}
+                            className="text-xs text-spal-muted hover:text-spal-text disabled:opacity-40 transition-colors"
+                          >
+                            {copyingFor === p.id ? 'Copying…' : 'Copy invite link'}
+                          </button>
+                          <button
+                            onClick={() => openLink(p)}
+                            className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors"
+                          >
+                            Link account
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
