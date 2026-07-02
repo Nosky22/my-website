@@ -74,6 +74,10 @@
 - [x] Admin round deadline management — "Kickoff times" section on scores page with datetime inputs per match, shift-all-by-N-hours convenience control, and reason field; each change audited in admin_overrides.
 - [x] Admin squad override — /admin/squad-override: select season + round + manager, edit their full 16-slot squad (bypasses deadline), saves as submitted. Audit logged to audit_log.
 - [x] Admin predo override — on the same /admin/squad-override page: edit or add predo predictions on behalf of a manager, bypassing deadline. Edits write to admin_overrides; new entries write to audit_log.
+- [x] Copy invite link on /admin/managers — "Copy invite link" button on each placeholder manager row; reuses any existing unclaimed token or generates fresh if none exist; copies full signup URL to clipboard.
+- [x] Score correction flow — "Recalculate needed" amber warning banner appears when a score is corrected after a round is final; one-click "Recalculate & re-finalise" button re-runs full pipeline (skipping squad lock) and clears the banner.
+- [x] In-app notifications — bell icon in SPAL nav with unread count badge; dropdown list of recent notifications; generated when round scores are published or a Chronicle post goes live; marked read on open; migration 025.
+- [x] Chronicle starter posts — 3 published posts inserted via SQL: "Welcome to SPAL", "How scoring works", "What is the Chronicle?" — dated to 2023 Six Nations opening weekend, authored by Nick.
 
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
