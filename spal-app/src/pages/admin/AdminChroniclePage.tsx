@@ -154,6 +154,21 @@ export default function AdminChroniclePage() {
       .eq('id', post.id)
     if (error) { addToast(error.message, 'error'); return }
     addToast(nowPublished ? 'Post published' : 'Post unpublished', 'success')
+
+    if (nowPublished) {
+      const { data: profileRows } = await supabase.from('profiles').select('id')
+      if (profileRows?.length) {
+        await supabase.from('notifications').insert(
+          profileRows.map(r => ({
+            profile_id: r.id,
+            season_id: null,
+            type: 'chronicle_post',
+            message: `New Chronicle post: "${post.title}"`,
+          }))
+        )
+      }
+    }
+
     await loadPosts()
   }
 

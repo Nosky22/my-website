@@ -775,6 +775,22 @@ export default function AdminScoresPage() {
     }
     update(4, { status: 'done', detail: 'Round finalised' })
 
+    // Fan out notifications to all managers in this season
+    const { data: standingRows } = await supabase
+      .from('season_standings')
+      .select('profile_id')
+      .eq('season_id', selectedSeasonId!)
+    if (standingRows?.length) {
+      await supabase.from('notifications').insert(
+        standingRows.map(r => ({
+          profile_id: r.profile_id,
+          season_id: selectedSeasonId,
+          type: 'round_scored',
+          message: `Round ${selectedRound} scores are in — check the standings.`,
+        }))
+      )
+    }
+
     setPipelineRunning(false)
     setRoundFinal(true)
     setRoundScored(true)

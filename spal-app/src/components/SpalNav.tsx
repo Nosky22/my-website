@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import NotificationBell from './NotificationBell'
 
 interface NavItem {
   to: string
@@ -278,6 +279,7 @@ export default function SpalNav() {
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-1">
+            {!loading && user && <NotificationBell />}
             {!loading && isAdmin && (
               <NavLink to="/admin" end={false} className={desktopLinkClass}>
                 <Settings size={13} />
@@ -311,13 +313,16 @@ export default function SpalNav() {
         {/* ── Mobile bar — visible below md: ── */}
         <div className="flex md:hidden items-center justify-between w-full py-1">
           <span className="text-sm font-semibold text-spal-yellow">SPAL</span>
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="p-2 text-spal-muted hover:text-spal-text transition-colors"
-            aria-label="Open menu"
-          >
-            <Menu size={20} />
-          </button>
+          <div className="flex items-center">
+            {!loading && user && <NotificationBell />}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-2 text-spal-muted hover:text-spal-text transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
       </div>
 

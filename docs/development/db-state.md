@@ -354,6 +354,27 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `20260702135702_notifications.sql`
+**Applied:** 2026-07-02
+**Status:** Applied successfully — table (7 columns), 3 RLS policies, and grants verified by query
+
+**Tables created:**
+
+| Table | Primary key | Notes |
+|-------|-------------|-------|
+| `notifications` | `bigserial identity` | `profile_id` FK → profiles (CASCADE); `season_id` FK → seasons nullable (CASCADE); `type` check constraint; `read` default false |
+
+**RLS:**
+- `own read`: authenticated SELECT where `auth.uid() = profile_id`.
+- `own update`: authenticated UPDATE where `auth.uid() = profile_id` (used to mark notifications read).
+- `admin insert`: admin-only INSERT (`is_admin()`).
+
+**Grants:** SELECT, INSERT, UPDATE on `notifications` and USAGE, SELECT on `notifications_id_seq` to `authenticated`.
+
+**Additive only** — no existing tables modified.
+
+---
+
 ## Pending migrations
 
 None.
