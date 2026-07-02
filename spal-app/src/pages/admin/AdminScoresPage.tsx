@@ -129,6 +129,10 @@ export default function AdminScoresPage() {
   const [pipeline, setPipeline]           = useState<PipelineStep[] | null>(null)
   const [pipelineRunning, setPipelineRunning] = useState(false)
 
+  // ── Score correction / re-finalise ───────────────────────────────
+  const [recalcNeeded, setRecalcNeeded]   = useState(false)
+  const [recalcRunning, setRecalcRunning] = useState(false)
+
   // ── Kickoff management ───────────────────────────────────────────
   const [kickoffEdits, setKickoffEdits]         = useState<Record<number, string>>({})
   const [kickoffOriginals, setKickoffOriginals] = useState<Record<number, string>>({})
@@ -181,6 +185,7 @@ export default function AdminScoresPage() {
     setRoundError(false)
     setCalcResult(null)
     setRoundFinal(false)
+    setRecalcNeeded(false)
     setLockResult(null); setLockError(null)
 
     const { data: matchData } = await supabase
@@ -415,6 +420,7 @@ export default function AdminScoresPage() {
       await recalculateQuiet()
     }
 
+    if (roundFinal) setRecalcNeeded(true)
     setSaveSuccess(true); setSaving(false)
     loadRound()
   }
@@ -799,6 +805,54 @@ export default function AdminScoresPage() {
     loadRound()
   }
 
+  // ── Recalculate and re-finalise (after score correction on a final round) ──
+  async function handleRecalcAndRefinalise() {
+    if (selectedSeasonId == null || selectedRound == null) return
+    setRecalcRunning(true)
+
+    const { error: scoreErr } = await supabase.functions.invoke('score-round', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+    if (scoreErr) {
+      addToast(`Score calculation failed: ${scoreErr.message}`, 'error')
+      setRecalcRunning(false); return
+    }
+
+    const { error: predoErr } = await supabase.functions.invoke('score-predos', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+    })
+    if (predoErr) {
+      addToast(`Predo calculation failed: ${predoErr.message}`, 'error')
+      setRecalcRunning(false); return
+    }
+
+    const { error: insightErr } = await supabase.functions.invoke('generate-insights', {
+      body: { season_id: selectedSeasonId, round_number: selectedRound },
+      headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+    })
+    if (insightErr) {
+      addToast(`Insights failed: ${insightErr.message}`, 'error')
+      setRecalcRunning(false); return
+    }
+
+    const pipelineMatchIds = matches.map(m => m.id)
+    const [mmsRes, standingsRes] = await Promise.all([
+      supabase.from('manager_match_scores').update({ status: 'final' }).in('match_id', pipelineMatchIds),
+      supabase.from('season_standings').update({ last_updated_round: selectedRound }).eq('season_id', selectedSeasonId!),
+    ])
+    if (mmsRes.error || standingsRes.error) {
+      addToast(mmsRes.error?.message ?? standingsRes.error?.message ?? 'DB error', 'error')
+      setRecalcRunning(false); return
+    }
+
+    setRecalcNeeded(false)
+    setRecalcRunning(false)
+    setRoundFinal(true)
+    setRoundScored(true)
+    addToast(`Round ${selectedRound} re-finalised`, 'success')
+    loadRound()
+  }
+
   // ── Render ───────────────────────────────────────────────────────
   return (
     <div>
@@ -850,6 +904,24 @@ export default function AdminScoresPage() {
           No matches found for round {selectedRound}. Add them via the Seasons page.
         </p>
       ) : (
+        <>
+          {recalcNeeded && (
+            <div className="flex items-center justify-between gap-4 mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-amber-400">Recalculate needed</p>
+                <p className="text-xs text-spal-muted mt-0.5">
+                  Scores were corrected after this round was finalised.
+                </p>
+              </div>
+              <button
+                onClick={handleRecalcAndRefinalise}
+                disabled={recalcRunning}
+                className="shrink-0 px-4 py-1.5 text-sm bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {recalcRunning ? 'Running…' : 'Recalculate & re-finalise'}
+              </button>
+            </div>
+          )}
         <div className="flex flex-col md:flex-row gap-8 items-start">
 
           {/* Left: match panels + calculate */}
@@ -1588,6 +1660,7 @@ export default function AdminScoresPage() {
             </section>
           </aside>
         </div>
+        </>
       )}
 
       <ConfirmModal
