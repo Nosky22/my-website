@@ -18,11 +18,25 @@ interface H2HRow {
   last_updated_round: number | null
 }
 
+interface FixtureMember {
+  profile_id: string
+  display_name: string
+  round_points: number | null
+  group_place: number | null
+}
+
+interface FixtureGroup {
+  id: number
+  round_number: number
+  members: FixtureMember[]
+}
+
 export default function H2HPage() {
   const { user } = useAuth()
   const [seasons, setSeasons]     = useState<Season[]>([])
   const [seasonId, setSeasonId]   = useState<number | null>(null)
   const [rows, setRows]           = useState<H2HRow[]>([])
+  const [fixtures, setFixtures]   = useState<FixtureGroup[]>([])
   const [hasFixtures, setHasFixtures] = useState(true)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState(false)
@@ -57,9 +71,9 @@ export default function H2HPage() {
 
       supabase
         .from('fixture_groups')
-        .select('id')
+        .select('id, round_number, fixture_group_members(profile_id, round_points, group_place, profiles!profile_id(display_name))')
         .eq('season_id', seasonId)
-        .limit(1),
+        .order('round_number'),
     ]).then(([standingsRes, fixturesRes]) => {
       if (standingsRes.error || fixturesRes.error) { setError(true); setLoading(false); return }
       type RawStanding = {
@@ -84,7 +98,30 @@ export default function H2HPage() {
         last_updated_round: s.last_updated_round,
       })))
 
-      setHasFixtures((fixturesRes.data ?? []).length > 0)
+      type RawMember = {
+        profile_id: string
+        round_points: number | null
+        group_place: number | null
+        profiles: { display_name: string } | null
+      }
+      type RawGroup = {
+        id: number
+        round_number: number
+        fixture_group_members: RawMember[]
+      }
+      const rawGroups = (fixturesRes.data ?? []) as unknown as RawGroup[]
+      setFixtures(rawGroups.map(g => ({
+        id: g.id,
+        round_number: g.round_number,
+        members: g.fixture_group_members.map(m => ({
+          profile_id:   m.profile_id,
+          display_name: m.profiles?.display_name ?? 'Unknown',
+          round_points: m.round_points,
+          group_place:  m.group_place,
+        })),
+      })))
+
+      setHasFixtures(rawGroups.length > 0)
       setLoading(false)
     })
   }, [seasonId, retryKey])
@@ -168,8 +205,86 @@ export default function H2HPage() {
           {lastRound != null && (
             <p className="text-xs text-spal-muted mt-3">Last updated: Round {lastRound}</p>
           )}
+
+          {fixtures.length > 0 && (
+            <div className="mt-10">
+              <h2 className="text-lg font-semibold text-spal-text mb-1">Cup Results</h2>
+              <p className="text-xs text-spal-muted mb-6">Round-by-round fixtures for the H2H Cup.</p>
+              <div className="space-y-6">
+                {Array.from(new Set(fixtures.map(f => f.round_number))).sort((a, b) => a - b).map(round => {
+                  const roundFixtures = fixtures.filter(f => f.round_number === round)
+                  const isPlayed = roundFixtures.some(f => f.members.some(m => m.round_points != null))
+                  return (
+                    <div key={round}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-semibold text-spal-text">Round {round}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                          isPlayed
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'bg-white/10 text-spal-muted'
+                        }`}>
+                          {isPlayed ? 'Played' : 'Upcoming'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {roundFixtures.map(group => (
+                          <FixtureGroupCard key={group.id} group={group} userId={user?.id ?? null} />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+function FixtureGroupCard({ group, userId }: { group: FixtureGroup; userId: string | null }) {
+  const played = group.members.some(m => m.round_points != null)
+  const sorted = played
+    ? [...group.members].sort((a, b) => (b.round_points ?? 0) - (a.round_points ?? 0))
+    : group.members
+
+  return (
+    <div className="bg-spal-surface rounded-lg px-4 py-3 border border-white/5">
+      <div className="flex flex-wrap gap-2 items-center">
+        {sorted.map((m, i) => {
+          const isMe = m.profile_id === userId
+          const outcomeColor =
+            !played            ? 'text-spal-muted' :
+            m.group_place === 1 ? 'text-emerald-400' :
+            m.group_place === 2 ? 'text-spal-muted' :
+                                  'text-red-400'
+          const outcomeLabel =
+            !played            ? '' :
+            m.group_place === 1 ? 'W' :
+            m.group_place === 2 ? 'D' :
+                                  'L'
+
+          return (
+            <div key={m.profile_id} className="flex items-center gap-1.5">
+              {i > 0 && <span className="text-spal-muted/40 text-xs">vs</span>}
+              <div className="flex items-center gap-1.5">
+                <span className={`text-sm font-medium ${isMe ? 'text-spal-cerulean' : 'text-spal-text'}`}>
+                  {m.display_name}{isMe && <span className="ml-1 text-xs opacity-60">you</span>}
+                </span>
+                {played && m.round_points != null && (
+                  <span className="text-xs tabular-nums text-spal-muted">
+                    ({Number(m.round_points).toFixed(1)})
+                  </span>
+                )}
+                {played && (
+                  <span className={`text-xs font-semibold ${outcomeColor}`}>{outcomeLabel}</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
