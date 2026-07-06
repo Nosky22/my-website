@@ -565,6 +565,7 @@ export default function PredosPage() {
                     {matchPreds.length === 0 ? (
                       <p className="text-spal-muted text-xs">No predictions submitted.</p>
                     ) : (
+                      <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left text-spal-muted border-b border-white/10">
@@ -612,6 +613,7 @@ export default function PredosPage() {
                           })}
                         </tbody>
                       </table>
+                      </div>
                     )}
                   </div>
                 )
@@ -721,6 +723,7 @@ export default function PredosPage() {
                       <span className="text-xs text-spal-muted">Not scored</span>
                     )}
                   </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-spal-muted border-b border-white/10">
@@ -762,6 +765,7 @@ export default function PredosPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               ))}
               {seasonPredoTotal != null && (

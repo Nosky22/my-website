@@ -289,6 +289,7 @@ export default function AdminPredosPage() {
                     </span>
                   )}
                 </div>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-spal-muted border-b border-white/10">
@@ -396,6 +397,7 @@ export default function AdminPredosPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </section>
             )
           })}

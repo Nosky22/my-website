@@ -581,12 +581,26 @@ function PlayerRow({ player, badgeFn, onRemove, onEditStatus }: PlayerRowProps) 
   }
 
   return (
-    <div className="flex items-center gap-3 py-1.5 border-b border-white/5 last:border-0">
-      {badgeFn(player.nation)}
-      <span className="text-spal-text text-sm flex-1">{player.display_name}</span>
-      <span className="text-spal-muted text-xs">{player.canonical_position}</span>
-      {editing ? (
-        <div className="flex items-center gap-2 ml-2">
+    <div className="py-1.5 border-b border-white/5 last:border-0">
+      <div className="flex items-center gap-3">
+        {badgeFn(player.nation)}
+        <span className="text-spal-text text-sm flex-1 min-w-0 truncate">{player.display_name}</span>
+        <span className="text-spal-muted text-xs shrink-0">{player.canonical_position}</span>
+        {!editing && (
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={() => setEditing(true)}
+              className="text-xs text-spal-muted hover:text-spal-cerulean transition-colors">
+              Edit
+            </button>
+            <button onClick={onRemove}
+              className="text-xs text-spal-muted hover:text-red-400 transition-colors">
+              Remove
+            </button>
+          </div>
+        )}
+      </div>
+      {editing && (
+        <div className="flex items-center gap-2 mt-1.5 pl-10 flex-wrap">
           <select
             value={pendingStatus}
             onChange={e => setPendingStatus(e.target.value as SquadPlayer['status'])}
@@ -604,17 +618,6 @@ function PlayerRow({ player, badgeFn, onRemove, onEditStatus }: PlayerRowProps) 
           <button onClick={() => { setEditing(false); setPendingStatus(player.status) }}
             className="text-xs text-spal-muted hover:text-spal-text transition-colors">
             Cancel
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 ml-2">
-          <button onClick={() => setEditing(true)}
-            className="text-xs text-spal-muted hover:text-spal-cerulean transition-colors">
-            Edit
-          </button>
-          <button onClick={onRemove}
-            className="text-xs text-spal-muted hover:text-red-400 transition-colors">
-            Remove
           </button>
         </div>
       )}
