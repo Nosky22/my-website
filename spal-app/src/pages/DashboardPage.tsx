@@ -397,11 +397,11 @@ export default function DashboardPage() {
   const squadSubmitted = squadStatusKey === 'submitted' || squadStatusKey === 'locked'
 
   const workflowSteps = [
-    { label: 'Draft complete',    done: draftComplete   },
-    { label: 'Squad submitted',   done: squadSubmitted  },
-    { label: 'Predos entered',    done: predosEntered   },
-    { label: 'Round locked',      done: isLocked        },
-    { label: 'Scores calculated', done: scoresExist     },
+    { label: 'Draft complete',  done: draftComplete  },
+    { label: 'Squad submitted', done: squadSubmitted },
+    { label: 'Predos entered',  done: predosEntered  },
+    { label: 'Round locked',    done: isLocked       },
+    { label: 'Scores available', done: scoresExist   },
   ]
   const firstUndone = workflowSteps.findIndex(s => !s.done)
 
@@ -617,35 +617,37 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Workflow indicator */}
-        <div className="md:w-52 md:shrink-0 bg-spal-surface rounded-lg px-5 py-4">
-          <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-4">Round progress</h2>
-          <ol className="space-y-3">
-            {workflowSteps.map((step, i) => {
-              const isCurrent = i === firstUndone
-              return (
-                <li key={step.label} className="flex items-center gap-2.5">
-                  <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-xs font-bold transition-colors ${
-                    step.done
-                      ? 'bg-emerald-500 text-white'
-                      : isCurrent
-                        ? 'border-2 border-spal-cerulean'
-                        : 'border border-white/20'
-                  }`}>
-                    {step.done ? '✓' : null}
-                  </div>
-                  <span className={`text-sm ${
-                    step.done    ? 'text-spal-muted line-through decoration-white/20'
-                    : isCurrent  ? 'text-spal-text font-medium'
-                    : 'text-spal-muted'
-                  }`}>
-                    {step.label}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-        </div>
+        {/* Workflow indicator — active season only */}
+        {isActiveSeason && (
+          <div className="md:w-52 md:shrink-0 bg-spal-surface rounded-lg px-5 py-4">
+            <h2 className="text-xs font-semibold text-spal-muted uppercase tracking-wide mb-4">Round progress</h2>
+            <ol className="space-y-3">
+              {workflowSteps.map((step, i) => {
+                const isCurrent = i === firstUndone
+                return (
+                  <li key={step.label} className="flex items-center gap-2.5">
+                    <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-xs font-bold transition-colors ${
+                      step.done
+                        ? 'bg-emerald-500 text-white'
+                        : isCurrent
+                          ? 'border-2 border-spal-cerulean text-spal-cerulean'
+                          : 'border border-white/20 text-spal-muted/50'
+                    }`}>
+                      {step.done ? '✓' : i + 1}
+                    </div>
+                    <span className={`text-sm ${
+                      step.done    ? 'text-spal-muted line-through decoration-white/20'
+                      : isCurrent  ? 'text-spal-text font-medium'
+                      : 'text-spal-muted'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        )}
 
       </div>
 
