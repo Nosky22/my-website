@@ -162,6 +162,8 @@ export default function AdminTeamSheetsPage() {
   const [pool, setPool]         = useState<PoolPlayer[]>([])
   const [loading, setLoading]   = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [roundScored, setRoundScored] = useState(false)
+  const [showRecalcNote, setShowRecalcNote] = useState(false)
 
   useEffect(() => {
     supabase
@@ -194,6 +196,8 @@ export default function AdminTeamSheetsPage() {
   async function loadRound(seasonId: number, round: number) {
     setLoading(true)
     setLoadError(false)
+    setRoundScored(false)
+    setShowRecalcNote(false)
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
       .select('id, home_nation, away_nation, kickoff_at')
@@ -211,7 +215,13 @@ export default function AdminTeamSheetsPage() {
       setLoading(false)
       return
     }
-    await loadSquads(newMatches.map(m => m.id))
+
+    const matchIds = newMatches.map(m => m.id)
+    const [, { data: mmsData }] = await Promise.all([
+      loadSquads(matchIds),
+      supabase.from('manager_match_scores').select('id').in('match_id', matchIds).limit(1),
+    ])
+    setRoundScored((mmsData?.length ?? 0) > 0)
     setLoading(false)
   }
 
@@ -273,6 +283,19 @@ export default function AdminTeamSheetsPage() {
       .eq('match_id', matchId)
       .eq('player_id', playerId)
     if (error) { addToast(error.message, 'error'); return }
+    await loadSquads(matches.map(m => m.id))
+  }
+
+  async function handleEditStatus(matchId: string, playerId: number, newStatus: SquadPlayer['status']) {
+    const { error } = await supabase
+      .from('matchday_squads')
+      .upsert(
+        { match_id: matchId, player_id: playerId, status: newStatus, source: 'admin' },
+        { onConflict: 'match_id,player_id' }
+      )
+    if (error) { addToast(error.message, 'error'); return }
+    addToast('Status updated', 'success')
+    if (roundScored) setShowRecalcNote(true)
     await loadSquads(matches.map(m => m.id))
   }
 
@@ -341,6 +364,19 @@ export default function AdminTeamSheetsPage() {
           />
         ) : (
           <div className="space-y-6">
+            {roundScored && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-400">
+                This round has scores — changing matchday status will require recalculation.
+              </div>
+            )}
+            {showRecalcNote && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between gap-4">
+                <span className="text-sm text-amber-400">Status changed on a scored round. Recalculation needed.</span>
+                <a href="/admin/scores" className="shrink-0 text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors">
+                  Go to Scores →
+                </a>
+              </div>
+            )}
             {matches.map(match => (
               <MatchPanel
                 key={match.id}
@@ -349,6 +385,7 @@ export default function AdminTeamSheetsPage() {
                 pool={pool}
                 onAdd={handleAdd}
                 onRemove={handleRemove}
+                onEditStatus={handleEditStatus}
               />
             ))}
           </div>
@@ -374,9 +411,10 @@ interface MatchPanelProps {
   pool: PoolPlayer[]
   onAdd: (matchId: string, playerId: number, status: 'starting' | 'bench') => Promise<void>
   onRemove: (matchId: string, playerId: number) => Promise<void>
+  onEditStatus: (matchId: string, playerId: number, newStatus: SquadPlayer['status']) => Promise<void>
 }
 
-function MatchPanel({ match, players, pool, onAdd, onRemove }: MatchPanelProps) {
+function MatchPanel({ match, players, pool, onAdd, onRemove, onEditStatus }: MatchPanelProps) {
   const [addingFor, setAddingFor] = useState<{ nation: string; status: 'starting' | 'bench' } | null>(null)
   const [query, setQuery]         = useState('')
   const [saving, setSaving]       = useState(false)
@@ -461,7 +499,9 @@ function MatchPanel({ match, players, pool, onAdd, onRemove }: MatchPanelProps) 
             <span className="text-xs text-spal-muted">{starters.length}/15</span>
           </div>
           {starters.map(p => (
-            <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => onRemove(match.id, p.player_id)} />
+            <PlayerRow key={p.player_id} player={p} badgeFn={badge}
+              onRemove={() => onRemove(match.id, p.player_id)}
+              onEditStatus={(s) => onEditStatus(match.id, p.player_id, s)} />
           ))}
           {addingHereStart ? (
             <AddSearch inputRef={inputRef} query={query} results={searchResults} saving={saving}
@@ -481,7 +521,9 @@ function MatchPanel({ match, players, pool, onAdd, onRemove }: MatchPanelProps) 
             <span className="text-xs text-spal-muted">{bench.length}/8</span>
           </div>
           {bench.map(p => (
-            <PlayerRow key={p.player_id} player={p} badgeFn={badge} onRemove={() => onRemove(match.id, p.player_id)} />
+            <PlayerRow key={p.player_id} player={p} badgeFn={badge}
+              onRemove={() => onRemove(match.id, p.player_id)}
+              onEditStatus={(s) => onEditStatus(match.id, p.player_id, s)} />
           ))}
           {addingHereBench ? (
             <AddSearch inputRef={inputRef} query={query} results={searchResults} saving={saving}
@@ -522,20 +564,60 @@ interface PlayerRowProps {
   player: SquadPlayer
   badgeFn: (nation: string) => React.ReactNode
   onRemove: () => void
+  onEditStatus: (newStatus: SquadPlayer['status']) => Promise<void>
 }
 
-function PlayerRow({ player, badgeFn, onRemove }: PlayerRowProps) {
+function PlayerRow({ player, badgeFn, onRemove, onEditStatus }: PlayerRowProps) {
+  const [editing, setEditing] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<SquadPlayer['status']>(player.status)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (pendingStatus === player.status) { setEditing(false); return }
+    setSaving(true)
+    await onEditStatus(pendingStatus)
+    setSaving(false)
+    setEditing(false)
+  }
+
   return (
     <div className="flex items-center gap-3 py-1.5 border-b border-white/5 last:border-0">
       {badgeFn(player.nation)}
       <span className="text-spal-text text-sm flex-1">{player.display_name}</span>
       <span className="text-spal-muted text-xs">{player.canonical_position}</span>
-      <button
-        onClick={onRemove}
-        className="text-xs text-spal-muted hover:text-red-400 transition-colors ml-2"
-      >
-        Remove
-      </button>
+      {editing ? (
+        <div className="flex items-center gap-2 ml-2">
+          <select
+            value={pendingStatus}
+            onChange={e => setPendingStatus(e.target.value as SquadPlayer['status'])}
+            disabled={saving}
+            className="bg-spal-bg border border-white/10 rounded px-2 py-0.5 text-spal-text text-xs focus:outline-none focus:border-spal-cerulean"
+          >
+            <option value="starting">Starting</option>
+            <option value="bench">Bench</option>
+            <option value="not_selected">Not selected</option>
+          </select>
+          <button onClick={handleSave} disabled={saving}
+            className="text-xs text-spal-cerulean hover:text-spal-cerulean-light transition-colors disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button onClick={() => { setEditing(false); setPendingStatus(player.status) }}
+            className="text-xs text-spal-muted hover:text-spal-text transition-colors">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 ml-2">
+          <button onClick={() => setEditing(true)}
+            className="text-xs text-spal-muted hover:text-spal-cerulean transition-colors">
+            Edit
+          </button>
+          <button onClick={onRemove}
+            className="text-xs text-spal-muted hover:text-red-400 transition-colors">
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   )
 }
