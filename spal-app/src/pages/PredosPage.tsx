@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { EmptyState } from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorCard from '../components/ErrorCard'
 
@@ -412,7 +413,16 @@ export default function PredosPage() {
       ) : error ? (
         <ErrorCard onRetry={() => { if (seasonId != null && round != null) loadRound(seasonId, round) }} />
       ) : matches.length === 0 ? (
-        <p className="text-spal-muted text-sm">No matches found for this round.</p>
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          }
+          title="No matches scheduled"
+          body="Matches for this round haven't been added yet. Check back once the fixture list is confirmed."
+        />
       ) : (
         <div className="space-y-8">
 

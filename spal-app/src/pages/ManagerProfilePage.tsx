@@ -332,6 +332,16 @@ export default function ManagerProfilePage() {
         )}
       </div>
 
+      {/* No history state */}
+      {seasonRecords.length === 0 && (
+        <div className="bg-spal-surface border border-white/5 rounded-lg px-6 py-8 text-center">
+          <p className="text-spal-muted text-sm">No season history on record.</p>
+          <p className="text-spal-muted text-xs mt-1">
+            This manager hasn't appeared in any recorded seasons yet.
+          </p>
+        </div>
+      )}
+
       {/* All-time summary */}
       {allTimeStats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

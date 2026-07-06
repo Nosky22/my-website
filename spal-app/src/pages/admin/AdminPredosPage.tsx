@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../components/Toast'
 import { ConfirmModal } from '../../components/ConfirmModal'
+import { EmptyState } from '../../components/EmptyState'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import ErrorCard from '../../components/ErrorCard'
 
@@ -250,7 +251,16 @@ export default function AdminPredosPage() {
       ) : error ? (
         <ErrorCard onRetry={() => setRetryKey(k => k + 1)} />
       ) : matches.length === 0 ? (
-        <p className="text-spal-muted text-sm">No matches for round {round}.</p>
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10">
+              <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          }
+          title={`No matches for round ${round}`}
+          body="Add matches for this round via the Seasons page before managing predictions."
+        />
       ) : (
         <div className="space-y-6">
 
