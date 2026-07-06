@@ -14,16 +14,22 @@ export interface Notification {
 export function useNotifications() {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
 
   const load = useCallback(async () => {
     if (!user) { setNotifications([]); return }
-    const { data } = await supabase
+    setLoading(true)
+    setError(false)
+    const { data, error: fetchError } = await supabase
       .from('notifications')
       .select('id, type, message, read, created_at, season_id')
       .eq('profile_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20)
+    if (fetchError) { setError(true); setLoading(false); return }
     setNotifications(data ?? [])
+    setLoading(false)
   }, [user])
 
   useEffect(() => { load() }, [load])
@@ -37,5 +43,5 @@ export function useNotifications() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
-  return { notifications, unreadCount, markAllRead }
+  return { notifications, unreadCount, markAllRead, loading, error, retry: load }
 }

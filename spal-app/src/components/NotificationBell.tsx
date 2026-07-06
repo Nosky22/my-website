@@ -13,7 +13,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, markAllRead } = useNotifications()
+  const { notifications, unreadCount, markAllRead, loading, error, retry } = useNotifications()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -50,7 +50,19 @@ export default function NotificationBell() {
           <div className="px-3 py-2 border-b border-white/5">
             <p className="text-xs font-medium text-spal-muted">Notifications</p>
           </div>
-          {notifications.length === 0 ? (
+          {loading ? (
+            <p className="px-3 py-4 text-xs text-spal-muted text-center">Loading…</p>
+          ) : error ? (
+            <div className="px-3 py-4 text-center">
+              <p className="text-xs text-spal-muted">Couldn't load notifications.</p>
+              <button
+                onClick={() => retry()}
+                className="text-xs text-spal-cerulean hover:text-spal-cerulean-light mt-1 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : notifications.length === 0 ? (
             <p className="px-3 py-4 text-xs text-spal-muted text-center">No notifications</p>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-white/5">
