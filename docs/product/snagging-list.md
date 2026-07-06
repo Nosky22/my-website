@@ -31,7 +31,7 @@
 - [x] Round marked as final in UI — AdminScoresPage has "Finalise round" action; standings display last_updated_round.
 - [x] Admin override points UI — override field in score entry form; takes precedence over source score; requires reason; writes audit record to admin_overrides; triggers quiet score recalculation.
 - [x] Show logged-in user identity in SPAL nav — display_name shown next to Sign out button when logged in.
-- [x] Separate League Table and H2H Cup — StandingsPage ranks by total points only; H2HPage at /h2h has W/D/L record and H2H points table.
+- [x] Separate League Table and H2H Cup — StandingsPage ranks by total points only; H2HPage at /h2h has W/D/L record, H2H points table, and Cup Results section showing round-by-round fixtures with scores and W/D/L outcomes.
 
 ## Tier 3 — Polish
 - [x] Empty state illustrations
@@ -41,7 +41,7 @@
 
 ## Historical Data & Records
 - [x] Historical season results page — SeasonReviewPage at /history/:year with standings, scores, squad builder, draft board, predos, insights.
-- [x] All-time league table — AllTimePage at /alltime with cumulative manager standings across seasons.
+- [x] All-time league table — AllTimePage at /alltime with cumulative manager standings across seasons; Records section showing highest round, best season, most predo points, most consistent manager, and most titles.
 - [x] Manager profile pages — ManagerProfilePage at /manager/:profileId; enhanced with H2H record vs each opponent, best single round score, per-season predo points column, favourite nation, and most-drafted player.
 - [x] Season review pages — SeasonReviewPage (see above).
 - [x] All-time top players — PlayersAllTimePage at /players/alltime; total pts, seasons, avg/season, best round; nation + position filters; linked from PlayersPage and AllTimePage; Top Players in nav.
@@ -51,13 +51,13 @@
 - [ ] Live score updates during matches — final scores only for v1 recommended
 - [ ] Official API adapter — build officialFantasyAdapter Edge Function using /v1/flux endpoint. Target: November/December 2026 ready for January 2027 season.
 - [x] Team sheet import — built at /admin/teamsheets with manual entry and CSV import.
-- [ ] Late change handling — admin can update matchday status after initial import
+- [x] Late change handling — inline Edit button on each player row in /admin/teamsheets; changes starting/bench/not_selected after import; amber warning shown if round is scored; post-save note links to Scores page for recalculation
 - [ ] Price updates per round — mechanism to update player prices between rounds via API or manual entry
 
 ## Manager Experience
 - [x] Enhanced homepage for logged-in managers — personalised hub with standings, Chronicle posts, insights preview, quick actions
 - [x] Dashboard season selector + profile summary card with inline team_name editing
-- [ ] Visual workflow indicator — already built on dashboard, continue refining
+- [x] Visual workflow indicator — active-season only; step numbers (1-5) in incomplete circles; "Scores available" label; green ticks on done steps; current step highlighted in cerulean
 - [ ] Display official team sheets to managers before squad deadline
 - [ ] Keep SPAL in step with official game schedule
 - [x] Squad builder draft picks panel — player picker opens on a "My Picks" tab showing the manager's own drafted players eligible for the slot; "All Available" tab gives access to the full pool.
