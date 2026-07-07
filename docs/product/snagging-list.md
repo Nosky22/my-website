@@ -65,7 +65,7 @@
 - [x] Predos page UX improvements — (1) defaults to active season and current live round on load; (2) locked-state banner after deadline showing manager's own submitted predictions read-only with correct/wrong indicators once results are in; (3) My Predictions History section for logged-in managers: per-round breakdown with pick vs actual result, correct/wrong indicator, round score, and season total.
 - [x] Standings page per-round breakdown — toggle between Summary and Round by Round views; Round by Round shows R1–Rn columns; highest score each round highlighted in gold; unscored rounds show —.
 - [x] Consistent season/round defaults across all pages — StandingsPage, H2HPage, InsightsPage, PredosPage all updated to prefer active season and current round on load.
-- [ ] "Add to squad" from Team Sheets page — allow a logged-in manager to add a player directly to their current (unsubmitted) squad from the /spal/teamsheets page, without navigating to the squad builder separately. Show which players are already in the manager's current squad for the active round (visual indicator next to each player on the team sheet). "Add to squad" button/icon next to eligible players not yet in the squad. Respect existing squad validation rules (budget, position slots, nation cap, draft ownership) — clicking add should either succeed or show why it can't (e.g. "Budget exceeded" or "No Centre slots remaining"). Should not be available once the squad is locked. Consider whether this needs a slot-selection step (since a position like Centre might map to multiple squad slots) or can auto-assign to the first eligible empty slot.
+- [ ] "Add to squad" from Team Sheets page — allow a logged-in manager to add a player directly to their current (unsubmitted) squad from the /spal/teamsheets page, without navigating to the squad builder separately.
 
 ## Admin Management
 - [x] Admin Predos management — /admin/predos: view all manager predictions for any round (admin bypasses deadline), per-row edit/delete/add, highlight managers with no predos, reset predo scores for a round with confirmation.
@@ -76,12 +76,34 @@
 - [x] Admin predo override — on the same /admin/squad-override page: edit or add predo predictions on behalf of a manager, bypassing deadline. Edits write to admin_overrides; new entries write to audit_log.
 - [x] Copy invite link on /admin/managers — "Copy invite link" button on each placeholder manager row; reuses any existing unclaimed token or generates fresh if none exist; copies full signup URL to clipboard.
 - [x] Score correction flow — "Recalculate needed" amber warning banner appears when a score is corrected after a round is final; one-click "Recalculate & re-finalise" button re-runs full pipeline (skipping squad lock) and clears the banner.
-- [x] In-app notifications — bell icon in SPAL nav with unread count badge; dropdown list of recent notifications; generated when round scores are published or a Chronicle post goes live; marked read on open; migration 025.
+- [x] In-app notifications — bell icon in SPAL nav with unread count badge; dropdown list of recent notifications with loading/error states; generated when round scores are published or a Chronicle post goes live; marked read on open; migration 025.
 - [x] Chronicle starter posts — 3 published posts inserted via SQL: "Welcome to SPAL", "How scoring works", "What is the Chronicle?" — dated to 2023 Six Nations opening weekend, authored by Nick.
 
 ## Technical & Performance
 - [x] Round locking — auto-lock at deadline, copy previous squad if none submitted (Netlify scheduled function + AdminScoresPage manual lock).
 - [x] Score states — provisional vs final; admin marks round as final in AdminScoresPage; standings shows last_updated_round.
-- [x] Mobile responsive audit and fixes
-- [x] Loading states and error handling across all pages
+- [x] Mobile responsive audit and fixes — PlayerRow edit state fixed; overflow-x-auto on prediction tables; all pages checked at 375px.
+- [x] Loading states and error handling across all pages — including notification bell loading/error states.
+- [x] Empty states audit — EmptyState component used consistently; no-history state on manager profiles; no-matches state on predos.
+- [x] Page titles — document.title set on all 38 pages; dynamic titles for ManagerProfile, SeasonReview, ChroniclePost.
 - [ ] Performance — caching, reduce unnecessary fetches
+
+---
+
+## Post-beta outstanding — what genuinely remains
+
+### Scoring & data (pre-season 2027 deadline)
+- **Official API adapter** — the officialFantasyAdapter Edge Function using /v1/flux. Nick: target Nov/Dec 2026 so it's ready for the January 2027 season kick-off.
+- **Price updates per round** — no mechanism to update player prices mid-season via API or manual entry.
+- **Live score updates** — agreed that final-only scores are fine for v1; revisit if managers want intra-round updates.
+
+### Manager features
+- **Display official team sheets to managers** — before the squad deadline, managers should be able to see the published team sheets at /spal/teamsheets without needing admin access.
+- **"Add to squad" from Team Sheets** — one-click add from /spal/teamsheets into the manager's current (unsubmitted) squad. Complex: needs slot selection, validation, and squad state awareness.
+- **Keep SPAL in step with official game schedule** — round dates, bye weeks, and scheduling changes need a process to stay current.
+
+### Admin tools
+- **Admin Chronicle management improvements** — edit/delete comments (moderation), pin posts, manage post order, insights embed syntax.
+
+### Technical
+- **Performance** — no caching layer; pages re-fetch on every mount. Worth revisiting once real traffic exists.
