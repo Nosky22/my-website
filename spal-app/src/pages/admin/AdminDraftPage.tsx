@@ -52,6 +52,7 @@ function sortByPosition(items: OrderItem[]): OrderItem[] {
 }
 
 export default function AdminDraftPage() {
+  useEffect(() => { document.title = 'Draft Setup — Admin — SPAL' }, [])
   // ── Seasons ───────────────────────────────────────────────────────
   const [seasons, setSeasons]   = useState<Season[]>([])
   const [seasonId, setSeasonId] = useState<number | null>(null)

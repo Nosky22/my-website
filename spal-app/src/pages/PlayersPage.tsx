@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ErrorCard from '../components/ErrorCard'
 
 interface Season { id: number; year: number }
+
 interface Player {
   id: number
   display_name: string
@@ -46,6 +47,7 @@ const DEFAULT_SORT_DIR: Record<SortKey, 'asc' | 'desc'> = {
 }
 
 export default function PlayersPage() {
+  useEffect(() => { document.title = 'Players — SPAL' }, [])
   const { user } = useAuth()
 
   const [seasons, setSeasons]     = useState<Season[]>([])

@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 export default function NotFoundPage() {
+  useEffect(() => { document.title = 'Not Found — SPAL' }, [])
   return (
     <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-4">
       <p className="text-6xl font-bold text-spal-cerulean mb-4">404</p>

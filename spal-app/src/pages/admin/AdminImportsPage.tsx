@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 const PLANNED_FEATURES = [
   {
     title: 'CSV score upload',
@@ -18,6 +20,7 @@ const PLANNED_FEATURES = [
 ]
 
 export default function AdminImportsPage() {
+  useEffect(() => { document.title = 'Imports — Admin — SPAL' }, [])
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-3 mb-2">

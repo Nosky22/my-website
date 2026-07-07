@@ -66,6 +66,7 @@ export default function ManagerProfilePage() {
   const { profileId } = useParams<{ profileId: string }>()
 
   const [profile, setProfile]               = useState<Profile | null>(null)
+  useEffect(() => { document.title = profile ? `${profile.display_name} — SPAL` : 'Manager — SPAL' }, [profile])
   const [seasonRecords, setSeasonRecords]   = useState<SeasonRecord[]>([])
   const [draftedPlayers, setDraftedPlayers] = useState<DraftedPlayer[]>([])
   const [h2hRecords, setH2hRecords]         = useState<H2HRecord[]>([])

@@ -15,6 +15,7 @@ interface Post {
 }
 
 export default function ChroniclePage() {
+  useEffect(() => { document.title = 'Chronicle — SPAL' }, [])
   const [posts, setPosts]     = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(false)

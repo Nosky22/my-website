@@ -18,6 +18,7 @@ const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_po
 
 
 export default function AdminCanonicalPage() {
+  useEffect(() => { document.title = 'Canonical Players — Admin — SPAL' }, [])
   const { addToast } = useToast()
   const [players, setPlayers]     = useState<CanonicalPlayer[]>([])
   const [loading, setLoading]     = useState(true)

@@ -25,6 +25,7 @@ interface DraftRow {
 type View = 'summary' | 'rounds'
 
 export default function StandingsPage() {
+  useEffect(() => { document.title = 'Standings — SPAL' }, [])
   const { user } = useAuth()
   const [seasons, setSeasons]           = useState<Season[]>([])
   const [seasonId, setSeasonId]         = useState<number | null>(null)

@@ -32,6 +32,7 @@ interface FixtureGroup {
 }
 
 export default function H2HPage() {
+  useEffect(() => { document.title = 'H2H Cup — SPAL' }, [])
   const { user } = useAuth()
   const [seasons, setSeasons]     = useState<Season[]>([])
   const [seasonId, setSeasonId]   = useState<number | null>(null)

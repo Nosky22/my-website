@@ -32,6 +32,7 @@ const POSITIONS = [
 ]
 
 export default function PlayersAllTimePage() {
+  useEffect(() => { document.title = 'All-Time Players — SPAL' }, [])
   const [rows, setRows]       = useState<PlayerAllTime[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(false)

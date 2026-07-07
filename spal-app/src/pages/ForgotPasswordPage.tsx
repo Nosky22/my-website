@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { friendlyAuthError } from '../lib/authErrors'
 
 export default function ForgotPasswordPage() {
+  useEffect(() => { document.title = 'Forgot Password — SPAL' }, [])
   const [email, setEmail]       = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [sent, setSent]         = useState(false)

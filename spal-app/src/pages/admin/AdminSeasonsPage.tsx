@@ -40,6 +40,7 @@ const STATUS_COLOURS: Record<string, string> = {
 }
 
 export default function AdminSeasonsPage() {
+  useEffect(() => { document.title = 'Seasons — Admin — SPAL' }, [])
   const { addToast } = useToast()
   const [seasons, setSeasons]       = useState<Season[]>([])
   const [loading, setLoading]       = useState(true)

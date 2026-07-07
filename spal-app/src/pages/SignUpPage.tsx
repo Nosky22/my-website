@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 type PageStatus = 'idle' | 'submitting' | 'done'
 
 export default function SignUpPage() {
+  useEffect(() => { document.title = 'Sign Up — SPAL' }, [])
   const [searchParams] = useSearchParams()
   const [inviteToken, setInviteToken] = useState(() => searchParams.get('token') ?? '')
   const [displayName, setDisplayName] = useState('')

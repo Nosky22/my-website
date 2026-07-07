@@ -150,6 +150,7 @@ function buildTsReviewRows(csvRows: TsCsvRow[], matches: Match[], pool: PoolPlay
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminTeamSheetsPage() {
+  useEffect(() => { document.title = 'Team Sheets — Admin — SPAL' }, [])
   const { addToast } = useToast()
 
   const [seasons, setSeasons]                   = useState<Season[]>([])

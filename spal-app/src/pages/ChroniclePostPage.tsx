@@ -30,6 +30,7 @@ export default function ChroniclePostPage() {
   const { user, profile } = useAuth()
 
   const [post, setPost]         = useState<Post | null>(null)
+  useEffect(() => { document.title = post ? `${post.title} — SPAL` : 'Chronicle — SPAL' }, [post])
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)

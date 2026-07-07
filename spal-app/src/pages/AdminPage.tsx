@@ -40,6 +40,7 @@ const QUICK_LINKS = [
 ]
 
 export default function AdminPage() {
+  useEffect(() => { document.title = 'Admin — SPAL' }, [])
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {

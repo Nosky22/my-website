@@ -30,6 +30,7 @@ function fmt(n: number): string {
 }
 
 export default function PredosAllTimePage() {
+  useEffect(() => { document.title = 'Predos All-Time — SPAL' }, [])
   const [scores, setScores]     = useState<ScoreRow[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading]   = useState(true)

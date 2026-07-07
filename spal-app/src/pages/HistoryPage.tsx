@@ -27,6 +27,7 @@ interface SeasonCard {
 }
 
 export default function HistoryPage() {
+  useEffect(() => { document.title = 'Season History — SPAL' }, [])
   const [cards, setCards]     = useState<SeasonCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(false)

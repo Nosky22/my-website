@@ -24,6 +24,7 @@ const ROUNDS = [1, 2, 3, 4, 5] as const
 const EMPTY_FORM = { display_name: '', nation: 'England' as string, canonical_position: 'Prop' as string }
 
 export default function AdminPlayersPage() {
+  useEffect(() => { document.title = 'Players — Admin — SPAL' }, [])
   const { addToast } = useToast()
   const [seasons, setSeasons]               = useState<Season[]>([])
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null)

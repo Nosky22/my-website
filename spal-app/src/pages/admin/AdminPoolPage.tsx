@@ -128,6 +128,7 @@ function buildReviewRows(
 }
 
 export default function AdminPoolPage() {
+  useEffect(() => { document.title = 'Player Pool — Admin — SPAL' }, [])
   const { addToast }   = useToast()
   const fileInputRef   = useRef<HTMLInputElement>(null)
 

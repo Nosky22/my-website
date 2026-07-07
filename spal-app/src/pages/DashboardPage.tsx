@@ -89,6 +89,7 @@ function ordinal(n: number): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  useEffect(() => { document.title = 'Dashboard — SPAL' }, [])
   const { user, profile } = useAuth()
   const { addToast } = useToast()
 

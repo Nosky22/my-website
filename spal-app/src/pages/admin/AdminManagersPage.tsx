@@ -76,6 +76,7 @@ async function copyToClipboard(text: string) {
 }
 
 export default function AdminManagersPage() {
+  useEffect(() => { document.title = 'Managers — Admin — SPAL' }, [])
   const { user } = useAuth()
   const { addToast } = useToast()
   const [profiles, setProfiles] = useState<Profile[]>([])

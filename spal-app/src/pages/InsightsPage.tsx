@@ -12,6 +12,7 @@ interface Season { id: number; year: number }
 const ROUNDS = [1, 2, 3, 4, 5] as const
 
 export default function InsightsPage() {
+  useEffect(() => { document.title = 'Insights — SPAL' }, [])
   const { user } = useAuth()
 
   const [season, setSeason]   = useState<Season | null>(null)

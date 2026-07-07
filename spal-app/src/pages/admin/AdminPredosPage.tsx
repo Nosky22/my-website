@@ -30,6 +30,7 @@ interface EditState {
 const ROUNDS = [1, 2, 3, 4, 5] as const
 
 export default function AdminPredosPage() {
+  useEffect(() => { document.title = 'Predos — Admin — SPAL' }, [])
   const { user } = useAuth()
   const { addToast } = useToast()
 

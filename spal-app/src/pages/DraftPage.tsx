@@ -44,6 +44,7 @@ function SlotBadge({ slot }: { slot: string }) {
 }
 
 export default function DraftPage() {
+  useEffect(() => { document.title = 'Draft Board — SPAL' }, [])
   const [seasons, setSeasons] = useState<Season[]>([])
   const [seasonId, setSeasonId] = useState<number | null>(null)
   const [groups, setGroups] = useState<ManagerGroup[]>([])

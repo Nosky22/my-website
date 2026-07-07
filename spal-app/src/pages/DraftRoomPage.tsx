@@ -43,6 +43,7 @@ function getPickNumber(round: number, col: number, managerCount: number) {
 }
 
 export default function DraftRoomPage() {
+  useEffect(() => { document.title = 'Draft Room — SPAL' }, [])
   const { user, isAdmin } = useAuth()
 
   const [seasons, setSeasons]       = useState<Season[]>([])

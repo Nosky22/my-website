@@ -104,6 +104,7 @@ function NavCard({ to, label, desc }: { to: string; label: string; desc: string 
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+  useEffect(() => { document.title = 'SPAL — Sergio Parisse Appreciation League' }, [])
   const { user, profile, loading: authLoading } = useAuth()
 
   const [hubLoading, setHubLoading]     = useState(true)

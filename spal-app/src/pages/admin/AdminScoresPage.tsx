@@ -74,6 +74,7 @@ const MATCHDAY_COLOUR: Record<string, string> = {
 }
 
 export default function AdminScoresPage() {
+  useEffect(() => { document.title = 'Scores — Admin — SPAL' }, [])
   const { user, session } = useAuth()
   const { addToast } = useToast()
 

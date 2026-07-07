@@ -178,6 +178,7 @@ function validate(slots: SquadSlot[], rules: SeasonRules): string[] {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SquadPage() {
+  useEffect(() => { document.title = 'My Squad — SPAL' }, [])
   const { user } = useAuth()
   const { addToast } = useToast()
   const [searchParams] = useSearchParams()

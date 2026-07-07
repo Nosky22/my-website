@@ -39,6 +39,7 @@ function slugify(title: string): string {
 }
 
 export default function AdminChroniclePage() {
+  useEffect(() => { document.title = 'Chronicle — Admin — SPAL' }, [])
   const { user } = useAuth()
   const { addToast } = useToast()
 

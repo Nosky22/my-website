@@ -73,6 +73,7 @@ function SectionHeader({ title }: { title: string }) {
 
 export default function SeasonReviewPage() {
   const { year } = useParams<{ year: string }>()
+  useEffect(() => { document.title = year ? `${year} Season — SPAL` : 'Season Review — SPAL' }, [year])
 
   const [standings, setStandings]           = useState<StandingRow[]>([])
   const [draftPicks, setDraftPicks]         = useState<DraftPick[]>([])

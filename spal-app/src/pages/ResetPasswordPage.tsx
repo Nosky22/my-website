@@ -6,6 +6,7 @@ import { friendlyAuthError } from '../lib/authErrors'
 type PageState = 'waiting' | 'ready' | 'submitting' | 'done' | 'invalid'
 
 export default function ResetPasswordPage() {
+  useEffect(() => { document.title = 'Reset Password — SPAL' }, [])
   const [pageState, setPageState] = useState<PageState>('waiting')
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')

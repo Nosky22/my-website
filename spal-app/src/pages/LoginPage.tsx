@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { friendlyAuthError } from '../lib/authErrors'
 
 export default function LoginPage() {
+  useEffect(() => { document.title = 'Sign In — SPAL' }, [])
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState<string | null>(null)

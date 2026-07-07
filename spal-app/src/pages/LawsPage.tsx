@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
+
 export default function LawsPage() {
+  useEffect(() => { document.title = 'The Laws — SPAL' }, [])
   return (
     <div className="max-w-2xl prose-spal">
       <h1 className="text-2xl font-bold text-spal-yellow mb-1">The Laws</h1>

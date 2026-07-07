@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 const PLANNED_FEATURES = [
   {
     title: 'Email notifications',
@@ -18,6 +20,7 @@ const PLANNED_FEATURES = [
 ]
 
 export default function AdminSettingsPage() {
+  useEffect(() => { document.title = 'Settings — Admin — SPAL' }, [])
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-3 mb-2">

@@ -55,6 +55,7 @@ function formatKickoff(ts: string): string {
 }
 
 export default function TeamSheetsPage() {
+  useEffect(() => { document.title = 'Team Sheets — SPAL' }, [])
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [activeSeason, setActiveSeason]     = useState<Season | null>(null)

@@ -31,6 +31,7 @@ interface Record {
 }
 
 export default function AllTimePage() {
+  useEffect(() => { document.title = 'All-Time Table — SPAL' }, [])
   const [rows, setRows]       = useState<AllTimeRow[]>([])
   const [records, setRecords] = useState<Record[]>([])
   const [loading, setLoading] = useState(true)

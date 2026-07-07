@@ -73,6 +73,7 @@ function fmt(pts: number): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PredosPage() {
+  useEffect(() => { document.title = 'Predos — SPAL' }, [])
   const { user } = useAuth()
 
   const [seasons, setSeasons]         = useState<Season[]>([])
