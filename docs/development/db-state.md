@@ -375,6 +375,21 @@ Running record of all migrations applied to the Supabase production database.
 
 ---
 
+### `026_draft_picks_historical.sql`
+**Applied:** 2026-07-09
+**Status:** Applied successfully — constraint and nullable column verified by query
+
+**Changes:** Relaxed `draft_picks` constraints to support historical season data:
+1. Made `draft_slot` nullable — historical picks with no slot data store NULL.
+2. Replaced `draft_picks_draft_slot_check` with one that allows NULL (valid slot values unchanged: `'Front Row'`, `'Back Row'`, `'Outside Back'`, `'Wales'`, `'Bench Sub'`).
+3. Dropped `draft_picks_slot_unique` (`UNIQUE (season_id, profile_id, draft_slot)`) — historical seasons had overlapping slot categories and 2022 has all-null slots. Live-season slot uniqueness is enforced at the Edge Function layer.
+
+`draft_picks_player_unique` (`UNIQUE (season_id, player_id)`) is unchanged.
+
+**No data modified.** Constraint changes are reversible (rebuild with NOT NULL + old check + unique constraint). The key irreversible aspect is dropping the slot-unique constraint — data inserted after this migration can violate that constraint if it were reinstated.
+
+---
+
 ## Data operations (non-migration)
 
 ### Test data cleanup — 2026-07-08
@@ -403,6 +418,94 @@ Removed all test/fictitious data from the database in preparation for loading re
 | `season_standings` | 0 | Cleared |
 
 **Note:** `manager_match_scores` has a FK to `manager_round_squads.id` (not just `season_id`), so match scores must be deleted before squads — order matters.
+
+---
+
+### Historical data load — 2026-07-09
+
+Loaded real historical data for SPAL seasons 2020–2025. Work split across two sessions.
+
+**Step 1 — Created historical seasons (previous session):**
+Created seasons for years that didn't yet exist, all with status `'historical'`:
+
+| Season year | Season id | Created |
+|---|---|---|
+| 2020 | 7 | yes — new |
+| 2021 | 8 | yes — new |
+| 2022 | 9 | yes — new |
+| 2023 | 6 | already existed (status was `'active'`) |
+| 2024 | 10 | yes — new |
+| 2025 | 11 | yes — new |
+
+**Step 2 — Loaded historical standings (previous session):**
+Inserted `season_standings` rows for seasons 2020–2022 and 2024–2025. 2023 standings were already present (real data from the live season). PAUL (2020 guest manager, no profile) skipped. BFK and TOALIE placeholder profiles were created via direct `auth.users` insert — trigger auto-created their `profiles` rows.
+
+Standings stored with `total_points=0` and `h2h_points=0` (position-only data available); `last_updated_round=5` (or 6 for 2022) to signal complete. Rank is always derived at query time via `RANK() OVER (...)` — no `position` column exists.
+
+**Step 3 — Created 30 new canonical_players and loaded draft picks:**
+30 canonical_players created (ids 256–285) for players not already in the table:
+
+| id | display_name | Nation | Position group |
+|---|---|---|---|
+| 256 | Billy Vunipola | England | Back Row |
+| 257 | Greg Aldritt | France | Back Row |
+| 258 | Jonny May | England | Outside Back |
+| 259 | Teddy Thomas | France | Outside Back |
+| 260 | Gabin Villiere | France | Outside Back |
+| 261 | Baptiste Vincent | France | Other |
+| 262 | Sean Maitland | Scotland | Outside Back |
+| 263 | CJ Stander | Ireland | Back Row |
+| 264 | Jonny Hill | England | Other |
+| 265 | Jean-Baptiste Dullin | France | Outside Back |
+| 266 | Murray Wilson | Scotland | Outside Back |
+| 267 | Jean-Baptiste Le Roux | France | Other |
+| 268 | Dylan Cretin | France | Back Row |
+| 269 | Andrew Conway | Ireland | Outside Back |
+| 270 | Sam Johnson | Scotland | Other |
+| 271 | Charlie Ewels | England | Other |
+| 272 | Cameron Woki | France | Back Row |
+| 273 | Calvin Nash | Ireland | Outside Back |
+| 274 | Joe Marler | England | Front Row |
+| 275 | Nolann Le Garrec | France | Other |
+| 276 | Finn Smith | England | Other |
+| 277 | Tino Halafihi | Italy | Back Row |
+| 278 | Cory Rowlands | Wales | Outside Back |
+| 279 | Harri Thomas | Wales | Other |
+| 280 | Ioan Lloyd | Wales | Outside Back |
+| 281 | C Domachowski | Italy | Front Row |
+| 282 | Chandler CS | England | Other |
+| 283 | Dann | England | Other |
+| 284 | Baptiste Boudehent | France | Back Row |
+| 285 | Will Stuart | England | Front Row |
+
+**Note:** ids 282 (Chandler CS) and 283 (Dann) are unidentified SPAL nickname picks from 2024 and 2025 respectively. Nation/position are placeholder England/Other — correct when real player is identified.
+
+174 draft picks loaded across all four seasons (40/54/40/40). One `players` row created per unique (season, canonical_player) combination. Wrong auto-matches corrected manually:
+- `H Watson` → Hamish Watson (id=218), not Anthony Watson
+- `C Healy` → Cian Healy (id=178), not Ben Healy
+- `Z Fagerson` / `Fagerson P` → Zander Fagerson (id=127), not Matt Fagerson
+- `G Thomas` → George Thomas (id=44), not Blair Thomas
+- `T Williams W` → Tomos Williams (id=125), not Liam Williams
+- `Houaas` → Mohamed Haouas (id=167) — misspelling
+- `Sinkler` → Kyle Sinckler (id=148) — misspelling
+
+**Step 4 — Changed 2023 season status:**
+`UPDATE seasons SET status = 'historical' WHERE year = 2023` — changed from `'active'` to `'historical'`.
+
+**Final season state:**
+
+| Season | id | Status |
+|---|---|---|
+| 2020 | 7 | historical |
+| 2021 | 8 | historical |
+| 2022 | 9 | historical |
+| 2023 | 6 | historical |
+| 2024 | 10 | historical |
+| 2025 | 11 | historical |
+| 2026 | 1 | complete |
+| 2098 | 5 | complete |
+
+**Note on year=2098 (id=5):** Contains 127 players and 11 draft_picks, status `'complete'`. Appears to be leftover test data from early development. Not deleted — pending user decision.
 
 ---
 
