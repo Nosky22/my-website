@@ -27,7 +27,7 @@ interface DraftedPlayer {
   season_id: number
   year: number
   pick_number: number
-  draft_slot: string
+  draft_slot: string | null
   display_name: string
   nation: string
   canonical_position: string
@@ -42,14 +42,15 @@ interface H2HRecord {
 }
 
 const DRAFT_SLOT_LABELS: Record<string, string> = {
-  front_row:      'Front Row',
-  back_row:       'Back Row',
-  outside_back:   'Outside Back',
-  weakest_nation: 'Weakest Nation',
-  bench:          'Bench',
+  'Front Row':    'Front Row',
+  'Back Row':     'Back Row',
+  'Outside Back': 'Outside Back',
+  'Wales':        'Wales',
+  'Bench Sub':    'Bench Sub',
 }
 
-function fmtSlot(slot: string): string {
+function fmtSlot(slot: string | null): string {
+  if (!slot) return '—'
   return DRAFT_SLOT_LABELS[slot] ?? slot.replace(/_/g, ' ')
 }
 
@@ -97,7 +98,7 @@ export default function ManagerProfilePage() {
       const [standingsRes, picksRes, matchScoresRes, myGroupsRes, predoScoresRes] = await Promise.all([
         supabase
           .from('season_standings')
-          .select('season_id, total_points, rounds_played, seasons!season_id(year)')
+          .select('season_id, total_points, rounds_played, position, seasons!season_id(year)')
           .eq('profile_id', profileId),
 
         supabase
@@ -155,7 +156,7 @@ export default function ManagerProfilePage() {
 
       // 3. Parallel: all standings in my seasons + opponents in my fixture groups
       type RawStanding = {
-        season_id: number; total_points: number; rounds_played: number
+        season_id: number; total_points: number; rounds_played: number; position: number | null
         seasons: { year: number } | null
       }
       const myStandings = (standingsRes.data ?? []) as unknown as RawStanding[]
@@ -197,7 +198,7 @@ export default function ManagerProfilePage() {
             year:          s.seasons?.year ?? 0,
             total_points:  Number(s.total_points),
             rounds_played: s.rounds_played,
-            position:      rankMap.get(s.season_id) ?? 99,
+            position:      s.position ?? rankMap.get(s.season_id) ?? 99,
             predo_points:  predoMap.has(s.season_id) ? (predoMap.get(s.season_id) ?? null) : null,
           }))
           .sort((a, b) => b.year - a.year)
@@ -226,7 +227,7 @@ export default function ManagerProfilePage() {
 
       // Draft picks
       type RawPick = {
-        season_id: number; pick_number: number; draft_slot: string
+        season_id: number; pick_number: number; draft_slot: string | null
         players: { display_name: string; nation: string; canonical_position: string } | null
         seasons: { year: number } | null
       }

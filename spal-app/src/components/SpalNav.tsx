@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart2, BookOpen, Calendar, ChevronDown, ClipboardList, Clock,
-  FileText, Gamepad2, Home, LayoutDashboard, Lightbulb, LogIn,
+  FileText, Home, LayoutDashboard, Lightbulb, LogIn,
   Menu, Radio, Scale, Settings, Shield, Shuffle, Star,
-  Swords, Target, TrendingUp, Trophy, User, Users, X,
+  Swords, Target, Users, X,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
@@ -24,8 +24,6 @@ interface NavGroup {
   items: NavItem[]
 }
 
-const ROUNDS = [1, 2, 3, 4, 5] as const
-
 export default function SpalNav() {
   const { user, profile, isAdmin, loading, signOut } = useAuth()
   const navigate = useNavigate()
@@ -34,7 +32,6 @@ export default function SpalNav() {
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Close dropdown on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
@@ -45,7 +42,6 @@ export default function SpalNav() {
     return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  // Close on every navigation, including same-path query-param changes
   useEffect(() => {
     setOpenGroup(null)
     setMobileOpen(false)
@@ -56,49 +52,30 @@ export default function SpalNav() {
     navigate('/login', { replace: true })
   }
 
-  // Active round from URL search params (for Team Sheets sub-links)
-  const [navSearchParams] = useSearchParams()
-  const activeRound = navSearchParams.get('round')
-
   // ── Group definitions ──────────────────────────────────────────────
 
-  const leagueGroup: NavGroup = {
-    id: 'league', label: 'League', icon: Trophy,
+  const thisSeasonGroup: NavGroup = {
+    id: 'thisseason', label: 'This Season', icon: Calendar,
     items: [
-      { to: '/standings', label: 'Standings', icon: BarChart2 },
-      { to: '/h2h',       label: 'H2H Cup',   icon: Swords },
-      { to: '/alltime',   label: 'All-Time',  icon: Star },
+      { to: '/standings',  label: 'Standings',   icon: BarChart2 },
+      { to: '/h2h',        label: 'H2H Cup',     icon: Swords },
+      { to: '/predos',     label: 'Predos',      icon: Target },
+      { to: '/teamsheets', label: 'Team Sheets', icon: ClipboardList },
+      { to: '/insights',   label: 'Insights',    icon: Lightbulb },
+      { to: '/draft',      label: 'Draft',       icon: Shuffle },
+      ...(!loading && user ? [
+        { to: '/draft-room', label: 'Draft Room', icon: Radio  } as NavItem,
+        { to: '/squad',      label: 'Squad',      icon: Shield } as NavItem,
+      ] : []),
     ],
-  }
-
-  const playersGroup: NavGroup = {
-    id: 'players', label: 'Players', icon: Users,
-    items: [
-      { to: '/players',         label: 'Players',     icon: User, end: true },
-      { to: '/players/alltime', label: 'Top Players', icon: TrendingUp },
-    ],
-  }
-
-  const competitionItems: NavItem[] = [
-    { to: '/predos', label: 'Predos', icon: Target },
-    { to: '/draft',  label: 'Draft',  icon: Shuffle },
-    ...(!loading && user ? [
-      { to: '/draft-room', label: 'Draft Room', icon: Radio  } as NavItem,
-      { to: '/squad',      label: 'Squad',      icon: Shield } as NavItem,
-    ] : []),
-  ]
-
-  const competitionGroup: NavGroup = {
-    id: 'competition', label: 'Competition', icon: Gamepad2,
-    items: competitionItems,
   }
 
   const historyGroup: NavGroup = {
     id: 'history', label: 'History', icon: BookOpen,
     items: [
-      { to: '/history',   label: 'History',   icon: Clock },
-      { to: '/chronicle', label: 'Chronicle', icon: FileText },
-      { to: '/insights',  label: 'Insights',  icon: Lightbulb },
+      { to: '/history',   label: 'Season Archive', icon: Clock },
+      { to: '/alltime',   label: 'All-Time',        icon: Star },
+      { to: '/chronicle', label: 'Chronicle',        icon: FileText },
     ],
   }
 
@@ -109,8 +86,6 @@ export default function SpalNav() {
         : location.pathname.startsWith(item.to)
     )
   }
-
-  const teamSheetsActive = location.pathname === '/teamsheets'
 
   // ── Style helpers ──────────────────────────────────────────────────
 
@@ -142,37 +117,35 @@ export default function SpalNav() {
         : 'text-spal-muted hover:text-spal-text hover:bg-white/5'
     }`
 
+  const mobileSectionHeader = (label: string, Icon: LucideIcon) => (
+    <div className="flex items-center gap-2 px-4 pt-4 pb-1 text-xs font-semibold text-spal-muted uppercase tracking-wider">
+      <Icon size={12} />
+      {label}
+    </div>
+  )
+
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
     <nav ref={navRef} className="bg-spal-surface border-b border-white/5 relative" aria-label="SPAL navigation">
       <div className="max-w-spal mx-auto px-6 flex items-center">
 
-        {/* ── Desktop nav — hidden on mobile ── */}
+        {/* ── Desktop nav ── */}
         <div className="hidden md:flex items-center gap-1 w-full">
 
-          {/* Home */}
           <NavLink to="/" end className={desktopLinkClass}>
             <Home size={13} />
             Home
           </NavLink>
 
-          {/* Laws — left side, second position */}
-          <NavLink to="/laws" end={false} className={desktopLinkClass}>
-            <Scale size={13} />
-            Laws
-          </NavLink>
-
-          {/* Dashboard (logged-in only) */}
           {!loading && user && (
-            <NavLink to="/dashboard" end={false} className={desktopLinkClass}>
+            <NavLink to="/dashboard" className={desktopLinkClass}>
               <LayoutDashboard size={13} />
               Dashboard
             </NavLink>
           )}
 
-          {/* League ▾ and Players ▾ from generic loop; Competition ▾ and History ▾ after Team Sheets */}
-          {[leagueGroup, playersGroup].map(group => {
+          {[thisSeasonGroup, historyGroup].map(group => {
             const active = isGroupActive(group)
             const isOpen = openGroup === group.id
             const GroupIcon = group.icon
@@ -189,7 +162,7 @@ export default function SpalNav() {
                   <ChevronDown size={11} className={`transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isOpen && (
-                  <div className="absolute top-full left-0 mt-0.5 w-44 bg-spal-surface border border-white/10 rounded-lg shadow-xl z-50 py-1.5">
+                  <div className="absolute top-full left-0 mt-0.5 w-48 bg-spal-surface border border-white/10 rounded-lg shadow-xl z-50 py-1.5">
                     {group.items.map(item => {
                       const ItemIcon = item.icon
                       return (
@@ -210,84 +183,26 @@ export default function SpalNav() {
             )
           })}
 
-          {/* Team Sheets ▾ — standalone dropdown with round links */}
-          <div className="relative">
-            <button
-              onClick={() => setOpenGroup(g => g === 'teamsheets' ? null : 'teamsheets')}
-              className={groupTriggerClass(teamSheetsActive, openGroup === 'teamsheets')}
-              aria-expanded={openGroup === 'teamsheets'}
-              aria-haspopup="true"
-            >
-              <ClipboardList size={13} />
-              Team Sheets
-              <ChevronDown size={11} className={`transition-transform duration-150 ${openGroup === 'teamsheets' ? 'rotate-180' : ''}`} />
-            </button>
-            {openGroup === 'teamsheets' && (
-              <div className="absolute top-full left-0 mt-0.5 w-36 bg-spal-surface border border-white/10 rounded-lg shadow-xl z-50 py-1.5">
-                {ROUNDS.map(n => (
-                  <Link
-                    key={n}
-                    to={`/teamsheets?round=${n}`}
-                    className={dropdownItemClass(teamSheetsActive && activeRound === String(n))}
-                  >
-                    <Calendar size={13} />
-                    Round {n}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Competition ▾ and History ▾ */}
-          {[competitionGroup, historyGroup].map(group => {
-            const active = isGroupActive(group)
-            const isOpen = openGroup === group.id
-            const GroupIcon = group.icon
-            return (
-              <div key={group.id} className="relative">
-                <button
-                  onClick={() => setOpenGroup(g => g === group.id ? null : group.id)}
-                  className={groupTriggerClass(active, isOpen)}
-                  aria-expanded={isOpen}
-                  aria-haspopup="true"
-                >
-                  <GroupIcon size={13} />
-                  {group.label}
-                  <ChevronDown size={11} className={`transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isOpen && (
-                  <div className="absolute top-full left-0 mt-0.5 w-44 bg-spal-surface border border-white/10 rounded-lg shadow-xl z-50 py-1.5">
-                    {group.items.map(item => {
-                      const ItemIcon = item.icon
-                      return (
-                        <NavLink
-                          key={item.to}
-                          to={item.to}
-                          end={item.end}
-                          className={({ isActive }) => dropdownItemClass(isActive)}
-                        >
-                          <ItemIcon size={13} />
-                          {item.label}
-                        </NavLink>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          <NavLink to="/players" end className={desktopLinkClass}>
+            <Users size={13} />
+            Players
+          </NavLink>
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-1">
             {!loading && user && <NotificationBell />}
+            <NavLink to="/laws" className={desktopLinkClass}>
+              <Scale size={13} />
+              Laws
+            </NavLink>
             {!loading && isAdmin && (
-              <NavLink to="/admin" end={false} className={desktopLinkClass}>
+              <NavLink to="/admin" className={desktopLinkClass}>
                 <Settings size={13} />
                 Admin
               </NavLink>
             )}
             {!loading && !user && (
-              <NavLink to="/login" end={false} className={desktopLinkClass}>
+              <NavLink to="/login" className={desktopLinkClass}>
                 <LogIn size={13} />
                 Sign in
               </NavLink>
@@ -310,7 +225,7 @@ export default function SpalNav() {
           </div>
         </div>
 
-        {/* ── Mobile bar — visible below md: ── */}
+        {/* ── Mobile bar ── */}
         <div className="flex md:hidden items-center justify-between w-full py-1">
           <span className="text-sm font-semibold text-spal-yellow">SPAL</span>
           <div className="flex items-center">
@@ -326,7 +241,7 @@ export default function SpalNav() {
         </div>
       </div>
 
-      {/* ── Mobile full-screen overlay ── */}
+      {/* ── Mobile overlay ── */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 bg-spal-bg flex flex-col md:hidden overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
@@ -342,28 +257,20 @@ export default function SpalNav() {
 
           <div className="overflow-y-auto flex-1 px-4 py-3 space-y-0.5">
 
-            {/* Home — always first */}
             <NavLink to="/" end className={({ isActive }) => mobileLinkClass(isActive)}>
               <Home size={16} />
               Home
             </NavLink>
 
-            {/* Laws — near top */}
-            <NavLink to="/laws" end={false} className={({ isActive }) => mobileLinkClass(isActive)}>
-              <Scale size={16} />
-              Laws
-            </NavLink>
-
-            {/* Dashboard (logged-in) */}
             {!loading && user && (
-              <NavLink to="/dashboard" end={false} className={({ isActive }) => mobileLinkClass(isActive)}>
+              <NavLink to="/dashboard" className={({ isActive }) => mobileLinkClass(isActive)}>
                 <LayoutDashboard size={16} />
                 Dashboard
               </NavLink>
             )}
 
-            {/* League group */}
-            {leagueGroup.items.map(item => {
+            {mobileSectionHeader('This Season', Calendar)}
+            {thisSeasonGroup.items.map(item => {
               const ItemIcon = item.icon
               return (
                 <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => mobileLinkClass(isActive)}>
@@ -373,45 +280,7 @@ export default function SpalNav() {
               )
             })}
 
-            {/* Players group */}
-            {playersGroup.items.map(item => {
-              const ItemIcon = item.icon
-              return (
-                <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => mobileLinkClass(isActive)}>
-                  <ItemIcon size={16} />
-                  {item.label}
-                </NavLink>
-              )
-            })}
-
-            {/* Team Sheets — section header + indented rounds */}
-            <div className="flex items-center gap-3 px-4 pt-3 pb-1 text-xs font-medium text-spal-muted">
-              <ClipboardList size={14} />
-              Team Sheets
-            </div>
-            {ROUNDS.map(n => (
-              <Link
-                key={n}
-                to={`/teamsheets?round=${n}`}
-                className={mobileLinkClass(teamSheetsActive && activeRound === String(n)) + ' pl-8'}
-              >
-                <Calendar size={15} />
-                Round {n}
-              </Link>
-            ))}
-
-            {/* Competition group */}
-            {competitionItems.map(item => {
-              const ItemIcon = item.icon
-              return (
-                <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => mobileLinkClass(isActive)}>
-                  <ItemIcon size={16} />
-                  {item.label}
-                </NavLink>
-              )
-            })}
-
-            {/* History group */}
+            {mobileSectionHeader('History', BookOpen)}
             {historyGroup.items.map(item => {
               const ItemIcon = item.icon
               return (
@@ -422,15 +291,23 @@ export default function SpalNav() {
               )
             })}
 
-            {/* Admin */}
-            {!loading && isAdmin && (
-              <NavLink to="/admin" end={false} className={({ isActive }) => mobileLinkClass(isActive)}>
-                <Settings size={16} />
-                Admin
+            <div className="border-t border-white/5 mt-3 pt-3 space-y-0.5">
+              <NavLink to="/players" end className={({ isActive }) => mobileLinkClass(isActive)}>
+                <Users size={16} />
+                Players
               </NavLink>
-            )}
+              <NavLink to="/laws" className={({ isActive }) => mobileLinkClass(isActive)}>
+                <Scale size={16} />
+                Laws
+              </NavLink>
+              {!loading && isAdmin && (
+                <NavLink to="/admin" className={({ isActive }) => mobileLinkClass(isActive)}>
+                  <Settings size={16} />
+                  Admin
+                </NavLink>
+              )}
+            </div>
 
-            {/* Auth */}
             <div className="border-t border-white/5 mt-2 pt-2">
               {!loading && !user ? (
                 <NavLink to="/login" className={({ isActive }) => mobileLinkClass(isActive)}>

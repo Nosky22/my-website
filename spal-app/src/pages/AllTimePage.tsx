@@ -9,6 +9,7 @@ interface RawStanding {
   season_id: number
   profile_id: string
   total_points: number
+  position: number | null
   seasons: { year: number } | null
   profiles: { display_name: string } | null
 }
@@ -43,7 +44,7 @@ export default function AllTimePage() {
     Promise.all([
       supabase
         .from('season_standings')
-        .select('season_id, profile_id, total_points, seasons!season_id(year), profiles!profile_id(display_name)'),
+        .select('season_id, profile_id, total_points, position, seasons!season_id(year), profiles!profile_id(display_name)'),
       supabase
         .from('predo_scores')
         .select('profile_id, season_id, total_points'),
@@ -112,7 +113,7 @@ export default function AllTimePage() {
           }
           existing.season_ids.add(row.season_id)
           existing.total_points += Number(row.total_points)
-          const rank = rankMap.get(row.season_id)?.get(row.profile_id) ?? 99
+          const rank = row.position ?? rankMap.get(row.season_id)?.get(row.profile_id) ?? 99
           existing.finishes.push(rank)
           byManager.set(row.profile_id, existing)
         }
@@ -165,28 +166,15 @@ export default function AllTimePage() {
           computed.push({ label: 'Most predo pts in a season', value: bestPredo.pts.toFixed(1), holder: bestPredo.name })
         }
 
-        // 4. Most consistent (lowest coefficient of variation across rounds, min 3 rounds)
-        const roundsByManager = new Map<string, number[]>()
-        for (const [key, v] of roundScoreMap.entries()) {
-          const pid = key.split(':')[0]
-          const list = roundsByManager.get(pid) ?? []
-          list.push(v.pts)
-          roundsByManager.set(pid, list)
+        // 4. Best average finish (mean position across seasons, min 2 seasons)
+        let bestAvgFinish = { avg: Infinity, name: '' }
+        for (const [, m] of byManager.entries()) {
+          if (m.finishes.length < 2) continue
+          const avg = m.finishes.reduce((s, f) => s + f, 0) / m.finishes.length
+          if (avg < bestAvgFinish.avg) bestAvgFinish = { avg, name: m.display_name }
         }
-        let bestCv = { cv: Infinity, name: '' }
-        for (const [pid, scores] of roundsByManager.entries()) {
-          if (scores.length < 3) continue
-          const mean = scores.reduce((s, x) => s + x, 0) / scores.length
-          if (mean === 0) continue
-          const variance = scores.reduce((s, x) => s + (x - mean) ** 2, 0) / scores.length
-          const cv = Math.sqrt(variance) / mean
-          if (cv < bestCv.cv) {
-            const name = allTime.find(r => r.profile_id === pid)?.display_name ?? 'Unknown'
-            bestCv = { cv, name }
-          }
-        }
-        if (bestCv.cv < Infinity) {
-          computed.push({ label: 'Most consistent manager', value: `CV ${(bestCv.cv * 100).toFixed(0)}%`, holder: bestCv.name })
+        if (bestAvgFinish.avg < Infinity) {
+          computed.push({ label: 'Best average finish', value: bestAvgFinish.avg.toFixed(1), holder: bestAvgFinish.name })
         }
 
         // 5. Most titles

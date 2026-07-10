@@ -440,7 +440,7 @@ Created seasons for years that didn't yet exist, all with status `'historical'`:
 **Step 2 — Loaded historical standings (previous session):**
 Inserted `season_standings` rows for seasons 2020–2022 and 2024–2025. 2023 standings were already present (real data from the live season). PAUL (2020 guest manager, no profile) skipped. BFK and TOALIE placeholder profiles were created via direct `auth.users` insert — trigger auto-created their `profiles` rows.
 
-Standings stored with `total_points=0` and `h2h_points=0` (position-only data available); `last_updated_round=5` (or 6 for 2022) to signal complete. Rank is always derived at query time via `RANK() OVER (...)` — no `position` column exists.
+Standings stored with `total_points=0` and `h2h_points=0` (position-only data available); `last_updated_round=5` (or 6 for 2022) to signal complete. At this point, rank was derived at query time — no `position` column existed. A `position` column was added in migration 027 (see below).
 
 **Step 3 — Created 30 new canonical_players and loaded draft picks:**
 30 canonical_players created (ids 256–285) for players not already in the table:
@@ -503,7 +503,6 @@ ids 282 and 283 were initially loaded as placeholders and subsequently corrected
 | 2024 | 10 | historical |
 | 2025 | 11 | historical |
 | 2026 | 1 | complete |
-| 2098 | 5 | complete |
 
 ---
 
@@ -565,6 +564,30 @@ Both `canonical_players` and the corresponding `players` rows (ids 808 and 737) 
 
 **Test season deletion:**
 `DELETE FROM seasons WHERE year = 2098` — cascaded via migration 023 to 127 `players` and 11 `draft_picks`. Season id=5 is now gone. The `seasons` table now contains only real seasons: 2020–2026.
+
+---
+
+### `20260710134120_add_position_to_standings.sql`
+**Applied:** 2026-07-10
+**Status:** Applied successfully — all 47 historical rows verified with correct position values
+
+**Changes:** Added `position integer` (nullable) to `season_standings`. Populated for all historical seasons; 2026 left null (computed live from points data).
+
+**Source per season:**
+
+| Season | Source | Notes |
+|---|---|---|
+| 2020 | `historical_standings.csv` | Only source (zero total_points). PAUL (10th, guest) has no profile row — skipped. |
+| 2021 | RANK() from `total_points` | CSV had BFK misranked (9th vs correct 5th). Points authoritative. |
+| 2022 | RANK() from `total_points` | CSV had TOALIE/TFK swapped at 4th/5th. Points authoritative. |
+| 2023 | RANK() from `total_points` | CSV predates app dry-run; doesn't match points data. Points authoritative. Toalie and BFK absence from 2023 standings is correct (didn't participate in dry run). |
+| 2024 | `historical_standings.csv` | Only source (zero total_points). BFK did not participate. |
+| 2025 | `historical_standings.csv` | Only source (zero total_points). Derived from 2026 draft order. BFK and Toalie did not participate. |
+| 2026 | null | Position computed live from `total_points` in the UI. |
+
+**UI changes:** `ManagerProfilePage.tsx` and `AllTimePage.tsx` updated to fetch `position` column and use it when non-null, falling back to client-side rank computation from `total_points` for any null (i.e. future active seasons).
+
+**Additive only** — new nullable column, no existing data modified.
 
 ---
 
