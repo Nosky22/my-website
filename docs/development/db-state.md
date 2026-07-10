@@ -478,7 +478,7 @@ Standings stored with `total_points=0` and `h2h_points=0` (position-only data av
 | 284 | Baptiste Boudehent | France | Back Row |
 | 285 | Will Stuart | England | Front Row |
 
-**Note:** ids 282 (Chandler CS) and 283 (Dann) are unidentified SPAL nickname picks from 2024 and 2025 respectively. Nation/position are placeholder England/Other — correct when real player is identified.
+ids 282 and 283 were initially loaded as placeholders and subsequently corrected (see data operation below).
 
 174 draft picks loaded across all four seasons (40/54/40/40). One `players` row created per unique (season, canonical_player) combination. Wrong auto-matches corrected manually:
 - `H Watson` → Hamish Watson (id=218), not Anthony Watson
@@ -505,7 +505,23 @@ Standings stored with `total_points=0` and `h2h_points=0` (position-only data av
 | 2026 | 1 | complete |
 | 2098 | 5 | complete |
 
-**Note on year=2098 (id=5):** Contains 127 players and 11 draft_picks, status `'complete'`. Appears to be leftover test data from early development. Not deleted — pending user decision.
+---
+
+### Placeholder player corrections and test season removal — 2026-07-10
+
+**Canonical player corrections (ids 282, 283):**
+
+Two picks loaded as placeholders were identified and corrected in both `canonical_players` and the linked `players` rows:
+
+| id | Old display_name | New display_name | Correction |
+|---|---|---|---|
+| 282 | Chandler CS | Chandler Cunningham-South | England, Flanker, Back Row — NICK's 2024 finisher pick |
+| 283 | Dann | Theo Dann | England, Hooker, Front Row — GMAN's 2025 finisher pick |
+
+Both `canonical_players` and the corresponding `players` rows (ids 808 and 737) updated: `display_name`, `search_name`, `nation`, `canonical_position`, `position_group`.
+
+**Test season deletion:**
+`DELETE FROM seasons WHERE year = 2098` — cascaded via migration 023 to 127 `players` and 11 `draft_picks`. Season id=5 is now gone. The `seasons` table now contains only real seasons: 2020–2026.
 
 ---
 
