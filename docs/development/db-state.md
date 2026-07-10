@@ -507,6 +507,49 @@ ids 282 and 283 were initially loaded as placeholders and subsequently corrected
 
 ---
 
+### Historical total_points load — 2026-07-10
+
+Loaded `total_points` for 2021 and 2022 from external fantasy platform screenshots. No existing authoritative source; images are the authoritative record for those seasons.
+
+**Platform history:** SPAL ran on ESPN Fantasy for 2021 (and earlier), then switched to the Guinness Official Six Nations Fantasy site (fantasy.sixnationsrugby.com). Scoring differs between platforms, so point totals are not directly comparable across years.
+
+**2021 (season_id=8) — ESPN Fantasy:**
+
+| Rank | Manager | Points | Historical team name |
+|---|---|---|---|
+| 1 | NICK | 3935.1 | Copperbottom |
+| 2 | LAURA | 3813.6 | The Mighty Badgers |
+| 3 | JONNERS | 3739.6 | Piss Toes Strikes Again |
+| 4 | CHRIS | 3697.4 | Donkey Horgan |
+| 5 | BFK | 3667.4 | Bum Kokido |
+| 6 | TOMMY T | 3595.6 | Ten Jobs |
+| 7 | TOALIE | 3585.0 | Toalie's Corpulent V... |
+| 8 | TFK | 3216.8 | "Crouch, Touch, Pause... |
+| 9 | GMAN | 2568.2 | G Man |
+
+**Note:** Our CSV source had BFK 9th; the platform screenshot shows BFK 5th. The image is treated as authoritative — `total_points` reflects the correct ordering, and derived rank matches the image.
+
+**2022 (season_id=9) — Guinness Official:**
+
+| Rank | Manager | Points | Historical team name |
+|---|---|---|---|
+| 1 | JONNERS | 3481.9 | Slowing My Own Ball Down |
+| 2 | TOMMY T | 3414.9 | Ten Jobs |
+| 3 | NICK | 3354.6 | Harrumblequins |
+| 4 | TFK | 3177.4 | "Crouch, Touch, Pause... |
+| 5 | TOALIE | 3173.8 | Toalie's Corpulent... |
+| 6 | LAURA | 3156.0 | The Mighty Badgers |
+| 7 | CHRIS | 3142.5 | Spudtastic |
+| 8 | GMAN | 2804.7 | G Man |
+| 9 | BFK | 2260.6 | Motherruckers |
+
+**Note:** Our CSV source had TFK 5th, TOALIE 4th (swapped vs image). Image is authoritative — TFK 4th (3177.4), TOALIE 5th (3173.8), 3.6 pts apart.
+
+**Known real names (from 2026 official fantasy screenshot):**
+NICK=Nick Spray, JONNERS=Jon Spray, TFK=Tom Finn-Kelcey, LAURA=Laura Morris, TOMMY T=Tom Thorpe, GMAN=Gareth Storey. BFK=Beck (surname unknown).
+
+---
+
 ### Placeholder player corrections and test season removal — 2026-07-10
 
 **Canonical player corrections (ids 282, 283):**
