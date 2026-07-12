@@ -77,3 +77,31 @@ def upsert_player_gameweeks(client: Client, rows: list[dict]) -> int:
         client, "player_gameweeks", rows, "player_id,gw_number,fixture_id"
     )
     return len(data)
+
+
+# ── Personal (user-scoped) ──────────────────────────────────────────────────
+
+def upsert_my_entry(client: Client, row: dict) -> None:
+    _fpl(client).table("my_entry").upsert(row, on_conflict="user_id,season_id").execute()
+    log.info("my_entry upserted (season %s)", row["season_id"])
+
+
+def upsert_my_entry_gameweeks(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client, "my_entry_gameweeks", rows, "user_id,season_id,gw_number"
+    )
+    return len(data)
+
+
+def upsert_my_league_standings(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client,
+        "my_league_standings",
+        rows,
+        "user_id,season_id,league_id,as_of_gw,rival_entry_id",
+    )
+    return len(data)

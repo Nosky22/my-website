@@ -65,6 +65,22 @@ Raw JSON is cached to `raw/{season}/` before each upsert. Re-running is safe: al
 
 **Workaround (future):** `canonical_players.fpl_code` is stable across seasons. A separate `player_team_history` table keyed on `(player_id, from_gw, to_gw, team_id)` could track club tenure, but this requires manual curation or a dedicated vaastav lookup.
 
+## Deferred: past-season personal rows (archive step MUST back-fill)
+
+`--personal` caches the manager's full entry history (`raw/<season>/entry-<id>-history.json`), whose `past` array holds prior-season overall points/rank. Those past seasons are **not** loaded into `fpl.my_entry` at personal-capture time, because `fpl.my_entry.season_id` has a foreign key to `fpl.seasons`, which only contains the current season until the archive runs.
+
+**This is a tracked deferral, not a silent drop.** The `--archive` step (`ingest/archive.py`) **must**, after inserting each archive season into `fpl.seasons`, also back-fill the cached past-season personal rows:
+
+1. Read the cached entry history `past` array.
+2. For each past season now present in `fpl.seasons`, upsert an `fpl.my_entry` row (`overall_points` = `total_points`, `overall_rank` = `rank`; `season_name` `'2024/25'` → `season_id` `'2024-25'`).
+3. Attribute to the same admin `user_id` used by `--personal`.
+
+The requirement is documented in `ingest/archive.py`'s module docstring and flagged at runtime by `--personal`. For this manager, the deferred seasons are **2022/23, 2023/24, 2024/25**.
+
+## Safe reads (1000-row cap)
+
+PostgREST caps every row-select at **1000 rows** by default. A bare `.execute()` on a select silently returns at most the first 1000 rows. All row reads and counts go through `ingest/query.py` (`fetch_all` paginates; `exact_count` uses the count header). Never call `.execute()` on a bare row-select whose result could exceed 1000 rows — use `fetch_all`, `exact_count`, or an explicit `.order(...).limit(n)`.
+
 ## After a successful live capture
 
 1. Run verification queries (see `data-pipeline/fpl/CLAUDE.md`)

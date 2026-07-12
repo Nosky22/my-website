@@ -30,12 +30,13 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-from ingest import load
+# Safe, paginated read helpers live in ingest/query.py so every module shares
+# the same guard against the 1000-row PostgREST cap (see that file's docstring).
+from ingest import load, query
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
-PAGE = 1000  # PostgREST hard default per request
 XG_COLUMNS = [
     "expected_goals",
     "expected_assists",
@@ -53,43 +54,9 @@ COUNT_TABLES = [
 ]
 
 
-def _fpl(client):
-    return client.schema("fpl")
-
-
-def fetch_all(client, table: str, columns: str, season: str | None = None) -> list[dict]:
-    """Paginate through EVERY row — bypasses the 1000-row PostgREST cap.
-
-    Uses .range() with a stable order so pages don't overlap or skip rows.
-    """
-    rows: list[dict] = []
-    start = 0
-    while True:
-        q = _fpl(client).table(table).select(columns)
-        if season is not None:
-            q = q.eq("season_id", season)
-        # Order by a stable key so pagination is deterministic.
-        q = q.order("id").range(start, start + PAGE - 1)
-        result = q.execute()
-        batch = result.data or []
-        rows.extend(batch)
-        if len(batch) < PAGE:
-            break
-        start += PAGE
-    return rows
-
-
-def exact_count(client, table: str, season: str | None = None, **filters) -> int:
-    """Row count via the count header (not row data) — never truncated."""
-    q = _fpl(client).table(table).select("id", count="exact")
-    if season is not None:
-        q = q.eq("season_id", season)
-    for col, val in filters.items():
-        if val == "__null__":
-            q = q.is_(col, "null")
-        else:
-            q = q.eq(col, val)
-    return q.execute().count
+def _sf(season: str | None) -> dict | None:
+    """season → filters dict, or None when the table isn't season-scoped."""
+    return {"season_id": season} if season else None
 
 
 # ── Checks ──────────────────────────────────────────────────────────────────
@@ -99,18 +66,18 @@ def check_row_counts(client, season: str) -> None:
     for t in COUNT_TABLES:
         # seasons/canonical_players are not season-scoped; count them whole.
         scoped = None if t in ("seasons", "canonical_players") else season
-        n = exact_count(client, t, season=scoped)
+        n = query.exact_count(client, t, filters=_sf(scoped))
         tag = "" if scoped else "  (all seasons)"
         print(f"  fpl.{t:<25} {n:>8,}{tag}")
 
 
 def _load_lookups(client, season: str):
-    players = fetch_all(client, "players",
-                        "id, web_name, first_name, second_name, position, team_id", season)
+    players = query.fetch_all(client, "players",
+                              "id, web_name, first_name, second_name, position, team_id",
+                              filters=_sf(season))
     p_map = {p["id"]: p for p in players}
-    teams = _fpl(client).table("teams").select("id, name, short_name") \
-        .eq("season_id", season).execute()
-    t_map = {t["id"]: t for t in teams.data}
+    teams = query.fetch_all(client, "teams", "id, name, short_name", filters=_sf(season))
+    t_map = {t["id"]: t for t in teams}
     return p_map, t_map
 
 
@@ -149,7 +116,9 @@ def check_xg_nulls(client, season: str, total: int) -> None:
         print("    (no player_gameweeks rows)")
         return
     for col in XG_COLUMNS:
-        n_null = exact_count(client, "player_gameweeks", season=season, **{col: "__null__"})
+        n_null = query.exact_count(
+            client, "player_gameweeks", filters={"season_id": season, col: query.NULL}
+        )
         pct = n_null / total * 100
         print(f"    {col:<35} {n_null:>6,} null / {total:,}  ({pct:.1f}%)")
 
@@ -184,7 +153,7 @@ def check_orphans(client, season: str, pgw: list[dict], p_map: dict) -> bool:
     player_ids = set(p_map)
     pgw_player_ids = {r["player_id"] for r in pgw}
     pgw_fixture_ids = {r["fixture_id"] for r in pgw if r["fixture_id"]}
-    fixtures = fetch_all(client, "fixtures", "id", season)
+    fixtures = query.fetch_all(client, "fixtures", "id", filters=_sf(season))
     fixture_ids = {f["id"] for f in fixtures}
 
     orphan_players = pgw_player_ids - player_ids
@@ -206,8 +175,9 @@ def run(season: str, top_n: int) -> int:
     check_row_counts(client, season)
 
     # Pull every player_gameweek row ONCE; reuse across checks.
-    pgw = fetch_all(client, "player_gameweeks",
-                    "player_id, gw_number, fixture_id, total_points", season)
+    pgw = query.fetch_all(client, "player_gameweeks",
+                          "player_id, gw_number, fixture_id, total_points",
+                          filters=_sf(season))
     p_map, t_map = _load_lookups(client, season)
 
     check_top_points(client, season, top_n, pgw, p_map, t_map)

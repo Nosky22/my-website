@@ -172,3 +172,75 @@ def transform_player_gameweeks(
             }
         )
     return rows
+
+
+# ── Personal (user-scoped) ───────────────────────────────────────────────────
+
+def transform_my_entry(entry: dict, user_id: str, season_id: str) -> dict:
+    """Identity + season summary for fpl.my_entry (natural key user_id,season_id)."""
+    return {
+        "user_id": user_id,
+        "fpl_entry_id": entry["id"],
+        "season_id": season_id,
+        "team_name": entry.get("name"),
+        "overall_points": entry.get("summary_overall_points"),
+        "overall_rank": entry.get("summary_overall_rank"),
+    }
+
+
+def transform_my_entry_gameweeks(history: dict, user_id: str, season_id: str) -> list[dict]:
+    """Per-GW rows for fpl.my_entry_gameweeks. bank/value are stored ×10 by the
+    API (e.g. 154 → 15.4m). chip_used is resolved from the chips array by event.
+    """
+    chip_by_event = {ch["event"]: ch["name"] for ch in history.get("chips", [])}
+    rows = []
+    for h in history.get("current", []):
+        gw = h.get("event")
+        bank = h.get("bank")
+        value = h.get("value")
+        rows.append(
+            {
+                "user_id": user_id,
+                "season_id": season_id,
+                "gw_number": gw,
+                "points": h.get("points"),
+                "total_points": h.get("total_points"),
+                "overall_rank": h.get("overall_rank"),
+                "bank": round(bank / 10, 1) if bank is not None else None,
+                "team_value": round(value / 10, 1) if value is not None else None,
+                "transfers_made": h.get("event_transfers"),
+                "transfers_cost": h.get("event_transfers_cost"),
+                "chip_used": chip_by_event.get(gw),
+            }
+        )
+    return rows
+
+
+def transform_my_league_standings(
+    league_name: str | None,
+    results: list[dict],
+    user_id: str,
+    season_id: str,
+    league_id: int,
+    as_of_gw: int | None,
+) -> list[dict]:
+    """One row per standings entry (including the user's own entry) — a full
+    snapshot of the mini-league as of `as_of_gw`. Natural key includes
+    rival_entry_id + as_of_gw so re-runs update in place.
+    """
+    rows = []
+    for r in results:
+        rows.append(
+            {
+                "user_id": user_id,
+                "season_id": season_id,
+                "league_id": league_id,
+                "league_name": league_name,
+                "as_of_gw": as_of_gw,
+                "rival_entry_id": r.get("entry"),
+                "rival_name": r.get("entry_name"),
+                "rival_rank": r.get("rank"),
+                "rival_total": r.get("total"),
+            }
+        )
+    return rows
