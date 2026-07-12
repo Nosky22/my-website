@@ -1,6 +1,6 @@
 [build]
   publish = "."
-  command = "cd spal-app && npm ci && npm run build"
+  command = "cd spal-app && npm ci && npm run build && cd ../fpl-app && npm ci && npm run build"
 
 [functions]
   directory = "netlify/functions"
@@ -8,10 +8,19 @@
 [functions."lock-squads"]
   schedule = "*/15 * * * *"
 
+[functions."fpl-keepalive"]
+  schedule = "0 12 */3 * *"
+
 [[redirects]]
   # React Router deep-link support — any /spal/* request that doesn't match
   # a real file (e.g. /spal/standings, /spal/draft) falls through to the SPA
   # shell, which React Router then handles client-side.
   from = "/spal/*"
   to   = "/spal/index.html"
+  status = 200
+
+[[redirects]]
+  # FPL Badger — deep-link support for the React Router SPA at /fpl/
+  from = "/fpl/*"
+  to   = "/fpl/index.html"
   status = 200

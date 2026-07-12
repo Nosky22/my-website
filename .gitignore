@@ -4,8 +4,8 @@ node_modules/
 # Claude Code internal files
 skills-lock.json
 
-# Supabase CLI temp files
-supabase/.temp/
+# Supabase CLI temp files (local state — root and any nested app)
+**/supabase/.temp/
 
 # Local Netlify folder
 .netlify
@@ -35,3 +35,11 @@ data-pipeline/fpl/raw/
 
 # Temp extraction folder
 BadgerFPLsetup/unzipped/
+
+# macOS junk
+.DS_Store
+
+# Local-only files — ignored by specific path, NOT by extension
+# (deliberately not *.zip / *.numbers, so future tracked files aren't swallowed)
+Book1.numbers
+BadgerFPLsetup.zip

@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fpl-bg:             #0b2b2b;
+  --fpl-surface:        #0f3535;
+  --fpl-surface-raised: #153d3d;
+  --fpl-text:           #ffffff;
+  --fpl-muted:          #7fc4c4;
+  --fpl-accent:         #1a8fb5;
+  --fpl-accent-light:   #4db8d8;
+  --fpl-gold:           #f5c518;
+  --fpl-error:          #c0392b;
+  --fpl-success:        #27ae60;
+}
+
+body {
+  background-color: var(--fpl-bg);
+  color: var(--fpl-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}

@@ -1,6 +1,14 @@
 # nosky.co.uk
 
-Personal website and home of the Sergio Parisse Appreciation League (SPAL).
+Personal website hosting two private apps and small public tools.
+
+**Repo map:**
+- `spal-app/` — SPAL React app (Vite/TypeScript) → builds to `/spal/`, served at `nosky.co.uk/spal/`. See `spal-app/` for its own CLAUDE context.
+- `fpl-app/` — FPL Badger React app (Vite/TypeScript) → builds to `/fpl/`, served at `nosky.co.uk/fpl/`. See `fpl-app/CLAUDE.md`.
+- `data-pipeline/fpl/` — Python ingestion pipeline (not part of any Netlify build). See `data-pipeline/fpl/CLAUDE.md`.
+- Root `*.html` files — plain HTML public pages (index, fpl.html, fpl-my-team.html, games, etc.)
+- `netlify/functions/` — shared Netlify Functions (SPAL lock-squads, FPL proxy, keep-alive)
+- `supabase/` — shared Supabase project. SPAL uses the `public` schema; FPL Badger uses the `fpl` schema.
 
 ---
 
@@ -87,7 +95,36 @@ npm run build
 
 ---
 
-## Workflow (both parts of the repo)
+## 3. FPL Badger — `/fpl/`
+
+Private, auth-gated Fantasy Premier League analysis tool. Primary goal: help win mini-leagues. Single user (Nick) for now, built multi-user-ready.
+
+### Stack
+
+- Vite + React + TypeScript (separate `fpl-app/` project)
+- Tailwind CSS (fpl.* token namespace)
+- Recharts for data visualisation
+- Supabase `fpl` schema (same project as SPAL) — Auth, Postgres, RLS
+- Python data pipeline in `data-pipeline/fpl/` (offline, not in the Netlify build)
+
+### Ground rules
+
+- **Never touch `spal-app/`** unless explicitly asked.
+- Service role key, FPL session cookie, and all credentials live only in `.env` files (gitignored) or Netlify env vars. Never in client code, never committed.
+- Feature branches `feature/fpl-*`, conventional commits (`feat:`, `fix:`, `chore:`).
+- Every insight records its data basis and sample-size caveats — no confident presentation of weak patterns.
+- TypeScript strict, ESLint/Prettier, indexed queries, pre-compute heavy work offline.
+- Before running any schema change: state what it does and what is irreversible. Verify after.
+
+### Verification
+
+```
+cd fpl-app && npm run typecheck && npm run lint && npm run build
+```
+
+---
+
+## Workflow (all parts of the repo)
 
 - **Always explain what you're building before writing any code.** Describe the approach and ask if it sounds right.
 - Prefer editing existing files over creating new ones when extending a feature.
