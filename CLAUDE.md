@@ -99,6 +99,8 @@ npm run build
 
 Private, auth-gated Fantasy Premier League analysis tool. Primary goal: help win mini-leagues. Single user (Nick) for now, built multi-user-ready.
 
+**Status:** Phase 0 (data) complete — the `fpl` schema holds six seasons (2020/21–2025/26, ~163k player-gameweeks) plus personal entry/league data, loaded and verified by the pipeline in `data-pipeline/fpl/`. Next: Phase 1 (form/ELO modelling + frontend). See `data-pipeline/fpl/CLAUDE.md` for the pipeline state, data caveats, and the 1000-row safe-read rule.
+
 ### Stack
 
 - Vite + React + TypeScript (separate `fpl-app/` project)
