@@ -105,3 +105,44 @@ def upsert_my_league_standings(client: Client, rows: list[dict]) -> int:
         "user_id,season_id,league_id,as_of_gw,rival_entry_id",
     )
     return len(data)
+
+
+# ── Elite-manager capture (cohort analysis) ─────────────────────────────────
+
+def upsert_manager_picks(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client, "manager_picks", rows,
+        "season_id,manager_entry_id,gw_number,player_id",
+    )
+    return len(data)
+
+
+def upsert_manager_gameweeks(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client, "manager_gameweeks", rows,
+        "season_id,manager_entry_id,gw_number",
+    )
+    return len(data)
+
+
+def upsert_manager_transfers(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client, "manager_transfers", rows,
+        "season_id,manager_entry_id,gw_number,player_in_id,player_out_id,transfer_time",
+    )
+    return len(data)
+
+
+def upsert_manager_seasons(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    data = _batch_upsert(
+        client, "manager_seasons", rows, "manager_entry_id,season_name",
+    )
+    return len(data)

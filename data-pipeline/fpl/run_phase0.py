@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from ingest import archive as archive_mod
-from ingest import backup, fpl_api, load, query, transform
+from ingest import backup, fpl_api, load, managers, query, transform
 
 logging.basicConfig(
     level=logging.INFO,
@@ -348,6 +348,8 @@ def main() -> None:
     parser.add_argument("--live", action="store_true", help="Full 2025/26 live capture")
     parser.add_argument("--personal", action="store_true", help="Entry + league data")
     parser.add_argument("--archive", action="store_true", help="vaastav archive seasons")
+    parser.add_argument("--managers", action="store_true", help="Elite-manager action capture")
+    parser.add_argument("--managers-dry", action="store_true", help="Elite-manager capture, 1 manager")
     parser.add_argument("--all", action="store_true", help="All phases in order")
     args = parser.parse_args()
 
@@ -371,6 +373,12 @@ def main() -> None:
 
     elif args.archive:
         archive_mod.run(client)
+
+    elif args.managers_dry:
+        managers.run(client, dry_run=True)
+
+    elif args.managers:
+        managers.run(client, dry_run=False)
 
 
 if __name__ == "__main__":

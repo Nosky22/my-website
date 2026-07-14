@@ -77,6 +77,29 @@ Raw JSON is cached to `raw/{season}/` before each upsert. Re-running is safe: al
 
 The requirement is documented in `ingest/archive.py`'s module docstring and flagged at runtime by `--personal`. For this manager, the deferred seasons are **2022/23, 2023/24, 2024/25**.
 
+## Elite-manager capture & SURVIVORSHIP BIAS (must frame all manager analysis)
+
+`--managers` captures the actions (picks, chips, transfers) of the **top 150
+managers of league 314 (Overall) for 2025/26** — a one-shot capture taken before
+the API resets and this data disappears. Tables: `manager_picks`,
+`manager_gameweeks`, `manager_transfers`, `manager_seasons`.
+
+**This cohort is "elite in 2025/26 only" — it is NOT a sample of durably skilled
+managers.** Measured against prior seasons (excluding 2025/26 itself):
+
+- **123 of 150 have ZERO prior top-10k finishes** — elite this season only.
+- **12 are brand-new accounts** whose only-ever season is 2025/26 — including the
+  world #1 (entry 3027768, rank 8.8M at GW1 → finished 1st).
+- Only **27 have ≥1** and **10 have ≥2** prior top-10k finishes.
+
+**Consequence:** read this data for **repeated patterns across the
+skill-consistent sub-cohort** (`manager_seasons` → count top-10k finishes with
+`season_name != '2025/26'`, filter to ≥1 or ≥2), **never for individual
+outcomes**. A single manager's success is heavily confounded by luck and
+regression to the mean; the signal is in what many repeat-elite managers did in
+common (template timing, chip timing, transfer discipline), not in any one team.
+Every manager-derived insight must state which sub-cohort it used and this caveat.
+
 ## Safe reads (1000-row cap)
 
 PostgREST caps every row-select at **1000 rows** by default. A bare `.execute()` on a select silently returns at most the first 1000 rows. All row reads and counts go through `ingest/query.py` (`fetch_all` paginates; `exact_count` uses the count header). Never call `.execute()` on a bare row-select whose result could exceed 1000 rows — use `fetch_all`, `exact_count`, or an explicit `.order(...).limit(n)`.
