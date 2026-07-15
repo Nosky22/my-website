@@ -107,6 +107,28 @@ def upsert_my_league_standings(client: Client, rows: list[dict]) -> int:
     return len(data)
 
 
+# ── Derived analysis tables (Study 1: form & ELO) ───────────────────────────
+
+def upsert_team_elo(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    return len(_batch_upsert(client, "team_elo", rows, "team_id,season_id,gw_number"))
+
+
+def upsert_team_form(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    return len(_batch_upsert(
+        client, "team_form", rows, "team_id,season_id,as_of_gw,window_games"))
+
+
+def upsert_player_form(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    return len(_batch_upsert(
+        client, "player_form", rows, "player_id,season_id,as_of_gw,window_games"))
+
+
 # ── Elite-manager capture (cohort analysis) ─────────────────────────────────
 
 def upsert_manager_picks(client: Client, rows: list[dict]) -> int:
