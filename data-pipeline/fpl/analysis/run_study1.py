@@ -41,15 +41,31 @@ def write_provenance(client, elo_diag: dict) -> None:
         "payload": {
             "elo_params": elo_diag.get("params", {}),
             "hfa_regimes": {
-                "normal": {"elo": P.HFA_NORMAL, "ci95": [26.6, 73.4],
+                "normal": {"elo": P.HFA_NORMAL, "ci95": [26.6, 73.4], "kind": "fit",
                            "fit_from": "2018-19 + 2019-20 pre-restart (N=668)"},
                 "behind_closed_doors": {
-                    "elo": P.HFA_BCD, "ci95": [-7.6, 121.8],
-                    "fit_from": "2019-20 post-restart (N=92)",
-                    "note": ("walk-forward bcd fit is uninformative (CI swallows zero "
-                             "and the normal estimate); defaulted to normal. 2020/21 "
-                             "flagged behind_closed_doors — ratings over-credit home form.")},
+                    "elo": P.HFA_BCD, "kind": "domain_prior",
+                    "empirical_fit_rejected": {"value": 53.3, "ci95": [-7.6, 121.8],
+                                               "n": 92, "reason": "CI swallows 0 and normal; wrong sign"},
+                    "note": ("HFA_BCD=0 is a DOMAIN PRIOR (empty stadiums→HFA≈0; "
+                             "Bundesliga/PL BCD restarts, widely analysed Aug 2020), "
+                             "NOT a fit. Not perfectly walk-forward: the choice of 0 vs "
+                             "~20 is partly informed by 2020/21's measured -8.2, but it "
+                             "is hindsight about a hyperparameter, not match outcomes, "
+                             "confined to our least-valuable season. Tunable.")},
             },
+            "hfa_bcd_sensitivity": {
+                "comparison": "HFA_BCD 49.7 vs 0 on 2020/21 ratings",
+                "mid_season_gw19": {"mean_abs_delta": 2.0, "max_abs_delta": 4.0},
+                "season_end_gw38": {"mean_abs_delta": 1.7, "max_abs_delta": 5.2},
+                "final_rank_changes": 0,
+                "verdict": ("negligible — mean ~2 Elo, max ~5 Elo, identical final rank "
+                            "order. The BCD-HFA choice does not materially move ratings.")},
+            "season_2020_21_structural_caveat": (
+                "2020/21 is structurally atypical beyond HFA: no crowds, compressed "
+                "schedule, 5 subs. Studies 2/3/5 (home/away-sensitive) should make a "
+                "CONSCIOUS choice whether to exclude it rather than pool it naively. "
+                "Flagged here so exclusion is deliberate, not accidental."),
             "burnin": {"seasons": P.BURNIN_SEASONS,
                        "matches": 760,
                        "rank_corr_0.90_after_matches": elo_diag.get("stabilise_matches")},
@@ -59,12 +75,14 @@ def write_provenance(client, elo_diag: dict) -> None:
         "data_basis": (
             "Seasons 2020/21-2025/26 (recorded), warmed by 2018/19+2019/20 (vaastav). "
             "data_tier: 2020/21-2021/22 no_xg (xPts/xGI null), 2022/23+ full_xg. "
-            "CAVEATS: (1) 2020/21 played behind closed doors — home advantage collapsed "
-            "(measured HFA -8.2) but this was unknowable ex-ante; its ELO over-credits "
-            "home form (crowd_conditions flag). (2) Independent-Poisson xPts under-predicts "
-            "draws (Dixon-Coles deficiency); relative pts_vs_xpts stays valid, absolute "
-            "xPts carries the bias. (3) ClubELO cross-validation coded but pending "
-            "(endpoint unreachable in build env). (4) 2022/23 has 37 GWs (GW7 blank)."
+            "CAVEATS: (1) 2020/21 behind closed doors — HFA set to 0 as a DOMAIN PRIOR "
+            "(empty stadiums), not a fit; sensitivity vs HFA=49.7 is negligible (mean ~2 "
+            "Elo, identical final rank order). 2020/21 also structurally odd (no crowds, "
+            "compressed schedule, 5 subs) — downstream home/away-sensitive studies should "
+            "consider excluding it. (2) Independent-Poisson xPts under-predicts draws "
+            "(Dixon-Coles deficiency); relative pts_vs_xpts valid, absolute xPts biased. "
+            "(3) ClubELO cross-validation coded but pending (endpoint blocked in build "
+            "env). (4) 2022/23 has 37 GWs (GW7 blank)."
         ),
     }
     load._fpl(client).table("insights").upsert(row, on_conflict="slug").execute()

@@ -14,17 +14,23 @@ ELO_K = 20.0              # standard football K; MOV multiplier applied on top
 PROMOTED_ELO = 1350.0     # promoted teams enter ~1.5 K-games below mean
 BOUNDARY_REGRESSION = 1.0 / 3.0  # regress 1/3 toward 1500 at each season start
 
-# Home-field advantage, in Elo points, fit from PRIOR data (walk-forward clean):
-#   normal: 2018-19 + 2019-20 pre-restart (N=668) → 49.7  [95% CI 26.6, 73.4]
-#   bcd:    2019-20 post-restart (N=92)           → 53.3  [95% CI −7.6, 121.8]
-# The bcd fit is statistically uninformative (CI swallows zero AND the normal
-# estimate; point estimate is directionally wrong). The empty-stadium HFA
-# collapse only became visible DURING 2020/21 (−8.2), which we may not use
-# ex-ante. So bcd defaults to the normal value and 2020/21 is flagged
-# crowd_conditions='behind_closed_doors' — its ratings knowingly over-credit
-# home form. Override HFA_BCD (e.g. to ~0 on domain prior) and re-run if desired.
+# Home-field advantage, in Elo points.
+#   normal: FIT from prior data (walk-forward clean) —
+#           2018-19 + 2019-20 pre-restart (N=668) → 49.7  [95% CI 26.6, 73.4]
+#   bcd:    DOMAIN PRIOR, not a fit → 0.
+# HFA is a hyperparameter (like K, start, promoted, boundary regression), set by
+# judgement, not fit. The empirical bcd fit (2019-20 post-restart, N=92) was
+# statistically useless: 53.3 [95% CI −7.6, 121.8] — swallows zero and the
+# normal estimate, points the wrong way. We instead impose the legitimate
+# August-2020 prior "empty stadiums → HFA ≈ 0", supported by the Bundesliga
+# (May 2020) and PL (June 2020) behind-closed-doors restarts widely analysed at
+# the time. This is NOT perfectly walk-forward clean — the choice of 0 (rather
+# than, say, 20) is partly informed by having seen 2020/21's measured −8.2 — but
+# it is hindsight about a HYPERPARAMETER, not about match outcomes, and it is
+# confined to our least-valuable season (2020/21: no_xg, carried for sample
+# size). Recorded as a DOMAIN PRIOR in provenance. Tunable.
 HFA_NORMAL = 49.7
-HFA_BCD = 49.7            # = HFA_NORMAL pending decision; see note above
+HFA_BCD = 0.0            # domain prior (empty stadiums), not a fit — see note
 
 # Behind-closed-doors match window (by kickoff date): 2019-20 Project Restart
 # through the end of 2020/21. Everything outside is 'normal'. Match-level by

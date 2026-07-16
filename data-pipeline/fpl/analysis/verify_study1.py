@@ -54,14 +54,24 @@ def check_counts(c):
 
 
 def check_no_lookahead(c):
-    """Invariant: a team's ELO changes at gw iff it played that gw. A snapshot
-    that carried future info would violate this. Reports violations (expect 0)."""
-    print("\n[2] NO-LOOKAHEAD INVARIANT (idle team → ELO unchanged; played → changed)")
-    violations = 0
+    """Lookahead guard, in two directions with the right strictness:
+
+    (A) IDLE team → ELO MUST NOT change. This is the true lookahead test: a rating
+        that moves in a GW the team didn't play would be carrying future info.
+        Strict: any change is a violation.
+    (B) PLAYED team → ELO should update. Weaker, and subject to 2-dp storage
+        rounding: a draw between near-identically-rated teams (esp. with HFA=0)
+        produces a sub-0.005 delta that rounds away in storage. So a played team
+        unchanged AT STORAGE PRECISION is allowed; reported as informational.
+    """
+    print("\n[2] NO-LOOKAHEAD INVARIANT")
+    STORE_PREC = 0.005  # team_elo stored at 2 dp
+    idle_changed = 0          # (A) — real violations
+    played_unchanged = 0      # (B) — informational (rounding)
     for s in P.RECORDED_SEASONS:
         fx = query.fetch_all(c, "fixtures", "gw_number, home_team_id, away_team_id",
                              filters={"season_id": s})
-        played = defaultdict(set)  # gw -> teams that played
+        played = defaultdict(set)
         for f in fx:
             played[f["gw_number"]].add(f["home_team_id"])
             played[f["gw_number"]].add(f["away_team_id"])
@@ -72,13 +82,18 @@ def check_no_lookahead(c):
         for team, series in by_team.items():
             gws = sorted(series)
             for prev, cur in zip(gws, gws[1:]):
-                changed = abs(series[cur] - series[prev]) > 1e-9
+                moved = abs(series[cur] - series[prev]) > STORE_PREC
                 did_play = team in played.get(cur, set())
-                if changed != did_play:
-                    violations += 1
-    print(f"  violations across all seasons: {violations}  "
-          f"({'PASS' if violations == 0 else 'FAIL'})")
-    return violations == 0
+                if not did_play and moved:
+                    idle_changed += 1          # (A) lookahead — must be 0
+                elif did_play and not moved:
+                    played_unchanged += 1      # (B) sub-precision draw — benign
+    ok = idle_changed == 0
+    print(f"  (A) idle team ELO changed (lookahead): {idle_changed}  "
+          f"({'PASS' if ok else 'FAIL'})")
+    print(f"  (B) played team unchanged at 2dp (benign, near-equal draws): "
+          f"{played_unchanged}")
+    return ok
 
 
 def check_burnin_stability(c):
