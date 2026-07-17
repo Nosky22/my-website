@@ -39,8 +39,47 @@ Writes `team_elo`, `team_form`, `player_form`, and a provenance row in
   relative `pts_vs_xpts` valid, absolute `xPts` biased. Full_xg seasons only;
   null for 2020/21–2021/22.
 
-**Verification (last run):** team_elo 4,540 · team_form 9,072 · player_form
-312,150. No-lookahead: **0 idle-team violations** (1 benign sub-precision draw).
+## Study 2 — Factor-correlation  ✅ (the analytical heart)
+
+`python -m analysis.run_study2` → 11 `insights` rows (`study2-factor-*`).
+
+`stats.py` (Spearman + Fisher-z CI, pure-Python) · `study2_factors.py` (the 11
+factors) · `run_study2.py` (assemble join once, run, write, print).
+
+**Design:** unit = player-fixture; factors #1-9,11 measured on **starters
+(≥60 min)** to isolate return-given-playing; #10 (minutes) on all rows.
+Stateful factors (ELO, form) use value **entering** the GW (as-of t-1),
+walk-forward. Every cell reports Spearman ρ + N + 95% CI; N<100 flagged thin.
+
+**Headline findings (Spearman ρ, starters):**
+- **#10 Minutes is everything** — ρ 0.84–0.95. The availability gate that
+  confounds all else (hence conditioning on starters).
+- **#3 Relative ELO is the strongest genuine skill signal** — DEF +0.28,
+  MID +0.22; robust with/without 2020/21. Sharper than FDR.
+- **#5 Team form adds ~nothing beyond baseline (NULL RESULT):** raw ρ 0.07–0.13
+  collapses to **partial ρ ~0** (0.008–0.017) controlling for ELO. Recent "form"
+  is largely regression-to-mean — materially simplifies the planner.
+- **#1 FDR** works and is stable across seasons — DEF −0.24 to −0.26 strongest;
+  FWD weakest (~−0.12). Analysed per-season (scale changed).
+- **#4 Opponent facet** (correct signs): DEF vs opp attack −0.17, MID vs opp
+  defence −0.13 — modest.
+- **#9 Positional team strength** supports the thesis: DEF vs own defence +0.17
+  > attackers vs own attack; team quality helps defenders most.
+- **#2 Home/away** small (Cohen's d 0.05–0.16); **grows without 2020/21**
+  (FWD delta +0.47→+0.60 pts) — quantifies the COVID home-advantage collapse.
+- **#8 Ownership** (2025/26 only): weak (ρ ~0.1) and predictive ≈ contemporaneous
+  — so it's *not* mainly a lagging artifact, but it's a weak return predictor
+  either way; Study 6 must combine it with stronger signals.
+- **#6 Player form** weak (ρ ≤0.13), consistent with #5. **#7 Price** ρ 0.23
+  (MID) but lagging (transfer-driven). **#11 Set-piece** takers +0.7–0.9 pts/start
+  (d~0.24) but 2025/26-only and thin (DEF n=46, GKP n=0).
+
+Full per-position tables + CIs live in the `insights` payloads.
+
+## Study 1 verification (last run)
+
+**team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
+**0 idle-team violations** (1 benign sub-precision draw).
 Final 2023/24 ELO reproduces the real top 3 (MCI/ARS/LIV) and the three relegated
 teams at the bottom; 2020/21 home-field anomaly reproduced from scratch. **ClubELO
 Spearman rho = 0.95-0.99** across three dates (independent rank validation;
