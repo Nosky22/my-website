@@ -111,6 +111,33 @@ as the decay-RATE signature.** Verdict on "which factors survive to 8+ GWs":
 should barely be discounted (flat), player form discounted only mildly (~79% at
 8 GWs), minutes decayed gradually. Per-factor decay is justified and now measured.
 
+## Study 3 resolutions (pre-Study-4)
+
+`study3_resolutions.py`. **R1 — ELO construct:** Study 2 #3 was fixture-RELATIVE
+ELO (0.22 MID contemporaneous); Study 3 decay was team-strength-ALONE (0.09).
+Re-measured the planning-correct construct (own ELO as-of t − *scheduled*
+opponent's ELO as-of t): **higher and FLAT** (DEF single-GW 0.19→0.14 over 10
+GWs vs 0.12 alone) — the non-decaying long-horizon anchor, DEF benefits most.
+**R2 — form vs minutes:** partial controlling BOTH own baseline AND recent
+minutes — form **survives** (MID partial ρ 0.10→0.21) so it's genuine role/change
+signal, but ~half of raw form is the minutes/baseline channel → planner uses form
+at its *partial* (incremental) weight, not raw.
+
+## Study 4 — Player archetypes  ✅ (proposed table pending approval)
+
+`study4_archetypes.py` · `run_study4.py`. Axis = **stability** (start_rate =
+starts/season-GWs), quality (ppg) kept separate. 2,476 player-seasons:
+nailed 501 / rotation 1,054 / fringe 921. Face-valid (nailed core = Salah, Isak,
+Palmer, Haaland; "nailed but poor" = O'Shea, Faes — proving core≠good).
+
+**Cross-season persistence (the key question) — MODERATE:** start_rate ρ = 0.51
+S→S+1; nailed stays nailed 51% (vs 20% base = **2.5× chance**) but ~39% drift to
+rotation. A **usable prior for GW1 drafting, not a deterministic label** — must
+be updated with pre-season news. 3rd-archetype (nailed×fixture-sensitivity):
+27% of nailed show sensitivity >0.25 — suggestive but per-player-noisy;
+recommend storing sensitivity as a continuous field, not a hard 3rd bucket.
+`fpl.player_archetypes` table proposed for approval before populating.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:

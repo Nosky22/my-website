@@ -65,6 +65,7 @@ def build_timeline(client, season: str):
     for (pid, gw), a in agg.items():
         tl[pid][gw] = {
             "pos": players.get(pid), "points": a["points"], "minutes": a["minutes"],
+            "team_id": a["team_id"],                          # team that GW (fixture-derived)
             "elo_t": elo.get((a["team_id"], gw)),           # strength known at t (<= t)
             "form4_t": pform.get((pid, gw)),                 # last-4 form as-of t
             "value": a["value"], "selected_by": a["selected_by"],
