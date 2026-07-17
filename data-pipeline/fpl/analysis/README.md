@@ -76,6 +76,41 @@ walk-forward. Every cell reports Spearman ρ + N + 95% CI; N<100 flagged thin.
 
 Full per-position tables + CIs live in the `insights` payloads.
 
+## Study 3 — Noise ceiling + per-factor decay  ✅ (parameterises the planner)
+
+`python -m analysis.run_study3` → 5 `insights` rows (`study3-*`).
+`study3_decay.py` (ceiling + curves) · `run_study3.py` (orchestrate/print/write).
+
+**Noise ceiling (do this first — it recalibrates Study 2):** single-GW starter
+points are **90–99% noise** (ICC 0.01 GKP · 0.06 DEF · 0.10 MID · 0.04 FWD).
+Player-identity ceiling ρ = 0.12–0.32. So Study 2's ρ~0.28 are **large** effects
+near the achievable frontier, not weak ones. (ELO meets/exceeds the ceiling for
+DEF/GKP because it adds fixture signal orthogonal to player identity — the ICC
+ceiling is a player-identity *lower* bound.)
+
+**Decay measured vs CUMULATIVE points over t+1..t+n (planning-relevant); single-GW
+as the decay-RATE signature.** Verdict on "which factors survive to 8+ GWs":
+- **ELO / team strength — NON-DECAYING (flat single-GW ρ, DEF 0.12→0.10 over 10
+  GWs).** Weak per-week but never fades → the long-horizon anchor. Plan GW30 on
+  this. The fixture cluster (#1 FDR / #2 home-away / #4 facet / #9 positional) is
+  ONE curve — views of team strength, not independent evidence.
+- **Player form (last-4) — strongest single-week signal, decays only MODESTLY**
+  (MID 0.23→0.18, 79% retained at h8; FWD fades faster). NOT "useless beyond 4–8
+  GW" as the community prior assumed.
+- **Player form beyond own baseline (the deferred #6 control) — REAL, not null.**
+  Controlling for season-to-date-excl-last-4 (walk-forward), partial ρ stays
+  clearly positive (MID cumulative 0.13→0.24). Unlike **team** form (§5.5, →0),
+  **player** form carries genuine information (role/penalty/position change).
+- **Minutes persistence — the central plannable curve, slow decay.** A starter
+  today is still starting in 10 GWs with P = 0.73 (GKP) / 0.59 (DEF) / 0.57
+  (MID) / 0.53 (FWD). Gradual, so half-season-plannable; GKP most nailed.
+- Ownership/price rise cumulatively but are lagging quality-proxies (denominator,
+  not predictor). Team form (#5) skipped — null at horizon 1.
+
+**Planner implication:** the blanket γ≈0.84 is wrong per our data — team strength
+should barely be discounted (flat), player form discounted only mildly (~79% at
+8 GWs), minutes decayed gradually. Per-factor decay is justified and now measured.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
