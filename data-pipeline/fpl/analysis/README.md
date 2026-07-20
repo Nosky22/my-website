@@ -138,6 +138,32 @@ be updated with pre-season news. 3rd-archetype (nailed×fixture-sensitivity):
 recommend storing sensitivity as a continuous field, not a hard 3rd bucket.
 `fpl.player_archetypes` table proposed for approval before populating.
 
+## Study 5 — team strength × archetype (tight: one new interaction)  ✅
+
+`study5_interaction.py`. Not a re-run — team form is null beyond baseline
+(Study 2 #5) and ELO→points-by-position is measured (R1). The one new question:
+does team strength translate to points more for **nailed** than **rotation**
+players, within position?
+
+- **Starters (given playing): nailed ≈ rotation** (DEF 0.279 vs 0.283) — a clean
+  sheet is a clean sheet regardless of nailed-ness.
+- **Total value (all rows): nailed ≫ rotation** (DEF 0.244 vs 0.138; GKP ~1.9×;
+  FWD ~2.2×) — because nailed players actually **start** the good fixtures while
+  rotation players leak the benefit by missing games.
+
+**So nailed-ness is the MULTIPLIER on team strength** — "premium team **nailed**
+defence" is the cleanest bet; a cheap rotation defender on a great defensive team
+is a trap (team strength you can't bank if you're not playing). Directly feeds
+Study 6. Team-form null noted, not re-opened.
+
+## Value-engine design rules (locked from Studies 1–5)
+
+Recorded in `insights` (`value-engine-design-rules`) — hard rules for the value
+engine + planner: (1) form at PARTIAL not raw; (2) fixture-adjusted relative ELO
+is the long-horizon anchor (never naked ELO / raw FDR); (3) nailed-ness multiplies
+team strength; (4) core ≠ good (stability ⟂ quality); (Tier-1) archetype is a
+last-season prior, surfaced WITH correctable context.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:

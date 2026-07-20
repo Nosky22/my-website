@@ -129,6 +129,13 @@ def upsert_player_form(client: Client, rows: list[dict]) -> int:
         client, "player_form", rows, "player_id,season_id,as_of_gw,window_games"))
 
 
+def upsert_player_archetypes(client: Client, rows: list[dict]) -> int:
+    if not rows:
+        return 0
+    return len(_batch_upsert(
+        client, "player_archetypes", rows, "season_id,player_id"))
+
+
 # ── Elite-manager capture (cohort analysis) ─────────────────────────────────
 
 def upsert_manager_picks(client: Client, rows: list[dict]) -> int:
