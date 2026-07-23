@@ -215,6 +215,50 @@ low-owned rotation player is just downside. Points prediction is settled at ppg;
 the value engine's job is trust-adjustment + variance/differential framing, not
 finding underpriced points.
 
+## Study 7 — set-and-forget optimal squad  ✅ (the reusable ILP core)
+
+`optimizer.py` (the ILP core, unit-tested in `test_optimizer.py`) ·
+`study7_optimal.py` · `run_study7.py`. **New dependency: PuLP** (CBC solver,
+user-approved). `python -m analysis.test_optimizer` runs the constraint tests;
+`python -m analysis.run_study7` runs the study (~48s, all seasons solve to proven
+Optimal). Writes `insights` row `study7-set-and-forget-ceiling`.
+
+**The core (`optimizer.py`)** is a general squad ILP so it can be reused for the
+transfer planner (§5.10) and the season-path Tier-1 draft (§5.13). Constraints
+(all unit-tested): squad 2/5/5/3 = 15, budget £100m, ≤3 per club; per-GW XI of 11
+with a valid formation (1 GK, DEF 3-5, MID 2-5, FWD 1-3), start only if owned;
+exactly one captain (points doubled). Objective = Σ started points + captain's
+extra 1×. XI/captain vars are restricted to a generous top-K/position (bench-filler
+reduction); **K-stability verified** (K=45 and K=80 give the identical 2025/26
+ceiling, 3101).
+
+**The hindsight ceiling** (best legal 15 at GW1 prices, unchanged, optimal
+XI+captain each GW) is remarkably stable at **~3,010–3,175 pts/season**. It is a
+CEILING, not an achievable target — nobody picks it ex ante (recorded caveat).
+2025/26 gap (only season with cohort data): ceiling **3101** vs best of 150 elite
+managers **2582** (+519), elite median 2493, me **2007** (+1094). Even the best
+elite manager left ~500 pts on the table.
+
+**Cross-season archetype pattern (the legitimate GW1-draft signal — asking what
+KINDS, not which names):**
+- **NAILED dominates: 79/90 slots (88%), 0 fringe.** The 11 "rotation" tags are
+  last-season-archetype *prior misses* that paid off (Palmer '23/24, Haaland's
+  injury-hit '23/24 minutes) — the known ~39% drift, and exactly why the prior is
+  updatable, not a label (TIER1 rule).
+- **Spend structure is consistent:** cheap keeper (mean £4.9), cheap/mid defence
+  (mean £5.2; ⅔ of optimal DEFs under £5.5), premium midfield (mean £7.8, with a
+  £12–13 Salah-tier anchor most seasons), premium-ish forwards (mean £8.4, a
+  £10.5–14 Haaland/Kane anchor). The template: **1–2 mega-premium attackers
+  funded by cheap nailed defenders and an enabler keeper.**
+- **Promoted-team bargains DO NOT recur: 0/75 slots** (2021/22–2025/26; 2020/21
+  excluded — no prior season, though Bamford/Leeds would have qualified). A clean
+  *negative* — newly-promoted clubs are too volatile to anchor a GW1 set-and-forget,
+  even if they yield good mid-season picks. Refutes that hypothesis for drafting.
+
+This validates the nailed-ness thesis hard (Study 5 / RULE_3) and gives Tier-1 a
+concrete draft prior: nailed players, premium at the top of attack, cheap nailed
+defenders as enablers, don't reach for promoted-club punts.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:

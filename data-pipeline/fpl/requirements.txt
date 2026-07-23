@@ -2,3 +2,4 @@ requests==2.32.3
 supabase==2.10.0
 python-dotenv==1.0.1
 tenacity==8.5.0
+pulp==3.3.2          # ILP core for Study 7 optimiser / transfer planner (approved)
