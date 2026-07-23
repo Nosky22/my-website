@@ -259,6 +259,43 @@ This validates the nailed-ness thesis hard (Study 5 / RULE_3) and gives Tier-1 a
 concrete draft prior: nailed players, premium at the top of attack, cheap nailed
 defenders as enablers, don't reach for promoted-club punts.
 
+## Study 8 — elite-manager behaviour  ✅ (descriptive; closes Phase 1)
+
+`study8_behaviour.py` · `run_study8.py` → `insights` row `study8-elite-behaviour`.
+**DESCRIPTIVE, NOT CAUSAL** — 150 managers (top-150 in 2025/26), ONE season, and
+**123/150 have no prior top-10k track record** (survivorship). Pre-registered;
+we expected nulls. Classification by prior top-10k finishes: **SC** ≥2 (n=10, the
+better evidence) · MID 1 (n=17) · **NT** 0 (n=123).
+
+- **(1) Chip returns (within-manager — the defensible core).** Chip-week points
+  vs each manager's own non-chip mean: **Bench Boost +34 (90% of uses beat own
+  baseline)** and **Triple Captain +20 (92%)** pay reliably and mechanically;
+  **Free Hit +7 (64%)** marginal; **Wildcard +5 (60%, misses the bar)**.
+  CAVEAT: chips are played in double-gameweeks, so the delta conflates chip
+  mechanic + DGW + timing. For BB/TC a real mechanical gain remains; **for WC/FH
+  the within-week delta is mostly "played into a good week", not chip value**
+  (WC's real value is squad quality over *following* weeks, which this
+  under-measures).
+- **(2) Chip timing prior.** Second-half chips **cluster GW30–37** (the DGW/BGW
+  run-in): WC best window 32–36 (45%), FH 30–34 (50%), BB 33–37 (45%) — all
+  usable priors. **Triple Captain has NO tight window** (best 29%) — played
+  opportunistically on any premium's big fixture. First-half chips are spread.
+  Half split is ~150/150 (forced by the once-per-half expiry), so uninformative.
+- **(3) SC vs NT — NULL.** The skill-consistent 10 are **behaviourally
+  indistinguishable** from the 123 no-track on every axis: final ~2494 vs 2498,
+  transfers ~38, hits ~1.1, chip median GWs near-identical. Either the behaviours
+  that matter aren't in this feature set, or the cohort is homogeneous because all
+  are elite *this* season — we **cannot separate skill-behaviour from luck** here.
+- **(4) Captaincy is heavily herded** — 76% of the cohort on the modal captain
+  each GW (SC 78% ≈ NT 76%); flip-flops ~11/manager, no group difference. Top-end
+  captaincy is templated; differential captaincy is rare even among the elite.
+
+**Usable takeaways for my planning (priors, not causal claims):** BB and TC are
+the point-bearing chips — plan them onto confirmed doubles; hold TC for a premium's
+standout fixture rather than a fixed GW; line the second WC/FH/BB up for the
+GW30–37 run-in. Everything else (who's "skilled", transfer cadence) is
+indistinguishable noise in one season.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
