@@ -164,6 +164,57 @@ is the long-horizon anchor (never naked ELO / raw FDR); (3) nailed-ness multipli
 team strength; (4) core ≠ good (stability ⟂ quality); (Tier-1) archetype is a
 last-season prior, surfaced WITH correctable context.
 
+## Study 6 — undervaluation (the core edge)  ✅ (negative — thesis not supported)
+
+`study6_xpts.py` (Phase A) · `study6b_ownership.py` + `run_study6b.py` (Phase B).
+Both phases were **pre-registered** (success criteria fixed before measuring)
+because two predictions had already failed and the discipline exists to stop
+p-hacking. Writes `insights` rows `study6-phaseA-xpts-accuracy`,
+`study6-phaseB-ownership`.
+
+**Phase A — the point estimate.** Built a 5-signal expected-points model
+(fixture-adjusted rel-ELO over the horizon, partial form, base ppg, start-prob,
+nailed×strength interaction) and gated it against naive baselines at the
+**hold horizon** (cumulative points t+1..t+n, walk-forward). Result: **the
+engineered edge over season-to-date ppg decays monotonically to zero** — DEF
++0.027 (t+1) → +0.013 (t+3) → **+0.000 (t+6)**; MID/FWD the same; PPM no better.
+Fixture difficulty averages out over a window, and ppg already carries
+quality×availability. **So hold-value IS ppg** (RULE_5). The +0.02 single-GW
+edge is real and replicated (5/5 seasons) but **short-horizon only** — scoped to
+captaincy/XI/bench (RULE_6). GKP uses a base_ppg fallback (features add noise).
+
+**Phase B — the ownership/mispricing term**, on the honest ppg base. Two
+distinct pre-registered questions + the Study-5 nailed-ness guard. Ownership
+recovered multi-season from raw vaastav `selected` counts (archive) + DB
+`selected_by` (2025/26), **normalised to within-GW percentile among the decision
+set** before pooling (monotonic rank → counts and %s comparable). 108,825
+decision rows.
+- **(a) PREDICTIVE — NULL.** partial ρ(ownership, subsequent | ppg) = **+0.009**
+  pooled, negative in only 1/6 seasons. Ownership adds nothing beyond ppg, and
+  the tiny sign is *positive* (owned players do marginally better) — the opposite
+  of undervaluation. (GKP +0.17: keeper ownership is a *quality* signal.)
+- **(b) MISPRICING — NULL, and the portfolio is actively adverse.** No
+  ex-ante category clears the bar (best MID +0.094, 2/6 seasons). Decisively, the
+  **decision portfolio**: among top-tercile-ppg players, the **low-owned half
+  scores FEWER subsequent points than the high-owned half in all 6 seasons**
+  (~13.4 vs ~18.4; pool ~15.9; hit-rate 0.37–0.43 < 0.50). The field is right —
+  low ownership of a good-ppg player mostly encodes *correct* information
+  (rotation/injury/role loss) ppg hasn't caught up to.
+- **GUARD — fails as predicted, and that is the point.** The raw "high ppg +
+  low ownership" top-20 is **80–95% rotation/fringe every season**. Unguarded,
+  undervaluation is a rotation-trap generator — exactly Study 5 / RULE_3's
+  warning. The nailed-ness guard is **load-bearing, not optional**.
+
+**Conclusion (stated plainly, per the pre-registration):** undervaluation as a
+*points-alpha* edge is **not supported** — the field is ~efficient on
+established players. What survives is the narrower, guard-dependent claim the
+mini-league thesis actually needs: **differentials are a VARIANCE tool for
+rank-chasing when trailing** (which does not require ownership to predict
+returns), and only a **nailed** low-owned player is a good differential — a
+low-owned rotation player is just downside. Points prediction is settled at ppg;
+the value engine's job is trust-adjustment + variance/differential framing, not
+finding underpriced points.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
