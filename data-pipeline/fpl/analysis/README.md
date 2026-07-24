@@ -320,10 +320,14 @@ as Study 6: the simple aggregate (last-season total) beats the engineered
 decomposition; the fixture tilt averages out over GW1–10 and adds noise.
 
 **Implication (pre-registered):** the projection layer is **not built**. The GW1
-tool is downgraded to **naive-optimal (last-season total under real constraints) +
-Study-7 template as a displayed lens, not a constraint + newcomers surfaced for
-judgement.** γ note preserved in `draft_projection.py`: γ modelled plan-revision +
-prior uncertainty, NOT signal decay — do not "fix" it to 0.84.
+tool (`draft_tool.py` · `run_draft.py`, e.g. `python -m analysis.run_draft
+--season 2026-27 [--include "Salah,Haaland"]`) is **naive-optimal (last-season
+total under real constraints) + Study-7 template as a displayed lens, not a
+constraint + per-player similar-price alternatives + newcomers surfaced for
+judgement**, writing `insights` row `draft-gw1-<season>`. A judgement aid, not an
+oracle. Pre-season prices come from the bootstrap `now_cost` (no gameweeks played
+yet). γ note preserved in `draft_projection.py`: γ modelled plan-revision + prior
+uncertainty, NOT signal decay — do not "fix" it to 0.84.
 
 **Tier-C (no-prior newcomers) share of the retrospective GW1–10 ceiling:** 0–6%
 in recent seasons but **19% in 2022/23** (Haaland's debut) — usually small,

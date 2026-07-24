@@ -130,6 +130,7 @@ def solve_squad_by_value(
     def_nailed_min: int = 0,
     premium_min_price: float | None = None,
     premium_min_count: int = 0,
+    force_include: set[int] | None = None,
     time_limit: int | None = 60,
 ) -> Squad:
     """Pick the legal 15 that maximises Σ value[p] (no XI logic — a squad knapsack).
@@ -166,6 +167,9 @@ def solve_squad_by_value(
     if premium_min_price is not None and premium_min_count:
         m += pulp.lpSum(sq[i] for i in pid
                         if pos[i] in ("MID", "FWD") and price[i] >= premium_min_price) >= premium_min_count
+    for i in (force_include or set()):
+        if i in sq:
+            m += sq[i] == 1                       # manual-include override (judgement)
 
     m.solve(pulp.PULP_CBC_CMD(msg=0, timeLimit=time_limit))
     chosen = [i for i in pid if sq[i].value() and sq[i].value() > 0.5]

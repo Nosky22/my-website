@@ -28,10 +28,14 @@ Three data tiers, surfaced not buried (design note 2):
 """
 from __future__ import annotations
 
+import json
 from collections import defaultdict
+from pathlib import Path
 
 from ingest import query
 from analysis import params as P
+
+RAW_DIR = Path(__file__).parent.parent / "raw"
 
 HORIZON = 10
 GAMMA = 0.92               # plan-revision + prior-uncertainty discount (NOT decay)
@@ -50,8 +54,43 @@ def _fixture_mult(rel_elo: float) -> float:
 
 
 def _prior_seasons(target: str) -> list[str]:
-    idx = P.RECORDED_SEASONS.index(target)
-    return list(P.RECORDED_SEASONS[:idx])            # oldest -> newest
+    if target in P.RECORDED_SEASONS:                 # backtest: seasons strictly before
+        return list(P.RECORDED_SEASONS[:P.RECORDED_SEASONS.index(target)])
+    return list(P.RECORDED_SEASONS)                  # live new season: all recorded are prior
+
+
+def prev_season(target: str) -> str:
+    if target in P.RECORDED_SEASONS:
+        return P.RECORDED_SEASONS[P.RECORDED_SEASONS.index(target) - 1]
+    return P.RECORDED_SEASONS[-1]                     # live new season: latest recorded
+
+
+def _gw1_price_club(client, season):
+    """(price, club) per internal player_id for GW1. In-season: from the GW1
+    player_gameweek row. Pre-season (no gameweeks yet): bootstrap now_cost +
+    current club."""
+    fx = {f["id"]: f for f in query.fetch_all(client, "fixtures",
+            "id, home_team_id, away_team_id, gw_number", filters={"season_id": season})}
+    price, club = {}, {}
+    for r in query.fetch_all(client, "player_gameweeks",
+            "player_id, gw_number, fixture_id, was_home, value", filters={"season_id": season}):
+        if r["gw_number"] == 1 and r["value"] is not None and r["was_home"] is not None:
+            f = fx.get(r["fixture_id"])
+            if f:
+                price[r["player_id"]] = float(r["value"])
+                club[r["player_id"]] = f["home_team_id"] if r["was_home"] else f["away_team_id"]
+    if price:
+        return price, club
+    # pre-season fallback: bootstrap now_cost + players.team_id (current club)
+    bs = json.loads((RAW_DIR / season / "bootstrap-static.json").read_text())
+    cost = {e["id"]: e["now_cost"] for e in bs["elements"]}
+    for r in query.fetch_all(client, "players", "id, fpl_element_id, team_id",
+                             filters={"season_id": season}):
+        nc = cost.get(r["fpl_element_id"])
+        if nc is not None and r["team_id"] is not None:
+            price[r["id"]] = nc / 10.0
+            club[r["id"]] = r["team_id"]
+    return price, club
 
 
 def build(client, target_season: str) -> dict:
@@ -129,18 +168,10 @@ def build(client, target_season: str) -> dict:
             opp[f["home_team_id"]][g] = f["away_team_id"]
             opp[f["away_team_id"]][g] = f["home_team_id"]
 
-    # target GW1 presence + price + club (from the GW1 fixture row)
-    fx = {f["id"]: f for f in query.fetch_all(client, "fixtures",
-            "id, home_team_id, away_team_id, gw_number", filters={"season_id": target_season})}
-    gw1_price, gw1_club = {}, {}
-    for r in query.fetch_all(client, "player_gameweeks",
-            "player_id, gw_number, fixture_id, was_home, value",
-            filters={"season_id": target_season}):
-        if r["gw_number"] == 1 and r["value"] is not None and r["was_home"] is not None:
-            f = fx.get(r["fixture_id"])
-            if f:
-                gw1_price[r["player_id"]] = float(r["value"])
-                gw1_club[r["player_id"]] = f["home_team_id"] if r["was_home"] else f["away_team_id"]
+    # target GW1 price + club: from the GW1 player_gameweek row (in-season / historical),
+    # or — pre-season, when no gameweeks are played yet — from the bootstrap now_cost +
+    # current club (players.team_id).
+    gw1_price, gw1_club = _gw1_price_club(client, target_season)
 
     # ── assemble candidates + projection ──────────────────────────────────
     candidates, tierC, meta = [], [], {}
@@ -194,8 +225,16 @@ def build(client, target_season: str) -> dict:
 
     nailed_ids = {pid for pid in meta
                   if arch_prior.get(pmeta[pid]["canon"], {}).get("archetype") == "nailed"}
+    # per-team opening-run difficulty (mean fixture-adjusted rel-ELO over GW1..HORIZON),
+    # returned as CONTEXT only — never enters selection (the backtest showed it adds noise)
+    fixture_ctx = {}
+    for tid, own_elo in elo_prior.items():
+        diffs = [own_elo - elo_prior.get(o, 1500.0)
+                 for g in range(1, HORIZON + 1) if (o := opp.get(tid, {}).get(g)) is not None]
+        fixture_ctx[tid] = round(sum(diffs) / len(diffs), 0) if diffs else 0.0
     return {"target_season": target_season, "gws": list(range(1, HORIZON + 1)),
             "candidates": candidates, "proj": proj, "last_total": last_total,
             "nailed_ids": nailed_ids, "tierC": tierC, "meta": meta,
             "elo_prior": elo_prior, "promoted_team_ids": promoted_team_ids,
+            "fixture_ctx": fixture_ctx,
             "params": {"gamma": GAMMA, "horizon": HORIZON, "fix_beta": FIX_BETA}}
