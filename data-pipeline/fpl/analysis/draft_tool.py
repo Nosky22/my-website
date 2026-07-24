@@ -37,11 +37,15 @@ FRAMING = ("Strong data-driven core from proven players; the gap to the ceiling 
 
 
 def _flags(m, prev_season):
+    if m["tier"] == "C":
+        return ["NO-DATA(forced)"] + (["promoted"] if m.get("promoted_club") else [])
     f = []
     if m["tier"] == "B":
         f.append("limited-data")
     if m.get("prior_season") and m["prior_season"] != prev_season:
         f.append(f"old-prior:{m['prior_season']}")
+    if m.get("pos_changed"):
+        f.append(f"pos-changed:{m.get('prior_pos')}->prior")   # ppg_per_start prior is mis-scored
     if m.get("moved_club"):
         f.append("moved-club")
     if m.get("promoted_club"):
@@ -61,6 +65,22 @@ def build(client, target_season: str, force_include_names=None):
     if force_include_names:
         want = {n.strip().lower() for n in force_include_names}
         force_ids = {i for i in meta if meta[i]["name"].lower() in want}
+        # allow forcing Tier-C (no-prior) players too — they are NOT in the candidate
+        # pool, so add them at nominal value 0 (their price still frees/consumes budget,
+        # letting the ILP re-optimise the rest around them). This is the honest
+        # manual-include path for newcomers the model cannot see.
+        tierc_by_name = {t["name"].lower(): t for t in pr["tierC"]}
+        for n in want:
+            t = tierc_by_name.get(n)
+            if t and t["id"] not in force_ids:
+                cands.append({"id": t["id"], "position": t["pos"], "price": t["price"], "club": t["club"]})
+                last_total[t["id"]] = 0
+                meta[t["id"]] = {"name": t["name"], "tier": "C", "prior_season": None,
+                                 "start_rate": None, "ppg_started": None, "moved_club": None,
+                                 "promoted_club": t.get("promoted_club"), "pos_changed": False,
+                                 "prior_pos": None}
+                byid[t["id"]] = cands[-1]
+                force_ids.add(t["id"])
 
     opt = O.solve_squad_by_value(cands, last_total, force_include=force_ids or None)
     chosen = set(opt.player_ids)
@@ -76,7 +96,8 @@ def build(client, target_season: str, force_include_names=None):
         p, m = byid[i], meta[i]
         return {"id": i, "name": m["name"], "pos": p["position"], "price": p["price"],
                 "club": short.get(p["club"], "?"), "last_total": last_total.get(i, 0),
-                "start_rate": m["start_rate"], "ppg_started": m["ppg_started"],
+                "start_rate": m["start_rate"] if m["start_rate"] is not None else "—",
+                "ppg_started": m["ppg_started"] if m["ppg_started"] is not None else "—",
                 "fix_ctx": pr["fixture_ctx"].get(p["club"], 0.0), "flags": _flags(m, prev_season)}
 
     # chosen 15 with similar-price near-miss alternatives per player

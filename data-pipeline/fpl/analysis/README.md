@@ -326,7 +326,13 @@ total under real constraints) + Study-7 template as a displayed lens, not a
 constraint + per-player similar-price alternatives + newcomers surfaced for
 judgement**, writing `insights` row `draft-gw1-<season>`. A judgement aid, not an
 oracle. Pre-season prices come from the bootstrap `now_cost` (no gameweeks played
-yet). γ note preserved in `draft_projection.py`: γ modelled plan-revision + prior
+yet). Row flags include **pos-changed** (2026/27 position differs from the prior
+season — the `ppg_per_start` prior is mis-scored, e.g. a DEF→MID keeps clean-sheet
+points worth 4 that are worth 1 going forward; 10 such players in 2026/27). The
+manual-include override reaches **Tier-C** newcomers too (added to the pool at
+nominal value so the ILP frees budget around them) — needed in 2026/27 because 15
+of the 26 promoted £4.0m defenders are Tier-C and thus invisible to the naive ILP.
+γ note preserved in `draft_projection.py`: γ modelled plan-revision + prior
 uncertainty, NOT signal decay — do not "fix" it to 0.84.
 
 **Tier-C (no-prior newcomers) share of the retrospective GW1–10 ceiling:** 0–6%

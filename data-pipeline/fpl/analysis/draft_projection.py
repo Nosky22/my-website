@@ -210,6 +210,9 @@ def build(client, target_season: str) -> dict:
         prior_pid = canon_pid[canon].get(prior_season)
         prior_team = pmeta.get(prior_pid, {}).get("team_id") if prior_pid else None
         moved = (code_by_team.get(prior_team) != code_by_team.get(team)) if prior_team else True
+        # position-change flag: prior-season position differs (corrupts ppg_per_start scoring)
+        prior_pos = pmeta.get(prior_pid, {}).get("pos")
+        pos_changed = prior_pos is not None and prior_pos != info["pos"]
 
         own_elo = elo_prior.get(team, P.PROMOTED_ELO)
         row = {}
@@ -221,7 +224,8 @@ def build(client, target_season: str) -> dict:
         candidates.append({"id": pid, "position": info["pos"], "price": price, "club": team})
         meta[pid] = {"name": info["name"], "tier": tier, "prior_season": prior_season,
                      "start_rate": round(start_rate, 3), "ppg_started": round(ppg_st, 2),
-                     "moved_club": moved, "promoted_club": team in promoted_team_ids}
+                     "moved_club": moved, "promoted_club": team in promoted_team_ids,
+                     "pos_changed": pos_changed, "prior_pos": prior_pos}
 
     nailed_ids = {pid for pid in meta
                   if arch_prior.get(pmeta[pid]["canon"], {}).get("archetype") == "nailed"}
