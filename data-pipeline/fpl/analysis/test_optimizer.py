@@ -102,6 +102,27 @@ def test_score_fixed_squad_hand_computed():
     assert score == 86.0, score
 
 
+def test_squad_by_value_quotas_and_structural_caps():
+    players, points = _fixture()
+    value = {i: sum(v.values()) for i, v in points.items()}   # per-player scalar
+    pos = {p["id"]: p["position"] for p in players}
+    price = {p["id"]: p["price"] for p in players}
+    # unconstrained: valid 15, budget honoured
+    naive = O.solve_squad_by_value(players, value, time_limit=20)
+    assert naive.status == "Optimal"
+    from collections import Counter
+    assert dict(Counter(pos[i] for i in naive.player_ids)) == {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
+    assert naive.spend <= O.BUDGET + 1e-6
+    # structural: a hard GK price cap must be respected
+    cap = O.solve_squad_by_value(players, value, gk_max_price=4.0, time_limit=20)
+    assert all(price[i] <= 4.0 for i in cap.player_ids if pos[i] == "GKP"), \
+        [price[i] for i in cap.player_ids if pos[i] == "GKP"]
+    # def_nailed_min: force >=4 defenders from a nailed set
+    nailed = {p["id"] for p in players if p["position"] == "DEF"}  # all DEF "nailed" here
+    nz = O.solve_squad_by_value(players, value, nailed_ids=nailed, def_nailed_min=4, time_limit=20)
+    assert sum(1 for i in nz.player_ids if pos[i] == "DEF" and i in nailed) >= 4
+
+
 def main():
     tests = [v for k, v in globals().items() if k.startswith("test_") and callable(v)]
     for t in tests:

@@ -118,6 +118,63 @@ def solve_set_and_forget(
     )
 
 
+def solve_squad_by_value(
+    players: list[dict],                 # id, position, price, club
+    value: dict[int, float],             # player_id -> scalar value to maximise
+    *,
+    budget: float = BUDGET,
+    max_per_club: int = MAX_PER_CLUB,
+    gk_max_price: float | None = None,
+    def_max_price: float | None = None,
+    nailed_ids: set[int] | None = None,
+    def_nailed_min: int = 0,
+    premium_min_price: float | None = None,
+    premium_min_count: int = 0,
+    time_limit: int | None = 60,
+) -> Squad:
+    """Pick the legal 15 that maximises Σ value[p] (no XI logic — a squad knapsack).
+
+    This is what an *unaided* manager does: rank players by a single scalar and
+    fill the squad. Used for the NAIVE arm (value = last-season total points) and,
+    with the structural-constraint hooks, the TEMPLATE arm (the Study 7 shape:
+    cheap enabler keepers, cheap nailed defence, a mega-premium attacker).
+    """
+    pid = [p["id"] for p in players]
+    pos = {p["id"]: p["position"] for p in players}
+    price = {p["id"]: float(p["price"]) for p in players}
+    club = {p["id"]: p["club"] for p in players}
+    nailed = nailed_ids or set()
+
+    m = pulp.LpProblem("squad_by_value", pulp.LpMaximize)
+    sq = {i: pulp.LpVariable(f"sq_{i}", cat="Binary") for i in pid}
+    m += pulp.lpSum(value.get(i, 0.0) * sq[i] for i in pid)
+
+    m += pulp.lpSum(sq[i] for i in pid) == sum(SQUAD_QUOTA.values())
+    for q in POSITIONS:
+        m += pulp.lpSum(sq[i] for i in pid if pos[i] == q) == SQUAD_QUOTA[q]
+    m += pulp.lpSum(price[i] * sq[i] for i in pid) <= budget
+    for cl in {club[i] for i in pid}:
+        m += pulp.lpSum(sq[i] for i in pid if club[i] == cl) <= max_per_club
+
+    # ── structural template constraints (only bind when the arm sets them) ──
+    if gk_max_price is not None:
+        m += pulp.lpSum(sq[i] for i in pid if pos[i] == "GKP" and price[i] > gk_max_price) == 0
+    if def_max_price is not None:
+        m += pulp.lpSum(sq[i] for i in pid if pos[i] == "DEF" and price[i] > def_max_price) == 0
+    if def_nailed_min:
+        m += pulp.lpSum(sq[i] for i in pid if pos[i] == "DEF" and i in nailed) >= def_nailed_min
+    if premium_min_price is not None and premium_min_count:
+        m += pulp.lpSum(sq[i] for i in pid
+                        if pos[i] in ("MID", "FWD") and price[i] >= premium_min_price) >= premium_min_count
+
+    m.solve(pulp.PULP_CBC_CMD(msg=0, timeLimit=time_limit))
+    chosen = [i for i in pid if sq[i].value() and sq[i].value() > 0.5]
+    return Squad(player_ids=sorted(chosen),
+                 total_points=round(sum(value.get(i, 0.0) for i in chosen), 1),
+                 status=pulp.LpStatus[m.status],
+                 spend=round(sum(price[i] for i in chosen), 1))
+
+
 def score_fixed_squad(
     player_ids: list[int], players: list[dict],
     points: dict[int, dict[int, float]], gws: list[int],

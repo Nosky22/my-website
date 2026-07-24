@@ -296,6 +296,41 @@ standout fixture rather than a fixed GW; line the second WC/FH/BB up for the
 GW30–37 run-in. Everything else (who's "skilled", transfer cadence) is
 indistinguishable noise in one season.
 
+## Draft-template / GW1 tool — pre-registered backtest  ⚠️ (projection layer refuted)
+
+`optimizer.solve_squad_by_value` (squad knapsack + structural template hooks,
+unit-tested) · `draft_projection.py` (walk-forward priors, no lookahead) ·
+`draft_backtest.py` + `run_draft_backtest.py` → `insights` row `draft-gw1-backtest`.
+
+Before building the tool, a pre-registered three-way backtest (target seasons
+2021/22–2025/26, each projected from prior seasons only, all arms scored on
+**actual** GW1–10 points with optimal XI+captain):
+- **NAIVE** — last-season total points under squad constraints (what an unaided
+  manager does).
+- **TEMPLATE** — same objective + Study 7's structural shape (cheap enabler GK,
+  cheap DEF ≥4 nailed, ≥1 mega-premium attacker). No projection machinery.
+- **PROJECTION** — the full discounted GW1–10 projected-points ILP
+  (`start_rate × ppg_started × fixture_mult`, γ=0.92).
+
+**Result — NAIVE wins all five seasons.** Projection −377 pooled (0/5), template
+−180 pooled (0/5). A diagnostic arm (projection scored as an all-15 knapsack, to
+separate signal from the set-and-forget bench structure) still lost −162 (1/5) —
+so **both the decomposed signal and the bench structure cost points**. Same lesson
+as Study 6: the simple aggregate (last-season total) beats the engineered
+decomposition; the fixture tilt averages out over GW1–10 and adds noise.
+
+**Implication (pre-registered):** the projection layer is **not built**. The GW1
+tool is downgraded to **naive-optimal (last-season total under real constraints) +
+Study-7 template as a displayed lens, not a constraint + newcomers surfaced for
+judgement.** γ note preserved in `draft_projection.py`: γ modelled plan-revision +
+prior uncertainty, NOT signal decay — do not "fix" it to 0.84.
+
+**Tier-C (no-prior newcomers) share of the retrospective GW1–10 ceiling:** 0–6%
+in recent seasons but **19% in 2022/23** (Haaland's debut) — usually small,
+occasionally decisive when a marquee signing debuts. So the manual-include /
+judgement path is a tail-risk hedge, surfaced prominently but rarely load-bearing
+for the opening block.
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
