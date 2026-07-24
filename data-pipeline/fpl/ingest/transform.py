@@ -13,6 +13,7 @@ def transform_season(bootstrap: dict, season_id: str) -> dict:
         "data_tier": "full_xg",
         "is_current": True,
         "source": "live_api",
+        "crowd_conditions": "normal",  # live seasons have crowds (2020/21 bcd set via archive)
     }
 
 
@@ -21,6 +22,7 @@ def transform_teams(bootstrap: dict, season_id: str) -> list[dict]:
         {
             "season_id": season_id,
             "fpl_team_id": t["id"],
+            "code": t["code"],   # persistent cross-season team identity (Study 1 linker)
             "name": t["name"],
             "short_name": t["short_name"],
             "strength_overall_home": t.get("strength_overall_home"),
