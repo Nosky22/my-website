@@ -335,6 +335,34 @@ occasionally decisive when a marquee signing debuts. So the manual-include /
 judgement path is a tail-risk hedge, surfaced prominently but rarely load-bearing
 for the opening block.
 
+## Chip-timing premise test  ✅ (prize is modest and simply-captured)
+
+`chip_premise.py` · `run_chip_premise.py` → `insights` row `chip-premise-test`.
+Pre-registered before any planner build. Values BB/TC/FH per elite manager per GW
+from their **actual** 2025/26 squads (real DGWs GW26/33/36, BGWs GW31/34),
+comparing real timing to optimal / random / biggest-double heuristic, per half.
+Wildcard excluded (not within-week measurable). My own chips: **not computable** —
+entry 2990380's per-GW picks were never captured and are unrecoverable post-reset.
+
+**Result — the timing prize (perfect vs elite's already-decent timing) is MODEST,
+~4–6 pts per chip-use:**
+- **BB:** left on table ~5 pts (H1 +5.6 / H2 +4.8); elite capture ~0.6–0.68; the
+  biggest-double heuristic captures ~0.66 — as good as elite already.
+- **TC:** left ~4.6; elite capture only **0.21–0.34** (they barely beat random —
+  the worst-timed chip); heuristic 0.48 **beats** what elite actually do.
+- **FH:** highly timing-sensitive (optimal−random ~35 pts), but the within-week
+  method can't cleanly score *actual* FH timing (the FH-week score already
+  includes the FH squad, deflating its measured value) — reported as a method
+  limitation, not a clean result.
+
+**Interpretation:** the research paper's "+49" is *chips-vs-no-chips* — value elite
+(and Nick) already bank by playing chips at all. The **incremental TIMING** value
+on top of already-decent play is small (~15–19 pts/season across BB+TC), and a
+**simple "play it in your biggest double" rule matches elite for BB and beats them
+for TC**. So chip timing warrants a **simple rule, not a sophisticated planner** —
+same pattern as everywhere in Phase 1. First half has no doubles in 2025/26, so its
+regime is "don't waste the chip", not "time it perfectly".
+
 ## Study 1 verification (last run)
 
 **team_elo 4,540 · team_form 9,072 · player_form 312,150.** No-lookahead:
